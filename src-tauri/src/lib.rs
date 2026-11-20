@@ -15,7 +15,9 @@ pub mod github;
 pub mod logging;
 pub mod poller;
 pub mod redact;
+pub mod secrets;
 pub mod state;
+pub mod webhook;
 
 use std::sync::Arc;
 
@@ -52,6 +54,11 @@ pub fn run() {
             commands::system::system_open_url,
             commands::workflows::workflows_dispatch,
             commands::workflows::workflows_list,
+            commands::webhook::webhook_config,
+            commands::webhook::webhook_rotate_secret,
+            commands::webhook::webhook_set_transport,
+            commands::webhook::webhook_signing_secret,
+            commands::webhook::webhook_test_public_url,
         ])
         .run(tauri::generate_context!());
 
@@ -128,6 +135,23 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(database.clone());
     app.manage(auth_service);
     app.manage(Arc::clone(&github_client));
+
+    let webhooks = Arc::new(webhook::WebhookService::new(
+        database.clone(),
+        Arc::clone(&poller),
+    )?);
+
+    app.manage(Arc::clone(&webhooks));
+
+    tauri::async_runtime::spawn({
+        let webhooks = Arc::clone(&webhooks);
+        async move {
+            if let Err(error) = webhooks.start().await {
+                tracing::warn!(%error, "could not start the webhook transport");
+            }
+        }
+    });
+
     app.manage(poller);
 
     if let Some(window) = app.get_webview_window("main") {

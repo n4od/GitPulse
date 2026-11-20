@@ -18,7 +18,6 @@ use crate::error::AppError;
 
 /// Keychain service name. Namespaced by bundle identifier so it cannot collide
 /// with another app's entries.
-const SERVICE: &str = "dev.pulse.workflowmonitor";
 const ACCESS_KEY: &str = "github-access-token";
 const REFRESH_KEY: &str = "github-refresh-token";
 const METADATA_KEY: &str = "github-token-metadata";
@@ -60,37 +59,20 @@ pub fn secret(value: impl Into<Box<str>>) -> SecretString {
     SecretString::new(value.into())
 }
 
-fn keyring_unavailable(error: &keyring::Error) -> AppError {
-    AppError::KeyringUnavailable(error.to_string())
-}
-
 /// The OS keychain.
 pub struct KeyringStore;
 
 impl KeyringStore {
-    fn entry(key: &str) -> Result<keyring::Entry, AppError> {
-        keyring::Entry::new(SERVICE, key).map_err(|error| keyring_unavailable(&error))
-    }
-
     fn read(key: &str) -> Result<Option<String>, AppError> {
-        match Self::entry(key)?.get_password() {
-            Ok(value) => Ok(Some(value)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(error) => Err(keyring_unavailable(&error)),
-        }
+        crate::secrets::get(key)
     }
 
     fn write(key: &str, value: &str) -> Result<(), AppError> {
-        Self::entry(key)?
-            .set_password(value)
-            .map_err(|error| keyring_unavailable(&error))
+        crate::secrets::set(key, value)
     }
 
     fn remove(key: &str) -> Result<(), AppError> {
-        match Self::entry(key)?.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(error) => Err(keyring_unavailable(&error)),
-        }
+        crate::secrets::delete(key)
     }
 }
 

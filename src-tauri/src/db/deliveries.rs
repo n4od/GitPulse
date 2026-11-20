@@ -45,6 +45,17 @@ pub fn count(connection: &Connection) -> Result<i64, AppError> {
         .map_err(AppError::db)
 }
 
+/// When the last delivery arrived, for the settings screen.
+pub fn last_received_at(connection: &Connection) -> Result<Option<DateTime<Utc>>, AppError> {
+    connection
+        .query_row(
+            "SELECT MAX(received_at) FROM webhook_deliveries",
+            [],
+            |row| row.get::<_, Option<DateTime<Utc>>>(0),
+        )
+        .map_err(AppError::db)
+}
+
 pub fn delete_received_before(
     connection: &Connection,
     cutoff: DateTime<Utc>,

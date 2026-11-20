@@ -216,6 +216,56 @@ Both are the same lesson: when an API's shape disagrees with the plan, change
 the plan, and write down why, because the next person will otherwise "fix" it
 back.
 
+### ADR-016 — A webhook refreshes; it does not patch
+
+The obvious design for webhook ingestion is to apply the payload: a
+`workflow_run.completed` event says the run finished, so write that to the run's
+row. It is fewer requests and it is what "real-time" usually means.
+
+It was rejected, for three reasons that compound:
+
+1. **The mapping would exist twice.** The poller already maps GitHub's run shape
+   into cache rows, with tests for status drift, re-runs and partial payloads. A
+   webhook path would need the same mapping again, for seven event types, and the
+   two would drift.
+2. **Two writers.** A webhook arriving mid-poll would race the poller's
+   transaction. SQLite serialises them, but "which one wins" becomes a function
+   of timing.
+3. **A misread payload leaves the cache wrong.** Webhook bodies are partial and
+   versioned; a field that moved would be written as `null` and stay wrong until
+   the next poll silently repaired it. A refresh cannot do that: it replaces what
+   is there with what GitHub says now.
+
+So a delivery is recorded, deduplicated, and turned into
+`poller.request_refresh(repo_id)`. The poller already wakes immediately when
+asked, so the update arrives in about one request's latency.
+
+**The cost is one API request per event**, which is real and worth stating.
+With the local budget at 3,500/hour and a busy CI sending tens of events an
+hour, this is nowhere near the ceiling — and every one of those requests is one
+the poller would have made later anyway.
+
+### ADR-017 — What a relay must forward
+
+A relay is not a transparent pipe, and that is the whole difficulty. Pulse
+verifies every payload against the signing secret, and the signature lives in a
+header. A relay that forwards only the body produces frames that must be
+rejected.
+
+Rather than weaken verification for the convenience of one transport, the relay
+path accepts an envelope carrying both:
+
+```json
+{ "headers": { "x-hub-signature-256": "sha256=…", … }, "body": "<raw json>" }
+```
+
+A frame without headers, without a signature, or with a signature that does not
+match is logged and dropped. That means **a relay which strips headers simply
+will not work with Pulse**, and the log says so explicitly rather than failing
+somewhere downstream. The alternative — trusting anything that reaches the relay
+URL — would make the URL itself the only secret, and relay URLs are pasted into
+configuration files and chat windows.
+
 ### ADR-012 — One request pipeline, and a budget we own
 
 Every GitHub call goes through `GithubClient::execute`, which applies the five

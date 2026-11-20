@@ -309,19 +309,36 @@ but has only been exercised against mocks.
 
 Depends on M3, M4.
 
-- [ ] `M8-01` `axum` server on `127.0.0.1` with `/{path_secret}/webhook` + `/health`
-- [ ] `M8-02` `HMAC-SHA256` over **raw bytes** with `subtle::ConstantTimeEq`, before deserialization
-- [ ] `M8-03` 25 MB body cap rejected before buffering; `Content-Type` check
-- [ ] `M8-04` Delivery dedupe on `X-GitHub-Delivery` (persisted, last 5,000)
-- [ ] `M8-05` Fast `202` ack, processing on a spawned task
-- [ ] `M8-06` Event router: `ping`, `workflow_run`, `workflow_job`, `deployment`, `deployment_status`, `pull_request`, `check_run`
-- [ ] `M8-07` Relay transport (smee-style SSE) with reconnect + backoff, same verifier
-- [ ] `M8-08` Tunnel mode with a signed reachability ping
-- [ ] `M8-09` `WebhookConfig` UI: transport select, copyable URL, secret rotation, live status
-- [ ] `M8-10` Integration tests: signed fixtures, tampered payload → `401`, replay → deduped
-- [ ] `M8-11` README: why GitHub cannot reach `localhost`, and the three options
+- [x] `M8-01` `axum` listener on `127.0.0.1` with `/{path_secret}/webhook` and `/{path_secret}/health`
+- [x] `M8-02` `HMAC-SHA256` over **raw bytes**, compared with `subtle::ConstantTimeEq`, before anything is parsed
+- [x] `M8-03` 25 MB body cap rejected by the extractor before buffering; `Content-Type` must be `application/json`
+- [x] `M8-04` Delivery dedupe on `X-GitHub-Delivery`, persisted in `webhook_deliveries`
+- [x] `M8-05` Immediate `202`, processing on a spawned task — GitHub retries anything slower than ten seconds
+- [x] `M8-06` Event filter for the seven handled types; anything else is recorded and ignored rather than 500'd
+- [x] `M8-07` Relay transport (SSE) with exponential reconnect and the same verifier
+- [x] `M8-08` Local mode plus a reachability check for a public tunnel URL
+- [x] `M8-09` Webhook panel: transport select, copyable endpoint, secret reveal/rotate, delivery count, tunnel test
+- [x] `M8-10` Integration tests against a real socket: signed → 202, tampered → 401, wrong path → 404, replay deduped, non-JSON → 415, ping does nothing
+- [x] `M8-11` README: why GitHub cannot reach loopback, and the three options
 
-**Exit:** a real push-triggered run appears in the UI within 2 s; tampered payloads are rejected and logged without the secret appearing anywhere.
+**Design decision (M8-06):** the router does **not** apply payloads to the
+database. It records the delivery and asks the poller to refresh that one
+repository. That costs one API request per event instead of zero, and buys
+three things: the event-to-state mapping stays in the one place that is already
+tested, there is no second writer racing the poller's transaction, and a
+payload Pulse misreads cannot leave the cache wrong — the refresh fetches the
+truth. See ADR-016.
+
+**Verified:** 149 backend and 140 frontend tests pass. The webhook tests bind a
+real loopback socket and drive it with real HTTP, so routing, headers, status
+codes and dedupe are exercised end to end rather than mocked.
+
+**Not verified:** no delivery from GitHub has ever arrived. The signature
+algorithm is tested against known-good HMACs, but GitHub's actual delivery —
+including whether a relay forwards the headers Pulse requires — is untested.
+
+**Release note:** `v0.3.0` is _not_ cut here. The release map defines it as
+M8–M9, and M9 (tray, notifications, autostart, single instance) is not done.
 
 ---
 

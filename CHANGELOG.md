@@ -13,7 +13,47 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+**Webhook ingestion (M8)**
+
+- **Local listener:** an `axum` server bound to `127.0.0.1`, addressed through an
+  unguessable path segment so a stray local POST gets a 404 rather than reaching
+  the verifier. (`M8-01`)
+- **Signature verification:** HMAC-SHA256 over the raw bytes, compared in
+  constant time, before a single byte is parsed. Malformed headers, wrong
+  secrets and tampered bodies are all rejected with `401`. (`M8-02`)
+- **Body limits:** GitHub's own 25 MB ceiling, enforced by the extractor before
+  the body is buffered; non-JSON content types get `415`. (`M8-03`)
+- **Idempotent delivery:** `X-GitHub-Delivery` is recorded, so a GitHub retry or
+  a relay replay is acknowledged and ignored rather than reprocessed. (`M8-04`)
+- **Fast acknowledgement:** `202` immediately, work on a spawned task, because
+  GitHub retries anything slower than ten seconds. (`M8-05`)
+- **Relay transport:** a long-lived SSE connection with exponential backoff,
+  using the same verifier. A relay that does not forward headers produces frames
+  Pulse refuses — deliberately. (`M8-07`)
+- **Tunnel support:** local mode plus a reachability check that asks a public
+  URL whether it reaches this listener. (`M8-08`)
+- **Webhook panel:** transport selection, copyable endpoint, secret reveal and
+  rotation, delivery count and last-delivery time, tunnel test. (`M8-09`)
+- **Shared keychain access:** one module now owns keychain error mapping, used by
+  both token storage and the webhook secret.
+
+### Changed
+
+- **A delivery refreshes; it does not patch.** The router records the delivery
+  and asks the poller to refresh that repository instead of applying the payload
+  to the cache. One extra API request buys a single tested mapping, no second
+  writer racing the poller, and a cache that cannot be left wrong by a payload
+  Pulse misreads. (`M8-06`)
+
+### Known issues
+
+- **No delivery from GitHub has arrived.** The verifier is tested against
+  known-good HMACs and the listener against real HTTP, but GitHub's actual
+  delivery — and whether a given relay forwards the headers Pulse needs — is
+  unverified.
+- `v0.3.0` is not cut: the release also requires M9.
 
 ---
 

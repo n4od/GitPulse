@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Webhook } from "lucide-react";
 import { Button } from "@/components/primitives/Button";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/primitives/Toast";
 import { RateLimitMeter } from "@/components/status/RateLimitMeter";
 import { TitleBar } from "@/components/shell/TitleBar";
+import { WebhookPanel } from "@/components/webhook/WebhookPanel";
 import { useAuthBridge } from "@/hooks/useAuthBridge";
 import { useLiveUpdates } from "@/hooks/useLiveUpdates";
 import { signOut } from "@/lib/auth-commands";
@@ -36,6 +38,7 @@ export default function App() {
 function Shell() {
   const route = useRoute();
   const session = useSession();
+  const [webhooksOpen, setWebhooksOpen] = useState(false);
 
   // Each connects to the backend exactly once, for the whole tree.
   useAuthBridge();
@@ -47,6 +50,19 @@ function Shell() {
         actions={
           <>
             <RateLimitMeter />
+
+            {session ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Webhook settings"
+                onClick={() => {
+                  setWebhooksOpen(true);
+                }}
+              >
+                <Webhook className="size-3.5" />
+              </Button>
+            ) : null}
 
             {import.meta.env.DEV ? (
               <Button
@@ -98,6 +114,14 @@ function Shell() {
       </main>
 
       <Toaster />
+
+      {webhooksOpen ? (
+        <WebhookPanel
+          onClose={() => {
+            setWebhooksOpen(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

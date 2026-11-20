@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LogViewer } from "@/components/runs/LogViewer";
 import { useToastStore } from "@/stores/toasts";
 
+const writeText = vi.fn();
+
 // jsdom has no layout, so the virtualizer would render no rows.
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
@@ -21,9 +23,9 @@ vi.mock("@tanstack/react-virtual", () => ({
 describe("LogViewer", () => {
   beforeEach(() => {
     useToastStore.setState({ toasts: [] });
-    Object.assign(navigator, {
-      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
-    });
+    writeText.mockReset();
+    writeText.mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
   });
 
   it("renders the log lines", () => {
@@ -88,14 +90,12 @@ describe("LogViewer", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /copy the whole log/i }));
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("alpha\nbravo");
+    expect(writeText).toHaveBeenCalledWith("alpha\nbravo");
     expect(useToastStore.getState().toasts[0]?.title).toBe("Log copied");
   });
 
   it("reports a clipboard failure instead of throwing", async () => {
-    Object.assign(navigator, {
-      clipboard: { writeText: vi.fn().mockRejectedValue(new Error("denied")) },
-    });
+    writeText.mockRejectedValueOnce(new Error("denied"));
 
     render(<LogViewer download={{ text: "alpha", truncated: false }} />);
     await userEvent.click(screen.getByRole("button", { name: /copy the whole log/i }));
