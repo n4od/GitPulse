@@ -35,6 +35,12 @@ pub enum AppError {
     #[error("the stored token has been revoked")]
     TokenRevoked,
 
+    #[error("the device code expired before authorization completed")]
+    AuthExpired,
+
+    #[error("sign-in was cancelled")]
+    AuthCancelled,
+
     #[error("the OS keychain is unavailable: {0}")]
     KeyringUnavailable(String),
 
@@ -88,6 +94,8 @@ impl AppError {
             Self::AuthRequired => "auth_required",
             Self::AuthDenied => "auth_denied",
             Self::TokenRevoked => "token_revoked",
+            Self::AuthExpired => "auth_expired",
+            Self::AuthCancelled => "auth_cancelled",
             Self::KeyringUnavailable(_) => "keyring_unavailable",
             Self::Network { .. } => "network",
             Self::RateLimited { .. } => "rate_limited",

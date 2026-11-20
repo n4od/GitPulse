@@ -9,8 +9,8 @@ import { toPulseError } from "@/lib/errors";
  *  - command names live in one place, so a rename in Rust surfaces as one diff;
  *  - logging / retry policy can be added centrally later without touching call sites.
  */
-export async function call<TCommand, TResult>(
-  command: TCommand & string,
+export async function call<TResult = unknown>(
+  command: string,
   args?: Record<string, unknown>,
 ): Promise<TResult> {
   try {
