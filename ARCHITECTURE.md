@@ -56,6 +56,8 @@ single owner.
 | `src-tauri/src/webhook/`        | Local server, relay, HMAC verification                    | M8        |
 | `src/lib/ipc.ts`                | Typed `invoke` wrapper, error normalisation               | M0        |
 | `src/lib/repo-selectors.ts`     | Filtering, sorting, surgical card updates, formatting     | M6        |
+| `src/components/runs/`          | Run inspector, job list, log viewer, dispatch dialog      | M7        |
+| `src/lib/run-selectors.ts`      | Optimistic status, log line parsing and search            | M7        |
 | `src/hooks/useLiveUpdates.ts`   | Bridges push events into the query cache and live store   | M6        |
 | `src/components/dashboard/`     | Grid, card, sparkline, filter bar, repository picker      | M6        |
 | `src/pages/Bench.tsx`           | Dev-only render profiler (compiled out of production)     | M6        |
@@ -190,6 +192,29 @@ pessimistic because React StrictMode double-renders.
 replacement is 19–30 ms, over budget, and only happens on an explicit refetch.
 The honest statement is "the budget holds for what a dashboard does all day",
 not "every frame is under 16 ms".
+
+### ADR-015 — Read job logs, and replace a run's jobs wholesale
+
+Two things about GitHub's Actions API only became clear while building the run
+inspector, and both changed the design.
+
+**The run-level log endpoint returns a ZIP.** `GET
+/repos/{o}/{r}/actions/runs/{id}/logs` is an archive of every job's log. Only
+`/actions/jobs/{id}/logs` returns text. A log _viewer_ therefore reads job logs,
+which is why the command is `job_log` rather than the planned `runs_fetch_log`.
+Unzipping in the backend would mean adding a zip dependency, a decompression
+budget and an extraction path to defend, to produce something the API already
+offers as plain text.
+
+**Job ids change on every re-run.** They are not stable across attempts, so
+upserting a run's jobs leaves the previous attempt's rows in the table next to
+the new ones. `jobs::replace` deletes the run's jobs and writes the fresh set
+inside one transaction. The alternative — keying on job _name_ — would be wrong
+for a matrix build, where several jobs legitimately share a name.
+
+Both are the same lesson: when an API's shape disagrees with the plan, change
+the plan, and write down why, because the next person will otherwise "fix" it
+back.
 
 ### ADR-012 — One request pipeline, and a budget we own
 

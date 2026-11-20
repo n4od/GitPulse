@@ -3,12 +3,17 @@
 /**
  * What the UI's rate-limit meter shows.
  */
-export type RateLimitSnapshot = { limit: number | null, remaining: number | null, used: number | null, resetAt: string | null, 
-/**
- * Set while a secondary limit is in force.
- */
-pausedUntil: string | null, 
-/**
- * Tokens left in the local bucket, which is stricter than GitHub's.
- */
-localAvailable: number, };
+export type RateLimitSnapshot = {
+  limit: number | null;
+  remaining: number | null;
+  used: number | null;
+  resetAt: string | null;
+  /**
+   * Set while a secondary limit is in force.
+   */
+  pausedUntil: string | null;
+  /**
+   * Tokens left in the local bucket, which is stricter than GitHub's.
+   */
+  localAvailable: number;
+};

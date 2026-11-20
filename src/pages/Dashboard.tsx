@@ -5,6 +5,7 @@ import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { RepoCardSkeletonGrid } from "@/components/dashboard/RepoCardSkeleton";
 import { RepoPicker } from "@/components/dashboard/RepoPicker";
+import { RunDetail } from "@/components/runs/RunDetail";
 import { EmptyState } from "@/components/shell/EmptyState";
 import { Button } from "@/components/primitives/Button";
 import { REPOS_QUERY_KEY, useRepos } from "@/hooks/useRepos";
@@ -27,11 +28,14 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<RepoFilter>("all");
   const [picking, setPicking] = useState(false);
+  const [openRepoId, setOpenRepoId] = useState<number | null>(null);
 
   const cards = useMemo(
     () => sortCards(filterCards(repos.data ?? [], filter, query)),
     [repos.data, filter, query],
   );
+
+  const openCard = (repos.data ?? []).find((card) => card.repo.id === openRepoId) ?? null;
 
   function queueRefresh(repoId: number): void {
     void call("repos_refresh", { repoId }).catch((cause: unknown) => {
@@ -120,32 +124,46 @@ export function Dashboard() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <FilterBar
-        query={query}
-        filter={filter}
-        onQueryChange={setQuery}
-        onFilterChange={setFilter}
-        onRefreshAll={() => {
-          void refreshAll();
-        }}
-        refreshing={repos.isFetching}
-      />
-
-      {cards.length === 0 ? (
-        <EmptyState
-          title="Nothing matches"
-          description="No repository matches that filter and search term."
-        />
-      ) : (
-        <DashboardGrid
-          cards={cards}
-          onRefresh={queueRefresh}
-          onToggleMonitored={(repoId, monitored) => {
-            void toggleMonitored(repoId, monitored);
+    <div className="flex h-full min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <FilterBar
+          query={query}
+          filter={filter}
+          onQueryChange={setQuery}
+          onFilterChange={setFilter}
+          onRefreshAll={() => {
+            void refreshAll();
           }}
+          refreshing={repos.isFetching}
         />
-      )}
+
+        {cards.length === 0 ? (
+          <EmptyState
+            title="Nothing matches"
+            description="No repository matches that filter and search term."
+          />
+        ) : (
+          <DashboardGrid
+            cards={cards}
+            onRefresh={queueRefresh}
+            onToggleMonitored={(repoId, monitored) => {
+              void toggleMonitored(repoId, monitored);
+            }}
+            onOpen={setOpenRepoId}
+          />
+        )}
+      </div>
+
+      {openCard ? (
+        <div className="relative w-[34rem] shrink-0">
+          <RunDetail
+            card={openCard}
+            onClose={() => {
+              setOpenRepoId(null);
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

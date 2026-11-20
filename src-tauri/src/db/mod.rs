@@ -40,11 +40,13 @@ pub mod runs;
 mod tests;
 
 pub use diff::RunDiff;
+pub use jobs::JobContext;
 pub use models::{
     Deployment, DeploymentUpsert, Job, JobUpsert, PullRequest, PullRequestUpsert, Repo, RepoCard,
     RepoUpsert, RunUpsert, WorkflowRun,
 };
 pub use retention::RetentionReport;
+pub use runs::RunContext;
 
 /// Applied to every connection immediately after it is opened.
 ///

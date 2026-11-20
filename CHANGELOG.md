@@ -17,6 +17,46 @@ Nothing yet.
 
 ---
 
+## [0.2.0] — 2026-11-20
+
+Inspect runs, read their logs, and act on them.
+
+### Added
+
+**Runs, logs and actions (M7)**
+
+- **Run inspector:** selecting a repository opens a panel with its recent runs,
+  the jobs of the selected run, and a log viewer. Jobs and logs are fetched on
+  demand — they are only interesting while someone is looking. (`M7-01`,
+  `M7-02`)
+- **Log viewer:** virtualised rows, a search box with a live match count,
+  jump-to-first-failure, and a banner when the download hit the 5 MB cap.
+  Rows cap at 20,000 to keep the viewer responsive on pathological logs.
+  (`M7-03`)
+- **Actions:** re-run failed, re-run all, cancel — each updating the status
+  optimistically and restoring the previous card if GitHub refuses, with the
+  GitHub error surfaced verbatim. (`M7-04`)
+- **Dispatch:** trigger a `workflow_dispatch` with a chosen workflow and ref.
+  Inputs are a validated JSON object. (`M7-05`)
+- **Copy:** the whole log, or a run's URL. (`M7-06`)
+- **Deployments and pull requests:** tabs in the inspector, refreshed from
+  GitHub with the deployment's latest status. (`M7-07`)
+
+### Changed
+
+- **Job logs, not run archives.** GitHub's run-level log endpoint returns a ZIP;
+  only the job endpoint returns text, so the viewer reads job logs. (`M7-01`)
+- **Jobs are replaced per run.** GitHub issues new job ids on every re-run, so
+  an upsert would leave the old attempt's jobs in the list; the run's jobs are
+  deleted and rewritten in one transaction. (`M7-01`)
+
+### Known issues
+
+- None of the actions has been exercised against GitHub; they are covered
+  against mocks only.
+
+---
+
 ## [0.1.0] — 2026-11-20
 
 The first release: sign in, choose repositories, and watch workflow status
@@ -300,7 +340,7 @@ Delete any heading that has no entries. Keep entries user-facing.
 | Version | Date       | Theme               | Milestones |
 | ------- | ---------- | ------------------- | ---------- |
 | `0.1.0` | 2026-11-20 | Read-only dashboard | M0–M6      |
-| `0.2.0` | planned    | Actions & insight   | M7         |
+| `0.2.0` | 2026-11-20 | Actions & insight   | M7         |
 | `0.3.0` | planned    | Live & native       | M8–M9      |
 | `0.4.0` | planned    | Polish & hardening  | M10–M11    |
 | `1.0.0` | planned    | Release-ready       | M12        |

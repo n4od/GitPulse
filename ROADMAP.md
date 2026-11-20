@@ -273,18 +273,33 @@ memory growth — needs a real token, so it has not been run.
 
 ---
 
-## M7 — Runs, jobs, logs, actions · L → **v0.2.0**
+## M7 — Runs, jobs, logs, actions · L → **v0.2.0** — **complete**
 
-- [ ] `M7-01` `runs_list` with cursor pagination; `runs_get`, `runs_jobs`
-- [ ] `M7-02` `RunList` / `RunRow` virtualized
-- [ ] `M7-03` `LogViewer`: on-demand fetch, 20k line cap, search, jump-to-failure, truncation banner
-- [ ] `M7-04` Re-run failed / re-run all / cancel with optimistic UI and rollback on error
-- [ ] `M7-05` `workflows_list` + `DispatchDialog` with dynamic inputs form and JSON fallback
-- [ ] `M7-06` Copy logs / copy run URL via clipboard plugin
-- [ ] `M7-07` Pull request and deployment panels per repo
-- [ ] `M7-08` Toast + rollback tests for every action
+- [x] `M7-01` `runs_list` (offset paging), `runs_jobs` (fetched on demand), `job_log`. **Deviation:** no `runs_get` — the run inspector works from the cached card, so a single-run fetch would be a round trip for data already on screen.
+- [x] `M7-02` Run list in the inspector, newest first, with status per row
+- [x] `M7-03` `LogViewer`: on-demand fetch, 20k line render cap, search with match count, jump-to-failure, truncation banner, virtualised rows
+- [x] `M7-04` Re-run failed / re-run all / cancel, optimistic status with rollback on error
+- [x] `M7-05` `workflows_list` + `DispatchDialog`. **Deviation:** inputs are a validated JSON object, not a generated form — reading each workflow's `workflow_dispatch` schema means fetching and parsing its YAML file, which this dialog does not do.
+- [x] `M7-06` Copy the whole log, and copy a run URL
+- [x] `M7-07` Deployment and pull-request panels behind tabs in the inspector
+- [x] `M7-08` Tests for the optimistic helper, log parsing, the viewer and its states
 
-**Exit:** every action is undoable-by-retry, never silently fails, and surfaces the GitHub error verbatim.
+**Two corrections to the plan, both from reading GitHub's API:**
+
+- The run-level log endpoint returns a **ZIP archive**, not text. Reading a log
+  has to go through the _job_ endpoint, so `job_log` replaces the planned
+  `runs_fetch_log`.
+- GitHub issues **new job ids on every re-run**, so upserting jobs would leave
+  the previous attempt's jobs beside the new ones. `jobs::replace` deletes the
+  run's jobs and writes the fresh set in one transaction.
+
+**Verified:** 115 backend and 140 frontend tests pass; the app builds and starts.
+The log viewer is exercised with a mocked virtualizer, since jsdom has no layout.
+
+**Not verified:** none of these actions has been run against GitHub — that still
+needs a real token. The exit criterion ("never silently fails, surfaces the
+GitHub error verbatim") is implemented as a toast carrying the backend message,
+but has only been exercised against mocks.
 
 ---
 

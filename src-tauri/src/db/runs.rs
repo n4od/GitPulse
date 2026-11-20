@@ -356,6 +356,37 @@ pub fn count_failing(connection: &Connection, repo_id: i64) -> Result<i64, AppEr
         .map_err(AppError::db)
 }
 
+/// Everything an action on a run needs: which repository it belongs to and
+/// what GitHub calls it.
+pub struct RunContext {
+    pub repo_id: i64,
+    pub full_name: String,
+    pub github_run_id: i64,
+    pub workflow_name: String,
+}
+
+pub fn context(connection: &Connection, run_id: i64) -> Result<Option<RunContext>, AppError> {
+    connection
+        .query_row(
+            "SELECT runs.repo_id, repos.full_name, runs.github_id,
+                    COALESCE(runs.workflow_name, 'workflow')
+             FROM workflow_runs AS runs
+             JOIN repos ON repos.id = runs.repo_id
+             WHERE runs.id = ?1",
+            params![run_id],
+            |row| {
+                Ok(RunContext {
+                    repo_id: row.get(0)?,
+                    full_name: row.get(1)?,
+                    github_run_id: row.get(2)?,
+                    workflow_name: row.get(3)?,
+                })
+            },
+        )
+        .optional()
+        .map_err(AppError::db)
+}
+
 pub fn count_by_repo(connection: &Connection, repo_id: i64) -> Result<i64, AppError> {
     connection
         .query_row(

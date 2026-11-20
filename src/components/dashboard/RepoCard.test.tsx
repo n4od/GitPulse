@@ -26,6 +26,7 @@ describe("RepoCard", () => {
         })}
         onRefresh={vi.fn()}
         onToggleMonitored={vi.fn()}
+        onOpen={vi.fn()}
       />,
     );
 
@@ -39,6 +40,7 @@ describe("RepoCard", () => {
         card={makeCard({ recentRuns: [] })}
         onRefresh={vi.fn()}
         onToggleMonitored={vi.fn()}
+        onOpen={vi.fn()}
       />,
     );
 
@@ -51,6 +53,7 @@ describe("RepoCard", () => {
         card={makeCard({ repo: makeRepo({ isPrivate: true }) })}
         onRefresh={vi.fn()}
         onToggleMonitored={vi.fn()}
+        onOpen={vi.fn()}
       />,
     );
 
@@ -63,6 +66,7 @@ describe("RepoCard", () => {
         card={makeCard({ repo: makeRepo({ monitored: false }) })}
         onRefresh={vi.fn()}
         onToggleMonitored={vi.fn()}
+        onOpen={vi.fn()}
       />,
     );
 
@@ -73,7 +77,12 @@ describe("RepoCard", () => {
     const onRefresh = vi.fn();
 
     render(
-      <RepoCard card={makeCard()} onRefresh={onRefresh} onToggleMonitored={vi.fn()} />,
+      <RepoCard
+        card={makeCard()}
+        onRefresh={onRefresh}
+        onToggleMonitored={vi.fn()}
+        onOpen={vi.fn()}
+      />,
     );
     await userEvent.click(screen.getByRole("button", { name: /refresh acme\/api/i }));
 
@@ -88,6 +97,7 @@ describe("RepoCard", () => {
         card={makeCard({ repo: makeRepo({ id: 4, monitored: false }) })}
         onRefresh={vi.fn()}
         onToggleMonitored={onToggleMonitored}
+        onOpen={vi.fn()}
       />,
     );
 
@@ -98,7 +108,12 @@ describe("RepoCard", () => {
 
   it("opens the run in the browser through the validated command", async () => {
     render(
-      <RepoCard card={makeCard()} onRefresh={vi.fn()} onToggleMonitored={vi.fn()} />,
+      <RepoCard
+        card={makeCard()}
+        onRefresh={vi.fn()}
+        onToggleMonitored={vi.fn()}
+        onOpen={vi.fn()}
+      />,
     );
     await userEvent.click(
       screen.getByRole("button", { name: /open acme\/api on github/i }),
@@ -115,6 +130,7 @@ describe("RepoCard", () => {
         card={makeCard({ failingRuns: 3 })}
         onRefresh={vi.fn()}
         onToggleMonitored={vi.fn()}
+        onOpen={vi.fn()}
       />,
     );
 

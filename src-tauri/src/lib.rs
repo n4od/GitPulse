@@ -37,11 +37,21 @@ pub fn run() {
             commands::auth::auth_refresh_session,
             commands::poller::repos_refresh,
             commands::repos::repos_available,
+            commands::repos::repos_deployments,
             commands::repos::repos_list,
+            commands::repos::repos_pulls,
             commands::repos::repos_set_monitored,
             commands::repos::repos_track,
+            commands::runs::job_log,
+            commands::runs::runs_cancel,
+            commands::runs::runs_jobs,
+            commands::runs::runs_list,
+            commands::runs::runs_rerun,
+            commands::runs::runs_rerun_failed,
             commands::system::system_info,
             commands::system::system_open_url,
+            commands::workflows::workflows_dispatch,
+            commands::workflows::workflows_list,
         ])
         .run(tauri::generate_context!());
 

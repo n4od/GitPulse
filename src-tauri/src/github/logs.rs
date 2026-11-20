@@ -18,8 +18,9 @@ use super::client::{status_error, transport_error, API_VERSION, USER_AGENT};
 /// Cap for a single log download, before truncation.
 pub const LOG_CAP_BYTES: usize = 5 * 1024 * 1024;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/lib/bindings/")]
 pub struct LogDownload {
     pub text: String,
     /// True when the body was longer than the cap and got cut.
@@ -27,6 +28,21 @@ pub struct LogDownload {
 }
 
 impl GithubClient {
+    /// Archive of every log in a run. A ZIP, which is why the UI reads job logs
+    /// instead — those come back as text.
+    #[must_use]
+    pub fn run_log_url(&self, full_name: &str, run_id: i64) -> Option<String> {
+        let full_name = super::endpoints::validate_full_name(full_name).ok()?;
+        Some(self.api_url(&format!("/repos/{full_name}/actions/runs/{run_id}/logs")))
+    }
+
+    /// One job's log, as plain text.
+    #[must_use]
+    pub fn job_log_url(&self, full_name: &str, job_id: i64) -> Option<String> {
+        let full_name = super::endpoints::validate_full_name(full_name).ok()?;
+        Some(self.api_url(&format!("/repos/{full_name}/actions/jobs/{job_id}/logs")))
+    }
+
     pub async fn download_log(&self, url: &str) -> Result<LogDownload, AppError> {
         self.download_log_capped(url, LOG_CAP_BYTES).await
     }

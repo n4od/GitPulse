@@ -14,6 +14,7 @@ export interface RepoCardProps {
   card: RepoCardData;
   onRefresh: (repoId: number) => void;
   onToggleMonitored: (repoId: number, monitored: boolean) => void;
+  onOpen: (repoId: number) => void;
 }
 
 /**
@@ -26,6 +27,7 @@ export const RepoCard = memo(function RepoCard({
   card,
   onRefresh,
   onToggleMonitored,
+  onOpen,
 }: RepoCardProps) {
   const { repo } = card;
   const run = latestRun(card);
@@ -57,12 +59,16 @@ export const RepoCard = memo(function RepoCard({
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span
-                className="truncate text-[13px] font-medium text-ink"
-                title={repo.fullName}
+              <button
+                type="button"
+                onClick={() => {
+                  onOpen(repo.id);
+                }}
+                className="truncate text-[13px] font-medium text-ink hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                title={`Inspect ${repo.fullName}`}
               >
                 {repo.fullName}
-              </span>
+              </button>
               {repo.isPrivate ? (
                 <Badge tone="muted" className="px-1.5 py-0 text-[10px]">
                   private

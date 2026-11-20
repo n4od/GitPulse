@@ -112,11 +112,15 @@ pub struct RunUpsert {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/lib/bindings/")]
 pub struct Job {
+    #[ts(type = "number")]
     pub id: i64,
+    #[ts(type = "number")]
     pub run_id: i64,
+    #[ts(type = "number")]
     pub github_id: i64,
     pub name: String,
     pub status: String,
@@ -140,11 +144,15 @@ pub struct JobUpsert {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/lib/bindings/")]
 pub struct Deployment {
+    #[ts(type = "number")]
     pub id: i64,
+    #[ts(type = "number")]
     pub repo_id: i64,
+    #[ts(type = "number")]
     pub github_id: i64,
     pub environment: String,
     /// Serialised as `ref` — `ref` is a Rust keyword.
@@ -168,12 +176,17 @@ pub struct DeploymentUpsert {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/lib/bindings/")]
 pub struct PullRequest {
+    #[ts(type = "number")]
     pub id: i64,
+    #[ts(type = "number")]
     pub repo_id: i64,
+    #[ts(type = "number")]
     pub github_id: i64,
+    #[ts(type = "number")]
     pub number: i64,
     pub title: String,
     pub state: String,

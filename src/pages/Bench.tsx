@@ -53,6 +53,7 @@ export function Bench() {
 
   const handleRefresh = useCallback(() => undefined, []);
   const handleToggle = useCallback(() => undefined, []);
+  const handleOpen = useCallback(() => undefined, []);
 
   /** Runs an interaction and reports the commits it produced. */
   const measure = useCallback((action: () => void) => {
@@ -129,9 +130,10 @@ export function Bench() {
         cards={visible}
         onRefresh={handleRefresh}
         onToggleMonitored={handleToggle}
+        onOpen={handleOpen}
       />
     ),
-    [visible, handleRefresh, handleToggle],
+    [visible, handleRefresh, handleToggle, handleOpen],
   );
 
   return (

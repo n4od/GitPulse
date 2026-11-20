@@ -124,3 +124,97 @@ pub async fn repos_set_monitored(
     db.with_connection(move |connection| db::repos::set_monitored(connection, repo_id, monitored))
         .await
 }
+
+/// Recent deployments, refreshed from GitHub.
+///
+/// The deployments endpoint omits the current state, so the latest status is
+/// fetched per deployment — capped at ten, because that is ten extra requests
+/// and this is an on-demand panel.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri injects command arguments by value"
+)]
+pub async fn repos_deployments(
+    db: State<'_, Db>,
+    client: State<'_, Arc<GithubClient>>,
+    repo_id: i64,
+) -> Result<Vec<db::Deployment>, AppError> {
+    let db = db.inner().clone();
+    let client = Arc::clone(client.inner());
+
+    let repository = db
+        .with_connection(move |connection| db::repos::by_id(connection, repo_id))
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    let fetched = client.deployments(&repository.full_name, 10).await?;
+    let mut upserts = Vec::with_capacity(fetched.len());
+
+    for deployment in &fetched {
+        let state = match client
+            .deployment_statuses(&repository.full_name, deployment.id)
+            .await
+        {
+            Ok(statuses) => statuses.first().map(|status| status.state.clone()),
+            Err(error) => {
+                // A missing status is not worth failing the panel over.
+                tracing::debug!(%error, "could not read deployment status");
+                None
+            }
+        };
+
+        upserts.push(deployment.to_upsert(repository.id, state));
+    }
+
+    db.with_connection(move |connection| {
+        let mut stored = Vec::with_capacity(upserts.len());
+        for upsert in &upserts {
+            stored.push(db::deployments::upsert(connection, upsert)?);
+        }
+        Ok(stored)
+    })
+    .await
+}
+
+/// Open pull requests, refreshed from GitHub.
+///
+/// A snapshot: pull requests not in the response are swept, so one merged
+/// upstream stops showing as open here.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri injects command arguments by value"
+)]
+pub async fn repos_pulls(
+    db: State<'_, Db>,
+    client: State<'_, Arc<GithubClient>>,
+    repo_id: i64,
+) -> Result<Vec<db::PullRequest>, AppError> {
+    let db = db.inner().clone();
+    let client = Arc::clone(client.inner());
+
+    let repository = db
+        .with_connection(move |connection| db::repos::by_id(connection, repo_id))
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    let since = chrono::Utc::now();
+    let fetched = client.pulls(&repository.full_name).await?;
+    let upserts: Vec<db::PullRequestUpsert> = fetched
+        .iter()
+        .map(|pull| pull.to_upsert(repository.id, None, None))
+        .collect();
+
+    let repo_id = repository.id;
+
+    db.with_connection(move |connection| {
+        for upsert in &upserts {
+            db::pulls::upsert(connection, upsert)?;
+        }
+
+        db::pulls::sweep_unseen(connection, repo_id, since)?;
+        db::pulls::list_by_repo(connection, repo_id)
+    })
+    .await
+}

@@ -12,12 +12,14 @@ export interface DashboardGridProps {
   cards: RepoCardData[];
   onRefresh: (repoId: number) => void;
   onToggleMonitored: (repoId: number, monitored: boolean) => void;
+  onOpen: (repoId: number) => void;
 }
 
 export function DashboardGrid({
   cards,
   onRefresh,
   onToggleMonitored,
+  onOpen,
 }: DashboardGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const columns = useColumnCount(scrollRef);
@@ -60,6 +62,7 @@ export function DashboardGrid({
                   card={card}
                   onRefresh={onRefresh}
                   onToggleMonitored={onToggleMonitored}
+                  onOpen={onOpen}
                 />
               ))}
             </div>
