@@ -266,6 +266,38 @@ somewhere downstream. The alternative — trusting anything that reaches the rel
 URL — would make the URL itself the only secret, and relay URLs are pasted into
 configuration files and chat windows.
 
+### ADR-018 — Draw the tray icon, and earn each notification
+
+**The tray icon is generated, not shipped.** Four states need four icons, and
+four 16-pixel PNGs are four binary assets that can drift from the palette the
+rest of the app uses. Instead the icon is a small RGBA buffer: distance from the
+centre gives an antialiased dot, coloured from the same hex values as
+`tokens.css`. The tray and the dashboard cannot disagree about what "red" means
+because there is only one definition of red.
+
+**Notifications have three rules, and the third is the important one.**
+
+- Only failures. Success is expected; announcing it is noise.
+- Once per `(run id, attempt)`. A re-run is a new attempt and deserves its own
+  notification; the same attempt seen twice does not.
+- At most one every ten seconds.
+
+That last rule exists because of matrix builds. A workflow that fails across
+twelve jobs emits twelve events in a few seconds, and without a throttle the
+user gets a wall of identical notifications about one build. A monitor that
+cries wolf gets muted, and a muted monitor is worse than no monitor.
+
+**Quiet hours wrap midnight.** `22-07` is the common case and a naive
+`start < hour < end` comparison returns "never quiet" for it, which fails
+exactly when the feature is needed. The window is tested for both the wrapping
+and non-wrapping cases, and the end hour is exclusive so `22-07` does not fire
+at 07:00.
+
+**Autostart is opt-in, and applied immediately.** An app that adds itself to
+startup uninvited is behaving like malware regardless of intent. The setting
+also takes effect when it is toggled, not at the next launch — a checkbox that
+only works after a restart is a bug report waiting to happen.
+
 ### ADR-012 — One request pipeline, and a budget we own
 
 Every GitHub call goes through `GithubClient::execute`, which applies the five

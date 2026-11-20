@@ -11,6 +11,7 @@
 //! observable state actually changed, and only those are published.
 
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -88,6 +89,9 @@ pub struct Poller {
     /// Repositories the user asked to refresh. Drained once per tick, and
     /// deduplicated so mashing a button queues one poll, not ten.
     urgent: Mutex<Vec<i64>>,
+    /// Set from the tray's pause item. A paused poller still reports status —
+    /// it just does no work.
+    paused: AtomicBool,
     wake: Notify,
     cancel: CancellationToken,
     last_error: Mutex<Option<String>>,
@@ -107,6 +111,7 @@ impl Poller {
             events,
             config,
             urgent: Mutex::new(Vec::new()),
+            paused: AtomicBool::new(false),
             wake: Notify::new(),
             cancel: CancellationToken::new(),
             last_error: Mutex::new(None),
@@ -131,6 +136,20 @@ impl Poller {
         // Release the loop if it is waiting on the tick rather than on due
         // repositories.
         self.wake.notify_one();
+    }
+
+    /// Pauses or resumes polling without tearing the loop down, so a resume
+    /// keeps the schedule rather than rebuilding it.
+    pub fn set_paused(&self, paused: bool) {
+        self.paused.store(paused, Ordering::Relaxed);
+        self.wake.notify_one();
+
+        tracing::info!(paused, "poller pause changed");
+    }
+
+    #[must_use]
+    pub fn is_paused(&self) -> bool {
+        self.paused.load(Ordering::Relaxed)
     }
 
     /// Runs forever until [`Self::stop`] is called.
@@ -164,6 +183,19 @@ impl Poller {
     /// One scheduling pass. `now` is injected so tests can advance the clock
     /// without sleeping.
     pub async fn tick_at(&self, now: DateTime<Utc>) -> Result<usize, AppError> {
+        if self.is_paused() {
+            // Status still goes out: the tray and the meter need to know that
+            // nothing is running, and why.
+            let monitored = self
+                .db
+                .with_connection(db::repos::list_monitored)
+                .await?
+                .len();
+
+            self.publish_status(monitored, MIN_INTERVAL.as_secs());
+            return Ok(0);
+        }
+
         let repositories = self.db.with_connection(db::repos::list_monitored).await?;
         let monitored = repositories.len();
 

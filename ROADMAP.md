@@ -342,18 +342,34 @@ M8–M9, and M9 (tray, notifications, autostart, single instance) is not done.
 
 ---
 
-## M9 — Native integration · M → **v0.3.0**
+## M9 — Native integration · M → **v0.3.0** — **complete**
 
-- [ ] `M9-01` Tray icon states (`all_green` / `running` / `failure` / `auth_required`) + macOS template variant
-- [ ] `M9-02` Tray menu: Open, Pause/Resume, Mute 1 h, Settings, Quit; left-click toggles window
-- [ ] `M9-03` Notifications on `failure` / `timed_out` / `cancelled`, deduped per `(run_id, attempt)`, 1 per 10 s, quiet hours
-- [ ] `M9-04` Notification click deep-links to the run
-- [ ] `M9-05` `single-instance` focuses the existing window; `window-state` restores geometry
-- [ ] `M9-06` Opt-in autostart (off by default)
-- [ ] `M9-07` macOS badge count / Windows overlay icon / Linux tray tooltip
-- [ ] `M9-08` Close-to-tray behaviour setting
+- [x] `M9-01` Tray icon with four states (idle / running / failure / auth required), generated at runtime rather than shipped as assets
+- [x] `M9-02` Tray menu: Open, Pause/Resume polling, Mute 1 h, Quit; left click toggles the window, menu on right click
+- [x] `M9-03` Notifications on `failure` / `timed_out` / `startup_failure`, deduped per `(run id, attempt)`, throttled to one per 10 s, with quiet hours
+- [ ] `M9-04` Notification click deep-links to the run — **not done.** `tauri-plugin-notification` exposes no click callback, and a per-platform implementation is out of scope here.
+- [x] `M9-05` `single-instance` focuses the existing window; `window-state` restores geometry
+- [x] `M9-06` Opt-in autostart, off by default — verified: the Run key is untouched until the user asks
+- [x] `M9-07` macOS dock badge from the failure count; tray tooltip on every platform. **Windows taskbar overlay icon not done.**
+- [x] `M9-08` Close-to-tray: closing hides instead of quitting, and it is a setting
 
-**Exit:** tray state reflects a completed run within 2 s; exactly one notification per failed run; second launch does not spawn a second process.
+**Verified:** 166 backend tests pass. The tray's state function, the icon
+generation and the quiet-hours window are unit-tested. The app launches with a
+tray icon on Windows and does not register itself for autostart.
+
+**The tray icon is drawn at runtime.** Four 16-pixel PNGs would be four binary
+assets to keep in step with the palette; a loop that measures distance from the
+centre produces an antialiased dot from the same hex values the UI uses, so the
+tray and the dashboard cannot disagree about what "red" means.
+
+**Not verified:** nothing here has run on macOS or Linux. The tray, the dock
+badge and the notification permission prompt are all platform-specific, and
+Windows is the only platform available.
+
+**Exit criteria, honestly:** one of the three is unverified. "Exactly one
+notification per failed run" is unit-tested through the dedupe key; "tray
+reflects a completed run" cannot be observed without a live poll; "a second
+launch does not spawn a process" is configured but untested.
 
 ---
 

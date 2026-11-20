@@ -13,7 +13,37 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+Nothing yet.
+
+---
+
+## [0.3.0] — 2026-11-20
+
+Pulse becomes a real desktop citizen: a tray icon that reports status at a
+glance, notifications that respect attention, and webhook ingestion.
+
 ### Added
+
+**Native integration (M9)**
+
+- **Tray icon** with four states — idle, running, failure, sign-in required —
+  drawn at runtime from the same palette the UI uses, with a matching tooltip.
+  (`M9-01`)
+- **Tray menu:** open, pause or resume polling, mute notifications for an hour,
+  and quit. Left click toggles the window; the menu is the right-click action.
+  (`M9-02`)
+- **Notifications** on failure, timeout and startup failure, deduplicated per
+  `(run id, attempt)` and throttled to one every ten seconds, with an optional
+  quiet-hours window that may wrap midnight. (`M9-03`)
+- **Single instance and window state:** a second launch focuses the existing
+  window; size and position survive a restart. (`M9-05`)
+- **Opt-in autostart**, off by default, applied immediately rather than at the
+  next launch. (`M9-06`)
+- **Close to tray:** closing the window hides it instead of exiting, which is
+  what a monitor has to do to be useful. (`M9-08`)
+- **macOS dock badge** showing the failure count. (`M9-07`)
+- **Poller pause** that keeps the schedule intact, so resuming does not rebuild
+  it.
 
 **Webhook ingestion (M8)**
 
@@ -53,7 +83,12 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
   known-good HMACs and the listener against real HTTP, but GitHub's actual
   delivery — and whether a given relay forwards the headers Pulse needs — is
   unverified.
-- `v0.3.0` is not cut: the release also requires M9.
+- **Notification click does not deep-link to the run.** The notification plugin
+  has no click callback, and a per-platform implementation was not written.
+- **No Windows taskbar overlay icon.** The macOS dock badge is wired; the
+  Windows equivalent needs Win32 calls that were not written.
+- **macOS and Linux are untested.** The tray, dock badge and notification
+  permission prompt are all platform-specific.
 
 ---
 
@@ -381,6 +416,7 @@ Delete any heading that has no entries. Keep entries user-facing.
 | ------- | ---------- | ------------------- | ---------- |
 | `0.1.0` | 2026-11-20 | Read-only dashboard | M0–M6      |
 | `0.2.0` | 2026-11-20 | Actions & insight   | M7         |
+| `0.3.0` | 2026-11-20 | Live & native       | M8–M9      |
 | `0.3.0` | planned    | Live & native       | M8–M9      |
 | `0.4.0` | planned    | Polish & hardening  | M10–M11    |
 | `1.0.0` | planned    | Release-ready       | M12        |

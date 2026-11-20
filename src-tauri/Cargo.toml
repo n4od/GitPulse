@@ -1,6 +1,6 @@
 [package]
 name = "pulse"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local-first GitHub workflow monitor"
 edition = "2021"
 rust-version = "1.85"
@@ -43,6 +43,10 @@ sha2 = "0.11.0"
 subtle = "2.6.1"
 hex = "0.4.3"
 getrandom = "0.4.3"
+tauri-plugin-notification = "2.4.0"
+tauri-plugin-single-instance = "2.4.5"
+tauri-plugin-window-state = "2.4.1"
+tauri-plugin-autostart = "2.5.1"
 
 [profile.release]
 lto = "thin"
