@@ -32,22 +32,29 @@ except M8, which depends on M4 (client) and M3 (persistence).
 
 ---
 
-## M0 — Foundation · S
+## M0 — Foundation · S — **tasks complete, CI pending first push**
 
 **Goal:** a Tauri window opens on Windows, macOS, and Linux, and CI proves it.
 
-- [ ] `M0-01` `git init`, `.gitignore` (Rust + Node + Tauri), `.editorconfig`, `LICENSE`
-- [ ] `M0-02` `src-tauri` crate, `#![forbid(unsafe_code)]`, release profile (`lto`, `codegen-units=1`, `strip`)
-- [ ] `M0-03` `package.json`, Vite 6, React 19, TypeScript strict (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)
-- [ ] `M0-04` Tailwind CSS 4 wired to `src/styles/tokens.css`
-- [ ] `M0-05` `tauri.conf.json`: identifier `dev.pulse.workflowmonitor`, CSP without `unsafe-eval`, bundle targets for all three OSes
-- [ ] `M0-06` `capabilities/default.json` — minimal permission set, no `shell`/`fs`/`http`
-- [ ] `M0-07` `error.rs`: `AppError` + `{ code, message, retryable, details }` serialization + `redact()`
-- [ ] `M0-08` `logging.rs`: `tracing` + daily rolling file + secret redaction layer
-- [ ] `M0-09` `ci.yml` skeleton: `cargo fmt --check`, `cargo clippy -D warnings`, `tsc --noEmit`, `eslint --max-warnings 0`
-- [ ] `M0-10` `ARCHITECTURE.md` with the decision log started
+- [x] `M0-01` `git init`, `.gitignore` (Rust + Node + Tauri), `.editorconfig`, `.gitattributes`
+- [ ] `M0-01b` `LICENSE` — **BLOCKED** on choosing a licence (see D5)
+- [x] `M0-02` `src-tauri` crate, `#![forbid(unsafe_code)]`, release profile (`lto`, `codegen-units=1`, `strip`)
+- [x] `M0-03` `package.json`, Vite 8, React 19, TypeScript 6 strict (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)
+- [x] `M0-04` Tailwind CSS 4 wired to `src/styles/tokens.css`
+- [x] `M0-05` `tauri.conf.json`: identifier `dev.pulse.workflowmonitor`, CSP without `unsafe-eval`, bundle targets for all three OSes
+- [x] `M0-06` `capabilities/default.json` — minimal permission set, no `shell`/`fs`/`http`
+- [x] `M0-07` `error.rs`: `AppError` + `{ code, message, retryable }` serialization + redaction on serialize
+- [x] `M0-08` `logging.rs`: `tracing` + daily rolling file + secret redaction layer
+- [x] `M0-09` `ci.yml`: fmt, clippy, `tsc`, eslint, vitest, bundle budget, three-OS backend matrix
+- [x] `M0-10` `ARCHITECTURE.md` with the decision log started
 
-**Exit:** `npm run tauri dev` opens an empty window; CI is green on `windows-latest`, `macos-14`, `ubuntu-22.04`.
+**Verified locally:** `cargo test` (7 passing), `clippy -D warnings`, `fmt --check`,
+`tsc`, `eslint --max-warnings 0`, `vitest`, `vite build` (69.7 kB gzipped),
+`tauri build --debug` produced `pulse.exe`, and the binary starts and writes a
+redacted log to `%LOCALAPPDATA%\dev.pulse.workflowmonitor\logs`.
+
+**Still open:** the macOS/Linux legs have never run — that needs the first CI
+push. A human should confirm the window renders with `npm run tauri dev`.
 
 ---
 

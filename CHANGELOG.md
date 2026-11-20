@@ -13,14 +13,45 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-Nothing implemented yet. The project is at milestone **M0** (Foundation) — see
-[ROADMAP.md](./ROADMAP.md#m0--foundation).
+Milestone **M0 (Foundation)** is complete apart from the licence choice and the
+first CI run on macOS/Linux — see [ROADMAP.md](./ROADMAP.md).
 
 ### Added
 
-- Project scaffolding and tracking documents:
-  - `ROADMAP.md` — milestone plan, task IDs, exit criteria, open decisions.
-  - `CHANGELOG.md` — this file.
+- **Project scaffold:** Tauri 2 desktop shell with React 19, TypeScript 6 and
+  Tailwind CSS 4, plus a native window that starts hidden and shows on ready.
+  (`M0-02`, `M0-03`, `M0-04`)
+- **Design tokens:** obsidian-charcoal palette, status colours, radii and
+  reduced-motion guards in `src/styles/tokens.css`. (`M0-04`)
+- **Typed IPC boundary:** `src/lib/ipc.ts` + `src/lib/errors.ts` normalise every
+  backend failure into a `PulseError` with a stable `code`. (`M0-07`)
+- **Backend error contract:** `AppError` serialises to `{ code, message,
+  retryable }` and redacts secrets on the way out. (`M0-07`)
+- **Logging:** daily-rotating file log in the platform log directory, console
+  output in debug builds, `RUST_LOG` override. (`M0-08`)
+- **Secret redaction:** classic and fine-grained GitHub tokens, bearer values,
+  OAuth query parameters and signature headers are scrubbed before a log line
+  or error payload leaves the process. (`M0-08`)
+- **System commands:** `system_info` and `system_open_url`, the latter
+  allowlisted to `https://*.github.com`. (`M0-07`)
+- **CI:** frontend job (typecheck, lint, tests with coverage, build, 300 KB
+  gzipped budget) and a three-OS backend matrix (fmt, clippy, tests). (`M0-09`)
+- **Docs:** `ARCHITECTURE.md` (decision log, threat model, module map) and
+  `README.md` (setup, scripts, troubleshooting). (`M0-10`)
+
+### Security
+
+- CSP without `unsafe-eval`, no wildcard origins, `script-src 'self'`.
+- Capability set limited to `core:default` and `opener:allow-open-url`; no
+  `shell`, `fs` or `http` permissions granted.
+- `#![forbid(unsafe_code)]` on both crate roots.
+- Log directory is created with the platform default ACLs; no telemetry.
+
+### Known issues
+
+- `npm ci` requires the `allowScripts` entry for `esbuild@0.28.2`; upgrading
+  esbuild without bumping that pin breaks the Vite build.
+- The macOS and Linux CI legs have not run yet.
 
 ---
 
