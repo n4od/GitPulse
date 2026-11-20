@@ -266,6 +266,23 @@ somewhere downstream. The alternative — trusting anything that reaches the rel
 URL — would make the URL itself the only secret, and relay URLs are pasted into
 configuration files and chat windows.
 
+**Live testing added a second, worse failure mode.** smee.io forwards headers
+(flattened, which is handled) _and re-encodes the body as a JSON object_:
+
+```json
+{"x-github-event":"workflow_run","x-hub-signature-256":"sha256=…",
+ "body":{"action":"completed","repository":{…}}}
+```
+
+An HMAC is over the exact bytes GitHub signed. A parsed-and-re-serialised object
+does not reproduce them — `serde_json` orders keys, and escaping can differ — so
+the signature can never match. Pulse refuses the payload and names the reason.
+
+The tempting fix is to verify the re-encoded body against itself. That would
+accept anything holding the signing secret and prove nothing about GitHub, which
+is precisely the property the verifier exists to provide. So smee.io is
+documented as **not supported**, and a tunnel is the recommended transport.
+
 ### ADR-018 — Draw the tray icon, and earn each notification
 
 **The tray icon is generated, not shipped.** Four states need four icons, and

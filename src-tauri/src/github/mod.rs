@@ -22,7 +22,7 @@ mod tests;
 
 pub use api::{GithubClient, RateLimitSnapshot, TokenProvider};
 pub use budget::RateBudget;
-pub use client::{build_client, Endpoints, API_VERSION, USER_AGENT};
+pub use client::{build_client, build_streaming_client, Endpoints, API_VERSION, USER_AGENT};
 pub use logs::{LogDownload, LOG_CAP_BYTES};
 
 /// Event name the frontend subscribes to for the rate-limit meter.

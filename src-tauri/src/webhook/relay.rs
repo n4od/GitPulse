@@ -28,13 +28,45 @@ use super::signature::verify;
 const BASE_BACKOFF: Duration = Duration::from_secs(2);
 const MAX_BACKOFF: Duration = Duration::from_secs(120);
 
-/// The envelope Pulse expects inside an SSE `data:` frame.
+/// The envelope a relay sends inside an SSE `data:` frame.
+///
+/// Two shapes are accepted, because relays disagree on one:
+///
+/// - **Nested:** `{"headers": {...}, "body": "<raw json text>"}`. This can be
+///   verified, because `body` is the payload text as it arrived.
+/// - **Flat, as smee.io sends it:** the webhook headers are spread across the
+///   top level and `body` is a parsed JSON *object*. It is recognised so the
+///   failure can be named, but it cannot be verified — see [`dispatch`].
 #[derive(Debug, Deserialize)]
 struct Envelope {
     #[serde(default)]
     headers: BTreeMap<String, String>,
-    /// The raw webhook payload, as text, so it can be verified byte for byte.
-    body: String,
+    /// Either the raw payload text, or an object a relay re-encoded. Only the
+    /// former can be verified.
+    #[serde(default)]
+    body: Option<serde_json::Value>,
+    /// Everything else the frame carried, including flattened `x-…` headers.
+    #[serde(flatten)]
+    flat: BTreeMap<String, serde_json::Value>,
+}
+
+impl Envelope {
+    /// Looks a header up in either shape, case-insensitively.
+    fn header(&self, name: &str) -> Option<&str> {
+        if let Some(value) = self.headers.get(name) {
+            return Some(value);
+        }
+
+        self.flat
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))
+            .and_then(|(_, value)| value.as_str())
+    }
+
+    /// The payload text, when the relay preserved it.
+    fn raw_body(&self) -> Option<&str> {
+        self.body.as_ref().and_then(serde_json::Value::as_str)
+    }
 }
 
 /// Runs until cancelled, reconnecting with exponential backoff.
@@ -136,39 +168,46 @@ async fn dispatch(frame: &[u8], db: &Db, poller: &Arc<Poller>, signing_secret: &
         return;
     };
 
-    let signature = envelope.headers.get("x-hub-signature-256");
+    let Some(raw_body) = envelope.raw_body() else {
+        // smee.io parses the body and sends it back as an object. The bytes
+        // GitHub signed are gone: `serde_json` orders object keys, so
+        // re-serialising produces different bytes and the signature can never
+        // match. Refusing is the only honest option — the alternative is
+        // trusting a payload nobody verified.
+        tracing::warn!(
+            "refusing a relayed payload whose body is not raw text; this relay re-encodes \
+             JSON, so its signature cannot be verified. Use a tunnel, or a relay that \
+             forwards the original bytes."
+        );
+        return;
+    };
 
-    let Some(signature) = signature else {
+    let Some(signature) = envelope.header("x-hub-signature-256") else {
         tracing::warn!("refusing a relayed payload with no signature header");
         return;
     };
 
-    if !verify(
-        signing_secret.as_bytes(),
-        envelope.body.as_bytes(),
-        signature,
-    ) {
+    if !verify(signing_secret.as_bytes(), raw_body.as_bytes(), signature) {
         tracing::warn!("refusing a relayed payload whose signature did not match");
         return;
     }
 
-    let Some(event) = envelope.headers.get("x-github-event").cloned() else {
+    let Some(event) = envelope.header("x-github-event") else {
         tracing::warn!("refusing a relayed payload with no event header");
         return;
     };
+    let event = event.to_owned();
 
     let delivery = envelope
-        .headers
-        .get("x-github-delivery")
-        .cloned()
-        .unwrap_or_else(|| format!("relay-{}", uuid_like()));
+        .header("x-github-delivery")
+        .map_or_else(|| format!("relay-{}", uuid_like()), str::to_owned);
 
     match router::handle(
         db.clone(),
         Arc::clone(poller),
         delivery,
         event,
-        envelope.body.into_bytes(),
+        raw_body.as_bytes().to_vec(),
     )
     .await
     {
@@ -280,7 +319,7 @@ mod tests {
             envelope.headers.get("x-github-event").map(String::as_str),
             Some("ping")
         );
-        assert_eq!(envelope.body, r#"{"zen":"x"}"#);
+        assert_eq!(envelope.raw_body(), Some(r#"{"zen":"x"}"#));
     }
 
     #[test]

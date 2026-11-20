@@ -78,6 +78,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return check_error_paths(http, &client_id).await;
     }
 
+    if std::env::args().any(|argument| argument == "--send") {
+        return send_signed_webhook().await;
+    }
+
     if std::env::args().any(|argument| argument == "--api-me") {
         return check_api_with_token().await;
     }
@@ -206,5 +210,37 @@ async fn check_error_paths(
         Err(error) => println!("  bogus device code : {} ({})", error.code(), error),
     }
 
+    Ok(())
+}
+
+/// Signs and sends one webhook through a public relay.
+///
+/// The secret is read from the keychain and never printed.
+async fn send_signed_webhook() -> Result<(), Box<dyn std::error::Error>> {
+    let secret = pulse_lib::secrets::get("github-webhook-secret")?
+        .ok_or("no webhook secret; start the app with a relay first")?;
+    let url = std::env::var("PULSE_RELAY_URL")?;
+
+    let body = r#"{"action":"completed","repository":{"full_name":"birukboss/discord-testing"}}"#;
+
+    let mut mac = <hmac::Hmac<sha2::Sha256> as hmac::KeyInit>::new_from_slice(secret.as_bytes())?;
+    hmac::Mac::update(&mut mac, body.as_bytes());
+    let signature = format!(
+        "sha256={}",
+        hex::encode(hmac::Mac::finalize(mac).into_bytes())
+    );
+
+    let http = build_client()?;
+    let response = http
+        .post(url)
+        .header("content-type", "application/json")
+        .header("x-github-event", "workflow_run")
+        .header("x-github-delivery", "live-relay-check-1")
+        .header("x-hub-signature-256", signature)
+        .body(body)
+        .send()
+        .await?;
+
+    println!("relay POST: {}", response.status());
     Ok(())
 }

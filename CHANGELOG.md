@@ -24,6 +24,15 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ### Fixed
 
+- **The relay died every twenty seconds.** The shared HTTP client sets a
+  twenty-second _total_ timeout, which is right for an API call and fatal for an
+  SSE stream: the connection was aborted and re-established on a loop, so no
+  delivery could ever arrive. The relay now uses a client with a connect timeout
+  but no total timeout. Found by pointing the app at a real relay.
+- **A relay that re-encodes the body is now refused with a reason.** smee.io
+  sends `body` as a parsed JSON object, so the bytes GitHub signed are gone and
+  the signature cannot be verified. Pulse previously said "a frame Pulse does
+  not recognise"; it now names the cause and points at the tunnel instead.
 - **A network blip aborted sign-in.** Found by running the device flow against
   real GitHub, not against a mock: the first poll succeeded, the next hit a
   transport error, and the whole sign-in failed even though the device code was

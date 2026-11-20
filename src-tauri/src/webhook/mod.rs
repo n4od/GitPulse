@@ -21,7 +21,7 @@ use ts_rs::TS;
 
 use crate::db::{self, Db};
 use crate::error::AppError;
-use crate::github::client::build_client;
+use crate::github::client::build_streaming_client;
 use crate::poller::Poller;
 
 pub mod relay;
@@ -91,7 +91,7 @@ impl WebhookService {
         Ok(Self {
             db,
             poller,
-            http: build_client()?,
+            http: build_streaming_client()?,
             running: Mutex::new(Running {
                 cancel: None,
                 kind: TransportKind::Off,

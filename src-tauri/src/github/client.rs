@@ -67,7 +67,7 @@ impl Endpoints {
     }
 }
 
-/// Builds the process-wide HTTP client.
+/// Builds the HTTP client for ordinary API calls.
 ///
 /// Redirects are disabled deliberately. GitHub hands out signed CDN URLs for
 /// log archives; following a redirect with `reqwest`'s default policy risks
@@ -83,6 +83,22 @@ pub fn build_client() -> Result<reqwest::Client, AppError> {
         .redirect(reqwest::redirect::Policy::none())
         .build()
         .map_err(|error| AppError::Internal(format!("cannot build the HTTP client: {error}")))
+}
+
+/// Builds a client for long-lived streams such as the relay's SSE connection.
+///
+/// [`build_client`] sets a twenty-second **total** timeout, which is right for
+/// an API call and fatal for an event stream: the stream would be aborted every
+/// twenty seconds and the relay would reconnect forever. A connect timeout is
+/// kept so a dead host still fails fast.
+pub fn build_streaming_client() -> Result<reqwest::Client, AppError> {
+    reqwest::Client::builder()
+        .user_agent(USER_AGENT)
+        .connect_timeout(Duration::from_secs(10))
+        .gzip(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|error| AppError::Internal(format!("cannot build the streaming client: {error}")))
 }
 
 /// Maps a transport failure to an `AppError`.
