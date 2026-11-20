@@ -13,12 +13,31 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-Milestones **M0 (Foundation)**, **M1 (Design system & shell)**, **M2
-(Authentication)**, **M3 (Persistence)** and **M4 (GitHub client)** are
-complete. Still open from M0: the licence choice and the first CI run on
-macOS/Linux. See [ROADMAP.md](./ROADMAP.md).
+Milestones **M0** through **M5** are complete (foundation, design system,
+authentication, persistence, GitHub client, poller). Still open from M0: the
+licence choice and the first CI run on macOS/Linux. See
+[ROADMAP.md](./ROADMAP.md).
 
 ### Added
+
+**Poller (M5)**
+
+- **Scheduler:** one loop that wakes every 30 seconds, picks the repositories
+  that are due, and polls them in priority order — manual refresh first, then
+  repositories with a run in flight, then alphabetically. (`M5-01`)
+- **Budget-aware interval:** `clamp(ceil(repos × 3600 / ceiling), 60s, 15min)`
+  keeps the sweep's plan inside the hourly ceiling. (`M5-02`)
+- **Manual refresh:** `repos_refresh` queues a repository ahead of the schedule;
+  repeated requests while one is pending collapse into a single poll. (`M5-03`)
+- **Adaptive intervals:** a repository with a run in flight polls at the floor
+  interval; an idle one drifts to the budget-derived interval. (`M5-04`)
+- **Diff-only events:** `run://updated` carries only runs whose `status`,
+  `conclusion` or `run_attempt` changed, so a quiet poll produces no traffic to
+  the UI at all. (`M5-05`)
+- **Status events:** `poller://status` reports the monitored count, target
+  interval, remaining local budget and the last error. (`M5-07`)
+- **Graceful stops:** a rate limit, a revoked token or a signed-out session ends
+  the sweep instead of retrying against every remaining repository. (`M5-03`)
 
 **GitHub client (M4)**
 
@@ -202,6 +221,9 @@ foreign_keys = ON` impossible to set reliably — and without it every
   against a mock GitHub, but completing it needs a registered client id, so the
   final hop (GitHub's device page, a real token, a real keychain write) is
   untested.
+- **No live poll has run against GitHub,** for the same reason. The 24-hour
+  soak across 250 repositories has not been performed; only the underlying
+  arithmetic is tested.
 
 ---
 

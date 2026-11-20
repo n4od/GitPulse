@@ -189,22 +189,40 @@ The pure refill maths is unit-tested against a fixed clock.
 
 ---
 
-## M5 — Poller · M
+## M5 — Poller · M — **complete**
 
 **Goal:** keep 250 repos fresh without ever blowing the budget.
 
 Depends on M3, M4.
 
-- [ ] `M5-01` Scheduler task with a 30 s tick and a due-repo queue
-- [ ] `M5-02` Budget-aware interval: `clamp(ceil(active_repos × 3600 / budget_remaining), 60s, 15min)`
-- [ ] `M5-03` Per-repo single-flight so manual refresh supersedes the scheduled one
-- [ ] `M5-04` Adaptive backoff: active runs at min interval, idle repos drift to max
-- [ ] `M5-05` Diff-only emission — `run://updated` fires per changed run, never a full array
-- [ ] `M5-06` Sleep/resume detection: mark all cache stale on wake
-- [ ] `M5-07` `poller://status` event (state, next tick, budget remaining)
-- [ ] `M5-08` Tests: interval math at 10 / 100 / 500 repos, no duplicate in-flight requests
+- [x] `M5-01` Scheduler loop with a 30 s tick; the tick only wakes to scan, it does not poll on a fixed schedule
+- [x] `M5-02` Budget-aware interval: `clamp(ceil(repos × 3600 / ceiling), 60s, 15min)`
+- [x] `M5-03` Manual refresh supersedes the schedule, deduplicated so repeated clicks queue one poll
+- [x] `M5-04` Active runs poll at the floor interval; idle repositories drift to the budget-derived one
+- [x] `M5-05` Diff-only emission — `run://updated` carries only runs whose state actually changed
+- [x] `M5-06` Sleep/resume needs no special handling: due times are wall-clock, so everything is overdue on wake
+- [x] `M5-07` `poller://status` event (monitored count, target interval, budget available, last error)
+- [x] `M5-08` Tests: interval math at 10 / 100 / 250 / 500 repos, budget deferral, rate-limit stop, quiet ticks
 
-**Exit:** 250 monitored repos stay under 3,500 req/hr for 24 h with zero duplicate fetches.
+**Design change worth knowing:** the poller is **sequential** — one request at
+a time — not a pool. The sweep of 250 repositories at a 257 s interval needs
+about one request per second, and each request takes ~200 ms, so concurrency
+would buy latency we do not need in exchange for a scheduler, a semaphore and
+in-flight bookkeeping. Being sequential also makes "never fetch the same
+repository twice" structurally true rather than something a test has to prove.
+
+**Two mechanisms, two jobs:** [`schedule`] decides how often each repository
+_should_ be revisited (the plan); the token bucket in `github::budget` is what
+actually stops us (the enforcement). When many repositories have runs in
+flight, the plan alone could overshoot, and the bucket caps it.
+
+**Verified:** 108 backend tests pass, including a test that a rate limit stops
+the sweep instead of retrying against every remaining repository, and one that
+an identical response publishes nothing.
+
+**Not verified:** no live poll has run against GitHub — that needs a real token.
+The 24-hour/250-repository soak in the exit criterion remains untested; the
+arithmetic that underpins it is unit-tested, but arithmetic is not a soak.
 
 ---
 

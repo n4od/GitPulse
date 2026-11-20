@@ -121,6 +121,39 @@ have given us:
 `VACUUM` is deliberately excluded from migrations: SQLite refuses to run it
 inside a transaction, so it lives in the retention sweep on its own cadence.
 
+### ADR-013 — A sequential poller, and a plan separated from its enforcement
+
+**Why one request at a time.** The schedule needs roughly one request per second
+for 250 repositories; each request takes about 200 ms. A pool would therefore
+buy latency the product does not feel, in exchange for a semaphore, a task set
+and a "don't poll the same repository twice" invariant that has to be proven.
+Being sequential makes that invariant structural: there is one loop, so two
+fetches for one repository cannot be in flight.
+
+The cost is honest and bounded: a full sweep of 250 repositories takes about a
+minute, which is well inside the 257-second interval it is meant to fit.
+
+**Why the interval and the bucket are separate.** They answer different
+questions. `target_interval` answers _"how often should each repository be
+revisited"_ — it spreads the sweep evenly and is what the status event reports.
+The token bucket answers _"may I send this request right now"_ — it is the hard
+limit. When many repositories have runs in flight, the plan alone can overshoot;
+the bucket caps it. Conflating the two would mean either a plan that cannot
+express priority or a limit that depends on the plan being correct.
+
+**Why the scheduler checks `available()` instead of taking a token.** Taking a
+token to decide whether to take a token would double-charge, and a 304 refunds
+its token anyway. The check is advisory — two polls may slip through on a
+one-token bucket — but the client's own `acquire()` is the real gate, so the
+overshoot costs a brief internal wait, not an extra request.
+
+**Why sleep/resume needs no code.** Due times are compared against wall-clock
+`last_polled_at` values persisted in SQLite, not against monotonic instants held
+in memory. After the machine sleeps, every repository is simply overdue, which
+is exactly the desired behaviour. The one case that needed handling was the
+opposite: a clock that moves _backwards_ (NTP correction, timezone change) must
+not park a repository forever, so a future timestamp is treated as overdue.
+
 ### ADR-012 — One request pipeline, and a budget we own
 
 Every GitHub call goes through `GithubClient::execute`, which applies the five
