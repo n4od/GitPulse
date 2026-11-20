@@ -24,6 +24,10 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ### Fixed
 
+- **`rusqlite` 0.38 → 0.43**, which moves `libsqlite3-sys` from 0.36.0 to
+  0.40.0 and clears **CVE-2026-119375** in its bundled SQLite. No source changes
+  were needed: the test suite, clippy and the running app all pass on it.
+
 ### Fixed
 
 - **CI is green on all three operating systems.** The first run failed four
