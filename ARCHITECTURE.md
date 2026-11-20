@@ -55,6 +55,10 @@ single owner.
 | `src-tauri/src/poller/`         | Scheduler, budget math, backoff                           | M5        |
 | `src-tauri/src/webhook/`        | Local server, relay, HMAC verification                    | M8        |
 | `src/lib/ipc.ts`                | Typed `invoke` wrapper, error normalisation               | M0        |
+| `src/lib/repo-selectors.ts`     | Filtering, sorting, surgical card updates, formatting     | M6        |
+| `src/hooks/useLiveUpdates.ts`   | Bridges push events into the query cache and live store   | M6        |
+| `src/components/dashboard/`     | Grid, card, sparkline, filter bar, repository picker      | M6        |
+| `src/pages/Bench.tsx`           | Dev-only render profiler (compiled out of production)     | M6        |
 | `src/lib/status.ts`             | Canonical status vocabulary (mapping table, worst-of)     | M1        |
 | `src/components/status/`        | `StatusBadge` / `StatusPulse` — the only status renderers | M1        |
 | `src/components/primitives/`    | Button, Badge, Card, Spinner, Skeleton, Tooltip, Toast    | M1        |
@@ -153,6 +157,39 @@ in memory. After the machine sleeps, every repository is simply overdue, which
 is exactly the desired behaviour. The one case that needed handling was the
 opposite: a clock that moves _backwards_ (NTP correction, timezone change) must
 not park a repository forever, so a future timestamp is treated as overdue.
+
+### ADR-014 — The dashboard renders through one path, and the profiler decided that
+
+The grid was built with two rendering modes: a plain CSS grid for short lists,
+and row-virtualised rendering above 120 cards. It is an obvious optimisation —
+virtualisation has overhead, so why pay it for six cards?
+
+The profiler said otherwise. Filtering 250 repositories down to 111 **measured
+272 ms** for a single commit, against a 16 ms budget. The cause was not the
+filter: it was the _boundary_. Crossing from virtualised to plain means React
+unmounts every virtual row and mounts a differently-shaped tree, and it does
+that on a keystroke, because the number of matches decides the mode.
+
+Removing the second mode cut it to about 19 ms. Virtualising a three-card list
+costs nothing measurable; the discontinuity cost a quarter of a second.
+
+The lesson generalises: a performance optimisation that changes _representation_
+introduces a cliff at its own threshold, and the cliff is usually worse than the
+cost it was avoiding. Two rendering paths also means two behaviours to keep in
+step, which is why the simpler version is the one that survived.
+
+**Where the numbers come from.** `#/bench` mounts 250 synthetic repositories
+wrapped in a React `Profiler` and reports p50/p95/max of the commit durations it
+observes. It records only commits caused by an interaction: an earlier version
+recorded every commit, including the one caused by _reporting the results_,
+which produced a render loop that measured itself. Dev-build numbers are
+pessimistic because React StrictMode double-renders.
+
+**What the budget actually is.** Steady state is one card per `run://updated`
+(4.3 ms) and the occasional burst (7.4 ms for fifty). A full 250-card
+replacement is 19–30 ms, over budget, and only happens on an explicit refetch.
+The honest statement is "the budget holds for what a dashboard does all day",
+not "every frame is under 16 ms".
 
 ### ADR-012 — One request pipeline, and a budget we own
 

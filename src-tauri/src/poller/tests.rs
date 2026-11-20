@@ -7,11 +7,11 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::auth::token_store::secret;
-use crate::db::{self, Db};
+use crate::db::{self, Db, RepoCard};
 use crate::error::AppError;
 use crate::github::{self, Endpoints, GithubClient, RateBudget, TokenProvider};
 
-use super::{PollConfig, PollEvents, Poller, PollerStatus, RunsChangedEvent};
+use super::{PollConfig, PollEvents, Poller, PollerStatus};
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -37,13 +37,13 @@ impl TokenProvider for Unauthenticated {
 
 #[derive(Default)]
 struct Recording {
-    runs: Mutex<Vec<RunsChangedEvent>>,
+    cards: Mutex<Vec<RepoCard>>,
     statuses: Mutex<Vec<PollerStatus>>,
 }
 
 impl PollEvents for Recording {
-    fn runs_changed(&self, event: RunsChangedEvent) {
-        self.runs.lock().expect("runs").push(event);
+    fn repo_updated(&self, card: RepoCard) {
+        self.cards.lock().expect("cards").push(card);
     }
 
     fn status(&self, status: PollerStatus) {
@@ -180,11 +180,13 @@ async fn a_first_tick_polls_and_publishes_the_runs_it_found() {
     assert_eq!(count, 1);
     assert_eq!(run_count(&db).await, 1);
 
-    let emitted = events.runs.lock().expect("runs");
+    let emitted = events.cards.lock().expect("cards");
     assert_eq!(emitted.len(), 1);
-    assert_eq!(emitted[0].repo_id, 1);
-    assert_eq!(emitted[0].runs.len(), 1);
-    assert_eq!(emitted[0].runs[0].status, "in_progress");
+    assert_eq!(emitted[0].repo.id, 1);
+
+    let latest = emitted[0].recent_runs.first().expect("latest run");
+    assert_eq!(latest.status, "in_progress");
+    assert!(emitted[0].has_active_run);
 
     // Status is always published, even on a quiet tick.
     assert_eq!(events.statuses.lock().expect("statuses").len(), 1);
@@ -243,9 +245,9 @@ async fn an_unchanged_poll_publishes_nothing() {
     assert_eq!(poller.tick_at(later).await.expect("second"), 1);
 
     assert_eq!(
-        events.runs.lock().expect("runs").len(),
+        events.cards.lock().expect("cards").len(),
         1,
-        "an identical response must not re-publish the same runs"
+        "an identical response must not re-publish the same card"
     );
 }
 
@@ -283,9 +285,17 @@ async fn a_changed_run_is_published_again() {
     let later = Utc::now() + ChronoDuration::minutes(30);
     assert_eq!(poller.tick_at(later).await.expect("second"), 1);
 
-    let emitted = events.runs.lock().expect("runs");
+    let emitted = events.cards.lock().expect("cards");
     assert_eq!(emitted.len(), 2);
-    assert_eq!(emitted[1].runs[0].conclusion.as_deref(), Some("failure"));
+    assert_eq!(
+        emitted[1]
+            .recent_runs
+            .first()
+            .expect("latest run")
+            .conclusion
+            .as_deref(),
+        Some("failure")
+    );
 }
 
 // ---------------------------------------------------------------------------

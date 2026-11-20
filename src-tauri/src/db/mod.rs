@@ -41,8 +41,8 @@ mod tests;
 
 pub use diff::RunDiff;
 pub use models::{
-    Deployment, DeploymentUpsert, Job, JobUpsert, PullRequest, PullRequestUpsert, Repo, RepoUpsert,
-    RunUpsert, WorkflowRun,
+    Deployment, DeploymentUpsert, Job, JobUpsert, PullRequest, PullRequestUpsert, Repo, RepoCard,
+    RepoUpsert, RunUpsert, WorkflowRun,
 };
 pub use retention::RetentionReport;
 

@@ -258,6 +258,104 @@ pub fn repos_with_active_runs(connection: &Connection) -> Result<Vec<i64>, AppEr
         .map_err(AppError::db)
 }
 
+/// Recent runs for every repository, in a single query.
+///
+/// The dashboard needs this for every card at once; asking per repository would
+/// turn one screen into 250 queries.
+pub fn recent_for_all(
+    connection: &Connection,
+    per_repo: i64,
+) -> Result<std::collections::HashMap<i64, Vec<WorkflowRun>>, AppError> {
+    let mut statement = connection
+        .prepare(&format!(
+            "SELECT {COLUMNS} FROM (
+                 SELECT *,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY repo_id ORDER BY updated_at DESC, id DESC
+                        ) AS rank
+                 FROM workflow_runs
+             ) WHERE rank <= ?1
+             ORDER BY repo_id, rank"
+        ))
+        .map_err(AppError::db)?;
+
+    let rows = statement
+        .query_map(params![per_repo], from_row)
+        .map_err(AppError::db)?;
+
+    let mut recent: std::collections::HashMap<i64, Vec<WorkflowRun>> =
+        std::collections::HashMap::new();
+
+    for row in rows {
+        let run = row.map_err(AppError::db)?;
+        recent.entry(run.repo_id).or_default().push(run);
+    }
+
+    Ok(recent)
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RunAggregate {
+    pub failing: i64,
+    pub active: bool,
+}
+
+/// Failing and active counts for every repository, in one pass.
+pub fn aggregates(
+    connection: &Connection,
+) -> Result<std::collections::HashMap<i64, RunAggregate>, AppError> {
+    let placeholders = ACTIVE_STATUSES
+        .iter()
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let sql = format!(
+        "SELECT repo_id,
+                SUM(CASE WHEN conclusion IN ('failure', 'timed_out') THEN 1 ELSE 0 END),
+                SUM(CASE WHEN status IN ({placeholders}) THEN 1 ELSE 0 END)
+         FROM workflow_runs
+         GROUP BY repo_id"
+    );
+
+    let mut statement = connection.prepare(&sql).map_err(AppError::db)?;
+
+    let rows = statement
+        .query_map(
+            rusqlite::params_from_iter(ACTIVE_STATUSES.iter().copied()),
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    RunAggregate {
+                        failing: row.get(1)?,
+                        active: row.get::<_, i64>(2)? > 0,
+                    },
+                ))
+            },
+        )
+        .map_err(AppError::db)?;
+
+    let mut result = std::collections::HashMap::new();
+    for row in rows {
+        let (repo_id, aggregate) = row.map_err(AppError::db)?;
+        result.insert(repo_id, aggregate);
+    }
+
+    Ok(result)
+}
+
+/// How many runs for this repository ended in failure.
+pub fn count_failing(connection: &Connection, repo_id: i64) -> Result<i64, AppError> {
+    connection
+        .query_row(
+            "SELECT COUNT(*) FROM workflow_runs
+             WHERE repo_id = ?1 AND conclusion IN ('failure', 'timed_out')",
+            params![repo_id],
+            |row| row.get(0),
+        )
+        .map_err(AppError::db)
+}
+
 pub fn count_by_repo(connection: &Connection, repo_id: i64) -> Result<i64, AppError> {
     connection
         .query_row(

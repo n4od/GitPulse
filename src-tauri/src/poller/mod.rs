@@ -19,7 +19,7 @@ use serde::Serialize;
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
-use crate::db::{self, Db, Repo, RunUpsert, WorkflowRun};
+use crate::db::{self, Db, Repo, RepoCard, RunUpsert};
 use crate::error::AppError;
 use crate::github::budget::DEFAULT_HOURLY_CEILING;
 use crate::github::{GithubClient, RateBudget};
@@ -58,17 +58,12 @@ impl Default for PollConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
-pub struct RunsChangedEvent {
-    pub repo_id: i64,
-    pub runs: Vec<WorkflowRun>,
-}
-
-#[derive(Debug, Clone, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/lib/bindings/")]
 pub struct PollerStatus {
     pub monitored: usize,
+    #[ts(type = "number")]
     pub target_interval_secs: u64,
     pub budget_available: u32,
     pub last_error: Option<String>,
@@ -77,7 +72,11 @@ pub struct PollerStatus {
 /// Where the poller publishes. Injected so the loop can be tested without a
 /// window; the Tauri adapter lives in the composition root.
 pub trait PollEvents: Send + Sync + 'static {
-    fn runs_changed(&self, event: RunsChangedEvent);
+    /// The whole card, recomputed. Sending the projection rather than the
+    /// changed runs means the UI replaces one card instead of refetching the
+    /// list, and cannot drift from the database.
+    fn repo_updated(&self, card: RepoCard);
+
     fn status(&self, status: PollerStatus);
 }
 
@@ -259,10 +258,14 @@ impl Poller {
             .await?;
 
         if !diff.is_empty() {
-            self.events.runs_changed(RunsChangedEvent {
-                repo_id,
-                runs: diff.changed,
-            });
+            let card = self
+                .db
+                .with_connection(move |connection| db::repos::card(connection, repo_id))
+                .await?;
+
+            if let Some(card) = card {
+                self.events.repo_updated(card);
+            }
         }
 
         Ok(())

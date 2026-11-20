@@ -51,8 +51,11 @@ pub trait TokenProvider: Send + Sync + 'static {
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/lib/bindings/")]
 pub struct RateLimitSnapshot {
+    #[ts(type = "number | null")]
     pub limit: Option<i64>,
+    #[ts(type = "number | null")]
     pub remaining: Option<i64>,
+    #[ts(type = "number | null")]
     pub used: Option<i64>,
     pub reset_at: Option<DateTime<Utc>>,
     /// Set while a secondary limit is in force.

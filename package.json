@@ -18,6 +18,8 @@
     "bindings": "cargo test --manifest-path src-tauri/Cargo.toml export_bindings"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.108.2",
+    "@tanstack/react-virtual": "^3.14.26",
     "@tauri-apps/api": "^2.12.5",
     "clsx": "^2.1.1",
     "lucide-react": "^1.77.0",

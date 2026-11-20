@@ -13,12 +13,44 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-Milestones **M0** through **M5** are complete (foundation, design system,
-authentication, persistence, GitHub client, poller). Still open from M0: the
-licence choice and the first CI run on macOS/Linux. See
-[ROADMAP.md](./ROADMAP.md).
+Nothing yet.
+
+---
+
+## [0.1.0] — 2026-11-20
+
+The first release: sign in, choose repositories, and watch workflow status
+update live.
+
+**This is a read-only dashboard.** Inspecting runs, reading logs, re-running and
+dispatching workflows arrive in `0.2.0`. A live sign-in against GitHub has not
+been performed — see Known issues — so treat this as a build milestone rather
+than something to install and rely on.
 
 ### Added
+
+**Dashboard (M6)**
+
+- **Repository grid:** a card per watched repository showing the worst status of
+  its recent runs, the latest run's workflow, branch, short SHA, age and
+  duration, plus a sparkline of the last ten runs coloured by outcome. (`M6-02`,
+  `M6-03`)
+- **Live updates:** `run://updated` carries a whole recomputed card, so the
+  cache is patched in place. A build finishing for one repository does not
+  refetch the other 249. (`M6-07`)
+- **Filtering:** search by name and filter to failing or running, applied in the
+  webview so typing is instant. (`M6-05`)
+- **Repository picker:** browse what the signed-in account can see and start
+  watching individual repositories, with an immediate first poll on tracking.
+  (`M6-01`)
+- **Rate-limit meter:** remaining hourly quota and poller state in the title bar,
+  read from GitHub's own response headers rather than a local estimate. (`M6-06`)
+- **Generated bindings:** `Repo`, `RepoCard`, `WorkflowRun`, `AvailableRepo`,
+  `PollerStatus` and `RateLimitSnapshot` are exported from Rust with `ts-rs`;
+  the UI imports them rather than redeclaring them. (`M6-01`)
+- **Dev-only render bench** at `#/bench`: 250 synthetic repositories, a React
+  `Profiler`, and p50/p95/max commit timings. Compiled out of production builds.
+  (`M6-08`)
 
 **Poller (M5)**
 
@@ -162,6 +194,12 @@ retryable }` and redacts secrets on the way out. (`M0-07`)
 
 ### Changed
 
+- **Dashboard rendering is always virtualised.** The grid previously switched to
+  a plain CSS grid below 120 cards; crossing that boundary cost **272 ms** in the
+  profiler because the whole list is torn down and rebuilt in a different mode.
+  One rendering path removes the cliff. (`M6-02`)
+- **`RepoCard` carries its recent runs** rather than only the latest, so the
+  sparkline and (in `0.2.0`) the run list need no second fetch. (`M6-03`)
 - **Rate limiting** is a hand-rolled token bucket rather than `governor`, which
   models a rate but not the "GitHub said stop for 120 seconds" pause that this
   client needs. (`M4-03`)
@@ -208,6 +246,9 @@ foreign_keys = ON` impossible to set reliably — and without it every
 - Redirects are not followed automatically, so an `Authorization` header can
   never be replayed to a third-party host such as the log CDN. (`M2-02`,
   `M4-07`)
+- The repository picker re-fetches a repository from GitHub before storing it,
+  so a name supplied by the webview cannot become a row that misrepresents what
+  it is. (`M6-01`)
 
 ### Known issues
 
@@ -224,6 +265,11 @@ foreign_keys = ON` impossible to set reliably — and without it every
 - **No live poll has run against GitHub,** for the same reason. The 24-hour
   soak across 250 repositories has not been performed; only the underlying
   arithmetic is tested.
+- **Read-only.** Re-running, cancelling and dispatching workflows, and reading
+  logs, are not implemented yet. The card's actions are refresh, copy run URL,
+  mute and open on GitHub.
+- Not implemented from the dashboard plan: a right-click context menu, a
+  per-card error state with retry, a density toggle and the `Mine` filter.
 
 ---
 
@@ -251,14 +297,13 @@ Delete any heading that has no entries. Keep entries user-facing.
 
 ## Release history
 
-| Version      | Date    | Theme               | Milestones |
-| ------------ | ------- | ------------------- | ---------- |
-| _unreleased_ | —       | —                   | M0         |
-| `0.1.0`      | planned | Read-only dashboard | M0–M6      |
-| `0.2.0`      | planned | Actions & insight   | M7         |
-| `0.3.0`      | planned | Live & native       | M8–M9      |
-| `0.4.0`      | planned | Polish & hardening  | M10–M11    |
-| `1.0.0`      | planned | Release-ready       | M12        |
+| Version | Date       | Theme               | Milestones |
+| ------- | ---------- | ------------------- | ---------- |
+| `0.1.0` | 2026-11-20 | Read-only dashboard | M0–M6      |
+| `0.2.0` | planned    | Actions & insight   | M7         |
+| `0.3.0` | planned    | Live & native       | M8–M9      |
+| `0.4.0` | planned    | Polish & hardening  | M10–M11    |
+| `1.0.0` | planned    | Release-ready       | M12        |
 
 ---
 

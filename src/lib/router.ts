@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
 
-export type Route = { name: "home" } | { name: "kitchen-sink" };
+export type Route = { name: "home" } | { name: "kitchen-sink" } | { name: "bench" };
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#/, "").replace(/^\/+/, "").replace(/\/+$/, "");
-  return path === "kitchen-sink" ? { name: "kitchen-sink" } : { name: "home" };
+
+  if (path === "kitchen-sink") return { name: "kitchen-sink" };
+  if (path === "bench") return { name: "bench" };
+
+  return { name: "home" };
 }
 
 /** Hash-based routing: no dependency, works in a WebView, survives reload. */

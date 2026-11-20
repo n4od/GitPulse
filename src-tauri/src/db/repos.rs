@@ -5,7 +5,8 @@ use rusqlite::{params, Connection, OptionalExtension, Row};
 
 use crate::error::AppError;
 
-use super::models::{Repo, RepoUpsert};
+use super::models::{Repo, RepoCard, RepoUpsert};
+use super::runs;
 
 const COLUMNS: &str = "id, github_id, owner, name, full_name, is_private, default_branch, \
                        avatar_url, monitored, last_polled_at, created_at, updated_at";
@@ -174,4 +175,43 @@ pub fn count(connection: &Connection) -> Result<i64, AppError> {
     connection
         .query_row("SELECT COUNT(*) FROM repos", [], |row| row.get(0))
         .map_err(AppError::db)
+}
+
+/// How many runs each card carries. Enough for a sparkline and the run list.
+pub const RECENT_RUNS_PER_REPO: i64 = 10;
+
+/// Every card the dashboard needs, built from three queries rather than 750.
+pub fn cards(connection: &Connection) -> Result<Vec<RepoCard>, AppError> {
+    let repositories = list(connection)?;
+    let recent = runs::recent_for_all(connection, RECENT_RUNS_PER_REPO)?;
+    let aggregates = runs::aggregates(connection)?;
+
+    Ok(repositories
+        .into_iter()
+        .map(|repo| {
+            let aggregate = aggregates.get(&repo.id).copied().unwrap_or_default();
+
+            RepoCard {
+                recent_runs: recent.get(&repo.id).cloned().unwrap_or_default(),
+                failing_runs: aggregate.failing,
+                has_active_run: aggregate.active,
+                repo,
+            }
+        })
+        .collect())
+}
+
+/// One card, recomputed. Used when a poll changes a repository so the UI can
+/// replace exactly that card.
+pub fn card(connection: &Connection, id: i64) -> Result<Option<RepoCard>, AppError> {
+    let Some(repo) = by_id(connection, id)? else {
+        return Ok(None);
+    };
+
+    Ok(Some(RepoCard {
+        recent_runs: runs::list_by_repo(connection, id, RECENT_RUNS_PER_REPO, 0)?,
+        failing_runs: runs::count_failing(connection, id)?,
+        has_active_run: runs::has_active(connection, id)?,
+        repo,
+    }))
 }

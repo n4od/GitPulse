@@ -3,20 +3,10 @@ import { listen } from "@tauri-apps/api/event";
 import type { AuthState } from "@/lib/bindings/AuthState";
 import { call } from "@/lib/ipc";
 import { useAuthStore } from "@/stores/auth";
+import { isTauriRuntime } from "@/lib/tauri";
 
 /** Event emitted by the Rust side on every auth transition. */
 export const AUTH_STATE_EVENT = "auth://state";
-
-/**
- * True when the page is running inside the Tauri webview.
- *
- * Outside it — `vite dev` in a browser, or a component test — there is no IPC
- * to talk to, so the bridge stays idle instead of logging a caught error on
- * every mount.
- */
-function isTauriRuntime(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-}
 
 /**
  * Connects the auth store to the backend. Mount exactly once, at the app root.

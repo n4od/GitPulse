@@ -36,6 +36,10 @@ pub fn run() {
             commands::auth::auth_sign_out,
             commands::auth::auth_refresh_session,
             commands::poller::repos_refresh,
+            commands::repos::repos_available,
+            commands::repos::repos_list,
+            commands::repos::repos_set_monitored,
+            commands::repos::repos_track,
             commands::system::system_info,
             commands::system::system_open_url,
         ])
@@ -169,8 +173,8 @@ struct TauriPollEvents {
 }
 
 impl poller::PollEvents for TauriPollEvents {
-    fn runs_changed(&self, event: poller::RunsChangedEvent) {
-        if let Err(error) = self.app.emit(poller::RUNS_UPDATED_EVENT, event) {
+    fn repo_updated(&self, card: crate::db::RepoCard) {
+        if let Err(error) = self.app.emit(poller::RUNS_UPDATED_EVENT, card) {
             tracing::warn!(%error, "could not emit run://updated");
         }
     }

@@ -33,7 +33,11 @@ const SIGNED_IN: AuthState = {
  * what happens on a real launch.
  */
 function seed(state: AuthState): void {
-  invoke.mockResolvedValue(state);
+  invoke.mockImplementation((command: string) =>
+    // The dashboard is only mounted when signed in, and it needs a list, not
+    // an auth payload.
+    command === "repos_list" ? Promise.resolve([]) : Promise.resolve(state),
+  );
   useAuthStore.setState({ state, ready: true });
 }
 
