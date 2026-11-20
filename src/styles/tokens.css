@@ -1,0 +1,53 @@
+/*
+ * Design tokens — single source of truth for colour.
+ *
+ * Declared inside `@theme` so Tailwind v4 generates utilities (`bg-surface`,
+ * `text-ink`, `border-line`, ...) AND emits the variables on `:root`, which
+ * lets hand-written CSS reference them without duplicating hex values.
+ *
+ * Naming avoids collisions with Tailwind's built-in scales: `--color-base`
+ * would clash with the `text-base` font-size utility, so the surface ramp is
+ * named `surface`/`raised`/`overlay` instead.
+ */
+@theme {
+  --color-surface: #0b0c0e;
+  --color-raised: #121417;
+  --color-overlay: #171a1e;
+  --color-line: #22262c;
+  --color-line-strong: #2e343c;
+
+  --color-ink: #e8eaed;
+  --color-ink-soft: #9ba3ae;
+  --color-ink-muted: #6b7480;
+
+  --color-accent: #4c8dff;
+
+  --color-ok: #22c55e;
+  --color-bad: #ef4444;
+  --color-warn: #f59e0b;
+  --color-live: #38bdf8;
+  --color-idle: #64748b;
+
+  --radius-card: 10px;
+  --radius-control: 6px;
+}
+
+/* Semantic aliases used by non-Tailwind CSS (see global.css). */
+:root {
+  --bg-base: var(--color-surface);
+  --bg-raised: var(--color-raised);
+  --bg-overlay: var(--color-overlay);
+  --border-subtle: var(--color-line);
+  --border-strong: var(--color-line-strong);
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-ink-soft);
+  --text-muted: var(--color-ink-muted);
+
+  --st-success: var(--color-ok);
+  --st-failure: var(--color-bad);
+  --st-warn: var(--color-warn);
+  --st-running: var(--color-live);
+  --st-neutral: var(--color-idle);
+
+  color-scheme: dark;
+}
