@@ -18,18 +18,33 @@
 
   --color-ink: #e8eaed;
   --color-ink-soft: #9ba3ae;
-  --color-ink-muted: #6b7480;
+  --color-ink-muted: #77808c;
 
   --color-accent: #4c8dff;
 
   --color-ok: #22c55e;
-  --color-bad: #ef4444;
+  --color-bad: #f05252;
   --color-warn: #f59e0b;
   --color-live: #38bdf8;
   --color-idle: #64748b;
 
   --radius-card: 10px;
   --radius-control: 6px;
+
+  /* Looping ring for transient statuses. Gated in JS by useMotionAllowed(). */
+  --animate-pulse-ring: pulse-ring 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
 }
 
 /* Semantic aliases used by non-Tailwind CSS (see global.css). */

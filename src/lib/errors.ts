@@ -42,7 +42,11 @@ export function toPulseError(cause: unknown): PulseError {
   if (isPulseErrorPayload(cause)) return new PulseError(cause);
 
   const message =
-    cause instanceof Error ? cause.message : typeof cause === "string" ? cause : "Unknown error";
+    cause instanceof Error
+      ? cause.message
+      : typeof cause === "string"
+        ? cause
+        : "Unknown error";
 
   return new PulseError({ code: "unknown", message, retryable: false });
 }

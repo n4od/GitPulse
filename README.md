@@ -9,12 +9,12 @@ your machine.
 
 ## Requirements
 
-| Tool | Version | Notes |
-| ---- | ------- | ----- |
-| Rust | 1.77+ | MSVC toolchain on Windows |
-| Node | 22+ | |
-| npm | 11+ | |
-| WebView2 | any | Preinstalled on Windows 11; the installer bootstraps it otherwise |
+| Tool     | Version | Notes                                                             |
+| -------- | ------- | ----------------------------------------------------------------- |
+| Rust     | 1.77+   | MSVC toolchain on Windows                                         |
+| Node     | 22+     |                                                                   |
+| npm      | 11+     |                                                                   |
+| WebView2 | any     | Preinstalled on Windows 11; the installer bootstraps it otherwise |
 
 Linux also needs `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`,
 `librsvg2-dev`, `patchelf` and `libsecret-1-dev`.
@@ -31,16 +31,16 @@ On Windows, if `npm` is blocked by the PowerShell execution policy, use
 
 ## Scripts
 
-| Command | What it does |
-| ------- | ------------ |
-| `npm run dev` | Vite dev server on `:1420` (Tauri's `beforeDevCommand`) |
-| `npm run tauri dev` | Full desktop app with hot reload |
-| `npm run build` | Typecheck + production frontend bundle |
-| `npm run tauri build` | Signed-less installers for the current OS |
-| `npm run typecheck` | `tsc --noEmit` over app and tooling configs |
-| `npm run lint` | ESLint, zero warnings tolerated |
-| `npm run test` | Vitest |
-| `npm run format` | Prettier |
+| Command               | What it does                                            |
+| --------------------- | ------------------------------------------------------- |
+| `npm run dev`         | Vite dev server on `:1420` (Tauri's `beforeDevCommand`) |
+| `npm run tauri dev`   | Full desktop app with hot reload                        |
+| `npm run build`       | Typecheck + production frontend bundle                  |
+| `npm run tauri build` | Signed-less installers for the current OS               |
+| `npm run typecheck`   | `tsc --noEmit` over app and tooling configs             |
+| `npm run lint`        | ESLint, zero warnings tolerated                         |
+| `npm run test`        | Vitest                                                  |
+| `npm run format`      | Prettier                                                |
 
 Rust side:
 

@@ -20,13 +20,10 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
-      include: ["src/**/*.{ts,tsx}"],
-      exclude: [
-        "src/main.tsx",
-        "src/**/*.d.ts",
-        "src/test/**",
-        "src/lib/bindings/**",
-      ],
+      // Scope matches the roadmap gate (M11-05): logic-bearing code only.
+      // Primitives are exercised through the gallery and component tests.
+      include: ["src/lib/**", "src/stores/**", "src/components/status/**"],
+      exclude: ["src/lib/bindings/**", "src/**/*.test.*"],
       thresholds: {
         lines: 80,
         functions: 80,

@@ -40,21 +40,26 @@ single owner.
 
 ## 2. Module map
 
-| Path | Responsibility | Milestone |
-| ---- | -------------- | --------- |
-| `src-tauri/src/lib.rs` | Builder, plugin registration, window lifecycle | M0 |
-| `src-tauri/src/error.rs` | `AppError` wire contract | M0 |
-| `src-tauri/src/redact.rs` | Secret scrubbing for logs and errors | M0 |
-| `src-tauri/src/logging.rs` | Rolling file log + redacting writer | M0 |
-| `src-tauri/src/state.rs` | Shared process state | M0 |
-| `src-tauri/src/commands/` | IPC surface, input validation | M0+ |
-| `src-tauri/src/auth/` | Device flow, token store, refresh | M2 |
-| `src-tauri/src/db/` | Schema, migrations, DAOs, retention | M3 |
-| `src-tauri/src/github/` | Client, ETag cache, rate budget, endpoints | M4 |
-| `src-tauri/src/poller/` | Scheduler, budget math, backoff | M5 |
-| `src-tauri/src/webhook/` | Local server, relay, HMAC verification | M8 |
-| `src/lib/ipc.ts` | Typed `invoke` wrapper, error normalisation | M0 |
-| `src/lib/bindings/` | `ts-rs`-generated types (checked in) | M1+ |
+| Path                            | Responsibility                                            | Milestone |
+| ------------------------------- | --------------------------------------------------------- | --------- |
+| `src-tauri/src/lib.rs`          | Builder, plugin registration, window lifecycle            | M0        |
+| `src-tauri/src/error.rs`        | `AppError` wire contract                                  | M0        |
+| `src-tauri/src/redact.rs`       | Secret scrubbing for logs and errors                      | M0        |
+| `src-tauri/src/logging.rs`      | Rolling file log + redacting writer                       | M0        |
+| `src-tauri/src/state.rs`        | Shared process state                                      | M0        |
+| `src-tauri/src/commands/`       | IPC surface, input validation                             | M0+       |
+| `src-tauri/src/auth/`           | Device flow, token store, refresh                         | M2        |
+| `src-tauri/src/db/`             | Schema, migrations, DAOs, retention                       | M3        |
+| `src-tauri/src/github/`         | Client, ETag cache, rate budget, endpoints                | M4        |
+| `src-tauri/src/poller/`         | Scheduler, budget math, backoff                           | M5        |
+| `src-tauri/src/webhook/`        | Local server, relay, HMAC verification                    | M8        |
+| `src/lib/ipc.ts`                | Typed `invoke` wrapper, error normalisation               | M0        |
+| `src/lib/status.ts`             | Canonical status vocabulary (mapping table, worst-of)     | M1        |
+| `src/components/status/`        | `StatusBadge` / `StatusPulse` — the only status renderers | M1        |
+| `src/components/primitives/`    | Button, Badge, Card, Spinner, Skeleton, Tooltip, Toast    | M1        |
+| `src/hooks/useMotionAllowed.ts` | Single gate for every looping animation                   | M1        |
+| `src/stores/`                   | Zustand stores (UI-only state)                            | M1+       |
+| `src/lib/bindings/`             | `ts-rs`-generated types (checked in)                      | M1+       |
 
 ## 3. Decision log
 
@@ -118,17 +123,44 @@ TypeScript 6 rejects `noEmit` in a referenced composite project and deprecated
 (`tsconfig.node.json`) are therefore independent, and `npm run typecheck`
 checks both.
 
+### ADR-008 — One status vocabulary, one motion gate
+
+Two cross-cutting concerns are centralised rather than left to components:
+
+- **Status.** `mapRunStatus()` in `src/lib/status.ts` is the only place that
+  knows what GitHub's `status`/`conclusion` strings mean, and `StatusBadge` is
+  the only component that renders them. The repository card, the tray icon and
+  the notification rules must agree; duplicating a `switch` in each would let
+  them drift, and a wrong badge is worse than a missing one.
+- **Motion.** `useMotionAllowed()` is the only place that reads
+  `prefers-reduced-motion` and `document.visibilityState`. An animation that
+  loops in a hidden window is the most likely way to blow the <1% idle CPU
+  budget, so the check lives in one hook that every animated component calls
+  rather than in each component's CSS.
+
+`conclusion` is treated as authoritative over `status`, because webhook
+payloads can carry a conclusion while the status field is still stale. A
+`completed` run with no conclusion maps to `unknown` rather than `success` —
+never invent a green badge.
+
+### ADR-009 — Coverage gate scoped to logic, not markup
+
+Vitest coverage is measured over `lib/`, `stores/` and `components/status`.
+Chasing 80% across pure presentational wrappers would produce tests that assert
+class names rather than behaviour. The correct instrument for those is the
+component gallery (visual) and the e2e sweep (M11-04).
+
 ## 4. Threat model
 
 ### Assets
 
-| Asset | Where it lives | Impact if leaked |
-| ----- | -------------- | ---------------- |
-| GitHub access token | OS keychain | Full repo access as the user |
-| GitHub refresh token | OS keychain | Token minting after access expiry |
-| Webhook signing secret | OS keychain | Forged build events |
-| Cached repo data | Local SQLite | Private repo names, branches, commit messages |
-| Log files | App log dir | Anything logged, if redaction fails |
+| Asset                  | Where it lives | Impact if leaked                              |
+| ---------------------- | -------------- | --------------------------------------------- |
+| GitHub access token    | OS keychain    | Full repo access as the user                  |
+| GitHub refresh token   | OS keychain    | Token minting after access expiry             |
+| Webhook signing secret | OS keychain    | Forged build events                           |
+| Cached repo data       | Local SQLite   | Private repo names, branches, commit messages |
+| Log files              | App log dir    | Anything logged, if redaction fails           |
 
 ### Trust boundaries
 
@@ -138,10 +170,10 @@ checks both.
 2. **Network ↔ Rust.** All GitHub responses are untrusted input: parsed into
    typed models, never `eval`'d, never rendered as HTML.
 3. **Relay ↔ Rust.** Webhook payloads arrive from a public relay. HMAC
-   verification over raw bytes happens *before* deserialization, and the local
+   verification over raw bytes happens _before_ deserialization, and the local
    listener is bound to `127.0.0.1` behind a secret path segment.
 
-### Mitigations in place (M0)
+### Mitigations in place (M0–M1)
 
 - CSP with no `unsafe-eval`, no wildcard origins, `script-src 'self'`.
 - Capability file grants `core:default` + `opener:allow-open-url` only — no
@@ -170,19 +202,19 @@ checks both.
 
 Carried from the roadmap; each one changes the shape of a milestone.
 
-| # | Decision | Default if unresolved | Affects |
-| - | -------- | --------------------- | ------- |
-| D1 | GitHub App (refresh tokens) vs OAuth App (non-expiring token) | GitHub App | M2 |
-| D2 | Webhook transport: relay only vs relay + tunnel + local server | Relay + local | M8 |
-| D3 | Polling: budget-aware adaptive vs user-fixed interval | Adaptive | M5 |
-| D4 | Log retention: cache text vs fetch on demand | Fetch on demand | M7 |
-| D5 | Product name / bundle identifier | `Pulse` / `dev.pulse.workflowmonitor` | shipped |
+| #   | Decision                                                       | Default if unresolved                 | Affects |
+| --- | -------------------------------------------------------------- | ------------------------------------- | ------- |
+| D1  | GitHub App (refresh tokens) vs OAuth App (non-expiring token)  | GitHub App                            | M2      |
+| D2  | Webhook transport: relay only vs relay + tunnel + local server | Relay + local                         | M8      |
+| D3  | Polling: budget-aware adaptive vs user-fixed interval          | Adaptive                              | M5      |
+| D4  | Log retention: cache text vs fetch on demand                   | Fetch on demand                       | M7      |
+| D5  | Product name / bundle identifier                               | `Pulse` / `dev.pulse.workflowmonitor` | shipped |
 
 ## 7. Known constraints of the current toolchain
 
-| Constraint | Consequence |
-| ---------- | ----------- |
-| TypeScript 6 | `baseUrl` removed; `noEmit` not allowed in composite references |
-| Vite 8 (rolldown) | `esbuild` is a separate install; `safari13` target cannot down-level destructuring |
-| npm 11 | Install scripts require explicit approval (`allowScripts`) |
-| Windows PowerShell policy | `npm.ps1` is blocked on this machine — use `npm.cmd` |
+| Constraint                | Consequence                                                                        |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| TypeScript 6              | `baseUrl` removed; `noEmit` not allowed in composite references                    |
+| Vite 8 (rolldown)         | `esbuild` is a separate install; `safari13` target cannot down-level destructuring |
+| npm 11                    | Install scripts require explicit approval (`allowScripts`)                         |
+| Windows PowerShell policy | `npm.ps1` is blocked on this machine — use `npm.cmd`                               |
