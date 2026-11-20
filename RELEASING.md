@@ -130,9 +130,36 @@ in `CHANGELOG.md`, which is the durable record.
 
 ## Adding signing
 
-Signing is a pure "add secrets" upgrade — no workflow edit is required, because
-`release.yml` already passes every variable through. Set the relevant secrets
-under **Settings → Secrets and variables → Actions** and the next tag is signed.
+Two things are needed: the secrets, and an `env:` block in `release.yml` that
+declares them. **The block is not there on purpose.**
+
+Declaring a signing variable _empty_ is not the same as leaving it unset. The
+first release run proved it: mapping `APPLE_CERTIFICATE` to an unset secret
+produced an empty string, Tauri read "present" as "sign this", and every macOS
+build died trying to import a blank PKCS#12 — `failed codesign application:
+failed to run command security import -f pkcs12`.
+
+So the variables are omitted entirely. Turning signing on means adding the
+secrets under **Settings → Secrets and variables → Actions** _and_ this block,
+under the `tauri-action` step:
+
+```yaml
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+  APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+  APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+  APPLE_ID: ${{ secrets.APPLE_ID }}
+  APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+  WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+  WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+```
+
+Add only the lines whose secrets you have set. Add them all and leave some
+unset, and the empty-string failure comes straight back.
 
 | Secret                               | What it is                                             | Where it comes from                        |
 | ------------------------------------ | ------------------------------------------------------ | ------------------------------------------ |

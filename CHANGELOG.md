@@ -78,8 +78,10 @@ no certificates and no secrets, and the pipeline produces both **installers** an
   nothing, and the flag forces a signing key — which stood between a tag and a
   set of installers. Re-enable it together with the plugin.
 - **Releases are unsigned until certificates exist.** `release.yml` produces
-  installers with no secrets configured; adding them turns signing on with no
-  edit to the workflow.
+  installers with no secrets configured. Turning signing on means adding the
+  secrets _and_ the documented `env:` block — declaring a signing variable empty
+  is not the same as leaving it unset, and the first release run proved it by
+  failing every macOS build on an empty `APPLE_CERTIFICATE`.
 
 ### Added
 

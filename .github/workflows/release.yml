@@ -89,31 +89,12 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-          # Signing is deliberately *not* configured yet, so these resolve to
-          # empty strings and the bundles are produced unsigned. An unset secret
-          # is not an error here; it simply means "do not sign". Adding the
-          # secrets below turns signing on with no edit to this file. See
-          # RELEASING.md for what each one is and where it comes from.
-          #
-          # TAURI_SIGNING_PRIVATE_KEY        updater signatures (needs
-          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD  createUpdaterArtifacts: true)
-          # APPLE_CERTIFICATE                macOS signing
-          # APPLE_CERTIFICATE_PASSWORD
-          # APPLE_SIGNING_IDENTITY
-          # APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID   notarization
-          # WINDOWS_CERTIFICATE              Windows signing
-          # WINDOWS_CERTIFICATE_PASSWORD
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          # No signing variables are declared, and that is deliberate rather
+          # than an omission. Declaring one *empty* is not the same as leaving
+          # it unset: an empty APPLE_CERTIFICATE made Tauri attempt
+          # `security import` on a blank PKCS#12 and fail the macOS bundle
+          # outright, on all four builds. To sign, add the secrets and paste
+          # the env block from RELEASING.md, "Adding signing".
         with:
           tagName: ${{ steps.tag.outputs.name }}
           releaseName: "GitPulse ${{ steps.tag.outputs.name }}"
