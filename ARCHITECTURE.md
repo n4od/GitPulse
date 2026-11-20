@@ -121,6 +121,43 @@ have given us:
 `VACUUM` is deliberately excluded from migrations: SQLite refuses to run it
 inside a transaction, so it lives in the retention sweep on its own cadence.
 
+### ADR-012 — One request pipeline, and a budget we own
+
+Every GitHub call goes through `GithubClient::execute`, which applies the five
+rules in a fixed order: local budget, token, conditional header, send,
+classify. Putting them in one function is what makes the guarantees auditable —
+there is no second path that could forget to attach the version header, or to
+refund the token on a `304`.
+
+**Why the budget is hand-rolled.** `governor` models a rate. This client needs a
+rate _and_ a pause ("GitHub said stop for 120 seconds"), and two mechanisms for
+one constraint is worse than one. A `Mutex`, an `Instant` and a float do the
+job, the refill maths is unit-tested against a fixed clock, and there is no
+background task.
+
+**Why a `304` refunds.** The client must spend a token before it knows the
+response will be a `304`. GitHub does not charge for conditional requests, so
+the token is given back. Without this, the cheapest possible poll would cost the
+same as the most expensive one, which would defeat the point of polling with
+`ETag`s at all.
+
+**Why long waits are errors, not sleeps.** A primary limit can last an hour.
+Sleeping inside a request would be indistinguishable from a hang and would
+ignore cancellation, so anything past 30 seconds surfaces as
+`AppError::RateLimited { reset_at }` and the caller schedules the retry.
+
+**Why the CDN request drops the token.** GitHub redirects log downloads to
+`objects.githubusercontent.com` with a pre-signed URL. Replaying `Authorization`
+to a different origin is the classic way desktop apps leak tokens into a CDN's
+logs. The redirect is resolved by hand and the second request is anonymous; a
+test asserts the header is absent.
+
+**Why inputs are validated before the URL is built.** `full_name` and the git
+ref are interpolated into a path and a body. A `..` that survived validation
+would let a caller address an endpoint they were never granted, so both are
+checked against a character class _and_ against the two traversal spellings
+(`.`/`..`) that pass one.
+
 ### ADR-011 — Device flow, and one auth path for both app types
 
 **Why the device flow.** A desktop binary cannot keep a client secret, so the

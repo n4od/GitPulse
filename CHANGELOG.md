@@ -14,11 +14,36 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 ## [Unreleased]
 
 Milestones **M0 (Foundation)**, **M1 (Design system & shell)**, **M2
-(Authentication)** and **M3 (Persistence)** are complete. Still open from M0:
-the licence choice and the first CI run on macOS/Linux. See
-[ROADMAP.md](./ROADMAP.md).
+(Authentication)**, **M3 (Persistence)** and **M4 (GitHub client)** are
+complete. Still open from M0: the licence choice and the first CI run on
+macOS/Linux. See [ROADMAP.md](./ROADMAP.md).
 
 ### Added
+
+**GitHub client (M4)**
+
+- **Typed REST surface:** repositories, a repository, runs, a run, jobs,
+  workflows, dispatch, re-run, re-run-failed, cancel, deployments, deployment
+  statuses, open pull requests and `/rate_limit`. (`M4-06`)
+- **Conditional requests:** an LRU(512) `ETag` cache sends `If-None-Match`, and
+  a `304` is served from the cache with its budget token refunded — GitHub does
+  not charge for a `304`, so neither do we. (`M4-02`)
+- **Local request budget:** a token bucket at 70% of the hourly ceiling
+  (3,500/hour, burst 30) so polling cannot starve the reserve. Waits longer
+  than 30 seconds surface as `rate_limited` instead of blocking. (`M4-03`)
+- **Rate-limit handling:** primary exhaustion pauses until GitHub's reset time;
+  a secondary limit (`429` or `403` + `Retry-After`) pauses the _whole_ client,
+  not just the request that hit it. Snapshots are pushed to the UI on
+  `ratelimit://updated`. (`M4-04`)
+- **Retry policy:** only `5xx` and transport failures, at most four attempts,
+  exponential backoff with full jitter. A `4xx` is never retried. (`M4-05`)
+- **Log download:** follows the pre-signed CDN redirect by hand and re-issues
+  the request **without** the `Authorization` header, streaming the body against
+  a 5 MB cap. (`M4-07`)
+- **Input validation:** repository names and git refs are rejected before a URL
+  is built, so a `..` or a stray `/` cannot address a different endpoint.
+- **Generated types:** `RateLimitSnapshot` is exported to
+  `src/lib/bindings/RateLimitSnapshot.ts` for the rate-limit meter.
 
 **Authentication (M2)**
 
@@ -118,6 +143,9 @@ retryable }` and redacts secrets on the way out. (`M0-07`)
 
 ### Changed
 
+- **Rate limiting** is a hand-rolled token bucket rather than `governor`, which
+  models a rate but not the "GitHub said stop for 120 seconds" pause that this
+  client needs. (`M4-03`)
 - **Persistence architecture:** the planned 4-reader/1-writer `deadpool-sqlite`
   pool was replaced by a single `Mutex<Connection>`. `deadpool-sqlite 0.13` has
   no connection-init hook, which makes the per-connection `PRAGMA
@@ -159,7 +187,8 @@ foreign_keys = ON` impossible to set reliably — and without it every
   the IPC boundary; the webview receives only the login name and expiry.
   (`M2-05`)
 - Redirects are not followed automatically, so an `Authorization` header can
-  never be replayed to a third-party host such as the log CDN. (`M2-02`)
+  never be replayed to a third-party host such as the log CDN. (`M2-02`,
+  `M4-07`)
 
 ### Known issues
 

@@ -157,22 +157,35 @@ pragmas once, at open. Revisit only with a measurement.
 
 ---
 
-## M4 — GitHub client · L
+## M4 — GitHub client · L — **complete**
 
 **Goal:** one client that never leaks a token, never exceeds budget, and handles 304s for free.
 
 Depends on M2.
 
-- [ ] `M4-01` Shared `reqwest` client: rustls, gzip, `X-GitHub-Api-Version: 2022-11-28`, `redirect::Policy::none()`
-- [ ] `M4-02` `etag_cache.rs`: LRU(512), `If-None-Match`, `304` serves cached body and costs zero budget
-- [ ] `M4-03` `rate_limit.rs`: `governor` token bucket, 3,500 req/hr ceiling, burst 30
-- [ ] `M4-04` Secondary-limit handling: `403` + `retry-after` / `429` pauses the whole client, emits `ratelimit://updated`
-- [ ] `M4-05` Retry policy: `5xx` and timeouts only, exponential backoff with full jitter, max 4 attempts
-- [ ] `M4-06` Endpoint functions: user, repos, runs, jobs, workflows, dispatches, reruns, cancel, deployments, pulls, `/rate_limit`
-- [ ] `M4-07` Log download: read `Location`, re-issue **without** auth header, 5 MB streamed cap
-- [ ] `M4-08` Tests: 304 path, secondary-limit pause, 429 recovery, redirect token-stripping
+- [x] `M4-01` Shared `reqwest` client: rustls, gzip, `X-GitHub-Api-Version: 2022-11-28`, `redirect::Policy::none()`
+- [x] `M4-02` `etag.rs`: LRU(512), `If-None-Match`, `304` serves the cached body and refunds the budget token
+- [x] `M4-03` `budget.rs`: **hand-rolled** token bucket (3,500 req/hr, burst 30) instead of `governor`. See ADR-012.
+- [x] `M4-04` Secondary-limit handling: `403` + `Retry-After` / `429` pauses the whole client and publishes `ratelimit://updated`
+- [x] `M4-05` Retry policy: `5xx` and transport failures only, exponential backoff with full jitter, max 4 attempts
+- [x] `M4-06` Endpoint functions: repos, repo, runs, run, jobs, workflows, dispatch, rerun-failed, rerun, cancel, deployments, deployment statuses, pulls, `/rate_limit`
+- [x] `M4-07` Log download: read `Location`, re-issue **without** auth header, 5 MB streamed cap
+- [x] `M4-08` Tests: 304 path, secondary-limit pause, 429, primary exhaustion, retry/no-retry, redirect token-stripping, truncation
 
-**Exit:** simulated 5,000-req/hr exhaustion pauses and recovers unattended; a redirect to `objects.githubusercontent.com` carries no `Authorization` header.
+**Verified:** 85 backend tests pass. The redirect test asserts the second
+hop carries **no** `Authorization` header, and the budget test asserts a
+burst is paced. `RateLimitSnapshot` is exported to
+`src/lib/bindings/RateLimitSnapshot.ts` for the UI meter in M6.
+
+**Measured cost:** the local bucket is the only thing standing between 250
+repositories and the hourly ceiling, so it is deliberately naive: a `Mutex`, an
+`Instant`, and a float. There is no background refill task and no timer.
+
+**Deviation (M4-03):** `governor` was not used. It models a rate but not the
+second constraint this client actually has — "GitHub told us to stop for 120
+seconds" — so the pause would sit awkwardly alongside it. The hand-rolled
+bucket is ~150 lines with its own tests, versus a dependency plus a wrapper.
+The pure refill maths is unit-tested against a fixed clock.
 
 ---
 
