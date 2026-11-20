@@ -48,6 +48,13 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ### Added
 
+- **Release pipeline:** `release.yml` builds a draft release across four targets
+  on three operating systems, verifies that every expected artifact exists, and
+  refuses to publish an incomplete one. Signing and notarization secrets are
+  wired and documented. **It has never run.**
+- **`createUpdaterArtifacts`** enabled so a signed `latest.json` is produced with
+  each build.
+
 - **`examples/live_device_flow`:** a repeatable check against real GitHub, with
   `--wait` to complete an authorisation by hand and `--errors` to verify the
   error paths. It prints the login and the token's shape, never the token.

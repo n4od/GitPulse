@@ -419,15 +419,24 @@ dropped.
 
 ---
 
-## M12 — Release engineering · M → **v1.0.0**
+## M12 — Release engineering · M → **v1.0.0** — **configured, not executed**
 
-- [ ] `M12-01` `release.yml` with `tauri-action`, three-OS matrix, draft release
-- [ ] `M12-02` Updater signing keys + `latest.json` generation
-- [ ] `M12-03` macOS notarization, Windows code signing (secrets documented, never committed)
-- [ ] `M12-04` `ARCHITECTURE.md` complete: threat model, data flow, decision log
-- [ ] `M12-05` README: setup, GitHub App registration, tunnel trade-offs, troubleshooting
-- [ ] `M12-06` Walk the 10 acceptance criteria and record evidence
-- [ ] `M12-07` Tag `v1.0.0`
+- [x] `M12-01` `release.yml`: `tauri-action`, four build targets across three OSes, a draft release, and a verification job that refuses to publish if an artifact is missing
+- [x] `M12-02` `createUpdaterArtifacts` enabled; `TAURI_SIGNING_PRIVATE_KEY` wired. The updater _plugin_ is not installed, so `latest.json` is produced but nothing consumes it yet.
+- [x] `M12-03` Notarization and code-signing secrets wired and documented; none are committed
+- [x] `M12-04` `ARCHITECTURE.md`: 18 ADRs, threat model, module map
+- [x] `M12-05` README: registration, tunnel trade-offs, troubleshooting, and why smee.io does not work
+- [x] `M12-06` Acceptance walkthrough recorded in [`VERIFICATION.md`](./VERIFICATION.md): 3 verified, 5 partial, 1 not met, 1 with documented exceptions
+- [ ] `M12-07` Tag `v1.0.0` — **not done, deliberately.** The milestone's own exit criterion is signed installers produced and verified on three operating systems. None has been produced: there are no signing certificates, no Apple developer account, and no remote to run the matrix.
+
+**What this milestone actually delivers:** a release pipeline that is correct on
+inspection and has never run. `release.yml` builds a draft, checks that every
+expected artifact is present, and refuses to publish without them — but the first
+execution will be the first test.
+
+Tagging `v1.0.0` here would assert that three operating systems produce signed,
+working installers. They do not, and this file has spent a whole project arguing
+that unearned claims are the expensive kind.
 
 ---
 
