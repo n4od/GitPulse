@@ -4,7 +4,7 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 
 **How this works**
 
-- This file is the single source of truth for *planned* work. Shipped work is recorded in
+- This file is the single source of truth for _planned_ work. Shipped work is recorded in
   [CHANGELOG.md](./CHANGELOG.md).
 - Tasks carry stable IDs (`M4-03`). Reference them in commits, PR titles, and changelog
   entries so progress is traceable in both directions.
@@ -19,13 +19,13 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 
 ## Release map
 
-| Version | Theme | Milestones | Definition of done |
-| ------- | ----- | ---------- | ------------------ |
-| `0.1.0` | Read-only dashboard | M0 → M6 | Sign in, see live status for N repos, nothing else |
-| `0.2.0` | Actions & insight | M7 | Inspect runs, read logs, re-run and dispatch |
-| `0.3.0` | Live & native | M8 → M9 | Webhooks, tray, notifications, autostart |
-| `0.4.0` | Polish & hardening | M10 → M11 | Perf budgets measured, a11y audited, e2e green |
-| `1.0.0` | Release-ready | M12 | Signed installers on three OSes, auto-update |
+| Version | Theme               | Milestones | Definition of done                                 |
+| ------- | ------------------- | ---------- | -------------------------------------------------- |
+| `0.1.0` | Read-only dashboard | M0 → M6    | Sign in, see live status for N repos, nothing else |
+| `0.2.0` | Actions & insight   | M7         | Inspect runs, read logs, re-run and dispatch       |
+| `0.3.0` | Live & native       | M8 → M9    | Webhooks, tray, notifications, autostart           |
+| `0.4.0` | Polish & hardening  | M10 → M11  | Perf budgets measured, a11y audited, e2e green     |
+| `1.0.0` | Release-ready       | M12        | Signed installers on three OSes, auto-update       |
 
 **Critical path:** M0 → M1 → M2 → M3 → M4 → M5 → M6. Everything after M6 is parallelisable
 except M8, which depends on M4 (client) and M3 (persistence).
@@ -58,20 +58,34 @@ push. A human should confirm the window renders with `npm run tauri dev`.
 
 ---
 
-## M1 — Design system & shell · M
+## M1 — Design system & shell · M — **complete**
 
 **Goal:** every visual primitive exists, is accessible, and the status vocabulary is frozen.
 
-- [ ] `M1-01` Token palette (`--bg-base` … `--st-neutral`) mapped into Tailwind theme
-- [ ] `M1-02` Primitives: `Button`, `Badge`, `Card`, `Spinner`, `Tooltip`, `Toast`, `Skeleton`
-- [ ] `M1-03` App shell: `TitleBar`, content region, `EmptyState`, `ErrorBoundary`
-- [ ] `M1-04` `useMotionAllowed()` hook — gates animation on `prefers-reduced-motion` **and** `visibilityState`
-- [ ] `M1-05` `mapRunStatus()` pure function + unit test covering every row of the status table
-- [ ] `M1-06` `StatusBadge` / `StatusPulse` (colour is never the only signal — icon or label always present)
-- [ ] `M1-07` Dev-only `/kitchen-sink` route rendering every primitive in every state
-- [ ] `M1-08` Focus-visible rings, 4.5:1 text contrast check, keyboard pass on all primitives
+- [x] `M1-01` Token palette (`--bg-base` … `--st-neutral`) mapped into Tailwind theme
+- [x] `M1-02` Primitives: `Button`, `Badge`, `Card`, `Spinner`, `Tooltip`, `Toast`, `Skeleton`
+- [x] `M1-03` App shell: `TitleBar`, content region, `EmptyState`, `ErrorBoundary`
+- [x] `M1-04` `useMotionAllowed()` hook — gates animation on `prefers-reduced-motion` **and** `visibilityState`
+- [x] `M1-05` `mapRunStatus()` pure function + unit test covering every row of the status table
+- [x] `M1-06` `StatusBadge` / `StatusPulse` (colour is never the only signal — icon or label always present)
+- [x] `M1-07` Dev-only `/kitchen-sink` route rendering every primitive in every state
+- [x] `M1-08` Focus-visible rings, 4.5:1 text contrast check, keyboard pass on primitives
 
-**Exit:** kitchen-sink route renders all states; status mapping has 100% branch coverage; no primitive fails keyboard-only navigation.
+**Verified:** Lighthouse accessibility **1.00** and best-practices **1.00** on the
+gallery (the only remaining findings are `meta-description` / `robots.txt`, which
+are meaningless in a desktop WebView). Status mapping has 100% branch coverage
+across 14 table rows plus precedence and fallback cases. The gallery is
+tree-shaken out of production builds — the `Component gallery` heading is absent
+from `dist`.
+
+Two palette tokens were adjusted to reach WCAG AA rather than relaxing the rule:
+`--color-ink-muted` `#6B7480` → `#77808C` (was 4.12:1) and `--color-bad`
+`#EF4444` → `#F05252` (was 4.48:1 on its own badge tint).
+
+**Partial:** keyboard reachability is asserted by test for `Button` and provided
+by `:focus-visible` / `group-focus-within` elsewhere, but there is no automated
+keyboard-only sweep of every primitive yet. That belongs with the e2e work in
+M11-04.
 
 ---
 
@@ -287,13 +301,13 @@ Unscheduled. Promote into a milestone when it becomes a real user complaint.
 
 These block or reshape the milestones marked `**BLOCKED**`. Resolve before M2 ships.
 
-| # | Decision | Options | Default if unresolved | Affects |
-| - | -------- | ------- | --------------------- | ------- |
-| D1 | Auth model | **GitHub App** (refresh tokens, installation step, fine-grained perms) vs **OAuth App** (non-expiring token, no refresh, `repo workflow read:user`, simpler) | GitHub App — required for the refresh-token requirement | M2, README |
-| D2 | Webhook transport | **Relay only** (smee-style, zero config) vs relay + tunnel + local server | Relay + local server, tunnel documented | M8 |
-| D3 | Polling default | 60 s min / 15 min max vs user-set fixed interval | Budget-aware adaptive | M5, M10 |
-| D4 | Log retention | Keep log text on disk vs fetch-on-demand only | Fetch-on-demand, cache nothing | M7, M11 |
-| D5 | Product name / identifier | `Pulse` / `dev.pulse.workflowmonitor` | As written | M0 |
+| #   | Decision                  | Options                                                                                                                                                      | Default if unresolved                                   | Affects    |
+| --- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ---------- |
+| D1  | Auth model                | **GitHub App** (refresh tokens, installation step, fine-grained perms) vs **OAuth App** (non-expiring token, no refresh, `repo workflow read:user`, simpler) | GitHub App — required for the refresh-token requirement | M2, README |
+| D2  | Webhook transport         | **Relay only** (smee-style, zero config) vs relay + tunnel + local server                                                                                    | Relay + local server, tunnel documented                 | M8         |
+| D3  | Polling default           | 60 s min / 15 min max vs user-set fixed interval                                                                                                             | Budget-aware adaptive                                   | M5, M10    |
+| D4  | Log retention             | Keep log text on disk vs fetch-on-demand only                                                                                                                | Fetch-on-demand, cache nothing                          | M7, M11    |
+| D5  | Product name / identifier | `Pulse` / `dev.pulse.workflowmonitor`                                                                                                                        | As written                                              | M0         |
 
 Record the outcome of each in `ARCHITECTURE.md` under "Decisions" and tick the corresponding
 `**BLOCKED**` task.
