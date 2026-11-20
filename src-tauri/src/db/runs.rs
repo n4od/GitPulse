@@ -232,6 +232,32 @@ pub fn has_active(connection: &Connection, repo_id: i64) -> Result<bool, AppErro
         .map_err(AppError::db)
 }
 
+/// Every repository with at least one run in flight, in one query.
+///
+/// The poller asks this once per tick rather than once per repository, which is
+/// what keeps a 250-repository sweep to a couple of queries per tick.
+pub fn repos_with_active_runs(connection: &Connection) -> Result<Vec<i64>, AppError> {
+    let placeholders = ACTIVE_STATUSES
+        .iter()
+        .map(|_| "?")
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let sql =
+        format!("SELECT DISTINCT repo_id FROM workflow_runs WHERE status IN ({placeholders})");
+
+    let mut statement = connection.prepare(&sql).map_err(AppError::db)?;
+    let rows = statement
+        .query_map(
+            rusqlite::params_from_iter(ACTIVE_STATUSES.iter().copied()),
+            |row| row.get(0),
+        )
+        .map_err(AppError::db)?;
+
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(AppError::db)
+}
+
 pub fn count_by_repo(connection: &Connection, repo_id: i64) -> Result<i64, AppError> {
     connection
         .query_row(

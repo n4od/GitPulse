@@ -136,6 +136,15 @@ impl RateBudget {
         self.state.lock().map_or(0, |state| state.granted)
     }
 
+    /// Tokens available without waiting.
+    ///
+    /// The scheduler uses this to decide whether dispatching another poll would
+    /// merely block, without spending a token it might not end up needing.
+    #[must_use]
+    pub fn available(&self) -> u32 {
+        self.snapshot().available
+    }
+
     /// Gives a token back.
     ///
     /// A `304 Not Modified` is free against GitHub's real limit, but the client
