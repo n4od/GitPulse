@@ -20,7 +20,10 @@ pub struct SystemInfo {
 
 #[tauri::command]
 #[must_use]
-#[allow(clippy::needless_pass_by_value, reason = "Tauri injects command arguments by value")]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri injects command arguments by value"
+)]
 pub fn system_info(state: State<'_, AppState>) -> SystemInfo {
     SystemInfo {
         version: env!("CARGO_PKG_VERSION"),
@@ -37,7 +40,10 @@ pub fn system_info(state: State<'_, AppState>) -> SystemInfo {
 /// URLs on `github.com` (or a subdomain) are accepted, which prevents the
 /// webview from being used as a generic protocol launcher.
 #[tauri::command]
-#[allow(clippy::needless_pass_by_value, reason = "Tauri injects command arguments by value")]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri injects command arguments by value"
+)]
 pub fn system_open_url(app: AppHandle, url: String) -> Result<(), AppError> {
     let parsed = url::Url::parse(&url)
         .map_err(|_| AppError::Config("the supplied URL is not valid".to_owned()))?;

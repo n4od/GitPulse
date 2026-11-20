@@ -5,11 +5,12 @@
 
 #![forbid(unsafe_code)]
 
-mod commands;
-mod error;
-mod logging;
-mod redact;
-mod state;
+pub mod commands;
+pub mod db;
+pub mod error;
+pub mod logging;
+pub mod redact;
+pub mod state;
 
 use tauri::Manager;
 
@@ -23,16 +24,44 @@ pub fn run() {
             logging::init(app.handle())?;
             app.manage(AppState::new());
 
+            let data_directory = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| error.to_string())?;
+            let database = db::Db::open(data_directory.join("pulse.db"))?;
+
             tracing::info!(
                 version = env!("CARGO_PKG_VERSION"),
                 target_os = std::env::consts::OS,
+                database = %database.path().display(),
                 "pulse starting"
             );
+
+            let maintenance = database.clone();
+            app.manage(database);
 
             if let Some(window) = app.get_webview_window("main") {
                 window.show()?;
                 window.set_focus()?;
             }
+
+            // Retention touches potentially many rows, so it runs after the
+            // window is up rather than delaying first paint.
+            tauri::async_runtime::spawn(async move {
+                let outcome = maintenance
+                    .with_connection(db::retention::prune_with_defaults)
+                    .await;
+
+                match outcome {
+                    Ok(report) => tracing::info!(
+                        runs = report.runs_deleted,
+                        deliveries = report.deliveries_deleted,
+                        vacuumed = report.vacuumed,
+                        "retention sweep complete"
+                    ),
+                    Err(error) => tracing::warn!(%error, "retention sweep failed"),
+                }
+            });
 
             Ok(())
         })
