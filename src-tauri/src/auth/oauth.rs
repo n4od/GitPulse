@@ -124,6 +124,19 @@ impl OAuthClient {
             .await
             .map_err(transport_error)?;
 
+        // GitHub answers an unrecognised client id with a plain 404, not an
+        // OAuth error body. Left to the generic handler that becomes
+        // "resource not found", which sends the user looking in the wrong
+        // place entirely.
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Err(AppError::Config(
+                "GitHub does not recognise this client id. Check that \
+                 PULSE_GITHUB_CLIENT_ID matches the app's Client ID, and that device flow \
+                 is enabled on that app."
+                    .to_owned(),
+            ));
+        }
+
         if !response.status().is_success() {
             return Err(status_error(response).await);
         }
@@ -155,8 +168,8 @@ impl OAuthClient {
             Some("slow_down") => Ok(PollOutcome::SlowDown),
             Some("access_denied") => Err(AppError::AuthDenied),
             Some("expired_token") => Err(AppError::AuthExpired),
-            Some("incorrect_device_code") => Err(AppError::Internal(
-                "GitHub rejected the device code we sent; this is a bug in Pulse".to_owned(),
+            Some("incorrect_device_code") => Err(AppError::Config(
+                "GitHub rejected the device code. The sign-in has to be restarted.".to_owned(),
             )),
             Some("device_flow_disabled") => Err(AppError::Config(
                 "device flow is not enabled for this GitHub app. Turn it on in the app's \

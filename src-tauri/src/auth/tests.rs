@@ -174,7 +174,7 @@ async fn poll_maps_every_documented_error_code() {
         ("slow_down", "slow-down"),
         ("access_denied", "auth_denied"),
         ("expired_token", "auth_expired"),
-        ("incorrect_device_code", "internal"),
+        ("incorrect_device_code", "config"),
         ("device_flow_disabled", "config"),
         ("incorrect_client_credentials", "config"),
         ("something_new_github_added", "internal"),

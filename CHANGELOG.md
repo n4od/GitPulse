@@ -13,7 +13,26 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- **A network blip aborted sign-in.** Found by running the device flow against
+  real GitHub, not against a mock: the first poll succeeded, the next hit a
+  transport error, and the whole sign-in failed even though the device code was
+  still valid for another ten minutes. Transient failures during polling are now
+  retried with a bounded budget that resets on any successful poll.
+- **An unknown client id reported "resource not found".** GitHub answers a 404
+  for an unrecognised client id rather than an OAuth error body, so the message
+  pointed at the wrong problem. It now names the setting to check and the
+  registration requirement.
+- **A rejected device code reported "this is a bug in Pulse".** It is not: it
+  means the code was not one GitHub issued, or it was mangled. The message now
+  says the sign-in has to be restarted.
+
+### Added
+
+- **`examples/live_device_flow`:** a repeatable check against real GitHub, with
+  `--wait` to complete an authorisation by hand and `--errors` to verify the
+  error paths. It prints the login and the token's shape, never the token.
 
 ---
 
