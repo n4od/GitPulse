@@ -65,7 +65,10 @@ jobs:
       - run: npm audit --audit-level=high
 
       - name: Install the pinned toolchain
-        run: rustup toolchain install
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+          components: rustfmt, clippy
 
       - uses: taiki-e/install-action@v2
         with:
@@ -115,7 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-14]
+        os: [ubuntu-22.04, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -131,7 +134,13 @@ jobs:
             libsecret-1-dev
 
       - name: Install the pinned toolchain
-        run: rustup toolchain install
+        uses: dtolnay/rust-toolchain@master
+        with:
+          # Pinned to the version this project was verified against. `stable`
+          # drifts, and a new clippy lint under `-D warnings` turns that drift
+          # into a failed build with no code change.
+          toolchain: 1.95.0
+          components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
         with:

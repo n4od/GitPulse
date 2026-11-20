@@ -27,9 +27,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-14
+          - platform: macos-latest
             args: "--target aarch64-apple-darwin"
-          - platform: macos-14
+          - platform: macos-latest
             args: "--target x86_64-apple-darwin"
           - platform: ubuntu-22.04
             args: ""
@@ -60,7 +60,11 @@ jobs:
           cache: npm
 
       - name: Install the pinned toolchain
-        run: rustup toolchain install
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+          components: rustfmt, clippy
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - uses: Swatinem/rust-cache@v2
         with:
