@@ -77,10 +77,29 @@ pub fn refresh<R: Runtime>(app: &AppHandle<R>, cards: &[RepoCard], signed_in: bo
     let _ = tray.set_icon(Some(icon_for(state)));
     let _ = tray.set_tooltip(Some(state.tooltip()));
 
+    // The taskbar / dock badge is a property of the *window*, not the app —
+    // `AppHandle` has no such method, which is exactly the sort of mistake that
+    // only a macOS or Windows compile catches.
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    let failures = cards.iter().filter(|card| card.failing_runs > 0).count();
+
     #[cfg(target_os = "macos")]
     {
-        let failures = cards.iter().filter(|card| card.failing_runs > 0).count();
-        let _ = app.set_badge_count(i64::try_from(failures).ok());
+        let _ = window.set_badge_count(i64::try_from(failures).ok());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Tauri exposes the Windows overlay icon directly; no Win32 needed.
+        let _ = window.set_overlay_icon((failures > 0).then(|| icon_for(TrayState::Failure)));
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = (window, failures);
     }
 }
 
