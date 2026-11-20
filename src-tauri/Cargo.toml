@@ -31,11 +31,12 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"
 regex = "1"
 url = "2"
 rusqlite = { version = "0.38", features = ["bundled", "chrono"] }
-reqwest = { version = "0.13.5", features = ["json", "gzip", "form"] }
+reqwest = { version = "0.13.5", features = ["json", "gzip", "form", "stream"] }
 secrecy = "0.10.3"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
 tokio-util = { version = "0.7.20", features = ["rt"] }
 ts-rs = { version = "12.0.1", features = ["chrono-impl"] }
+async-trait = "0.1.92"
 
 [profile.release]
 lto = "thin"

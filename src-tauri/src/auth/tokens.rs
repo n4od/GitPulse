@@ -16,6 +16,14 @@ use super::oauth::{OAuthClient, TokenResponse, Viewer, EXPIRY_SKEW_SECS};
 use super::token_store::{secret, StoredTokens, TokenMetadata, TokenStore};
 use super::types::AuthSession;
 
+/// Lets the HTTP client ask for a token without importing the auth internals.
+#[async_trait::async_trait]
+impl crate::github::api::TokenProvider for TokenManager {
+    async fn access_token(&self) -> Result<SecretString, AppError> {
+        TokenManager::access_token(self).await
+    }
+}
+
 struct SessionState {
     access_token: SecretString,
     refresh_token: Option<SecretString>,

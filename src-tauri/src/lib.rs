@@ -16,7 +16,7 @@ pub mod state;
 
 use std::sync::Arc;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use crate::auth::TokenStore;
 use crate::state::AppState;
@@ -36,13 +36,24 @@ pub fn run() {
             let database = db::Db::open(data_directory.join("pulse.db"))?;
 
             let http = github::client::build_client()?;
+            let endpoints = github::client::Endpoints::github();
+
             let oauth = Arc::new(auth::oauth::OAuthClient::new(
-                http,
-                github::client::Endpoints::github(),
+                http.clone(),
+                endpoints.clone(),
                 auth::configured_client_id(),
             ));
 
             let tokens = Arc::new(auth::TokenManager::new(Arc::clone(&oauth), token_store()));
+            let token_provider: Arc<dyn github::TokenProvider> = tokens.clone();
+
+            let github_client = Arc::new(github::GithubClient::new(
+                http,
+                endpoints,
+                token_provider,
+                Arc::new(github::RateBudget::for_github()),
+            ));
+
             let auth_service = Arc::new(auth::AuthService::new(
                 oauth,
                 tokens,
@@ -60,9 +71,28 @@ pub fn run() {
             auth_service.bootstrap(app.handle())?;
             auth_service.validate_in_background(app.handle().clone());
 
+            // The webview cannot poll Rust, so the rate-limit picture is
+            // pushed. The client publishes on a watch channel; this task is the
+            // only place that turns those publications into events.
+            {
+                let mut rate = github_client.rate_receiver();
+                let handle = app.handle().clone();
+
+                tauri::async_runtime::spawn(async move {
+                    while rate.changed().await.is_ok() {
+                        let snapshot = rate.borrow_and_update().clone();
+
+                        if let Err(error) = handle.emit(github::RATE_LIMIT_EVENT, snapshot) {
+                            tracing::warn!(%error, "could not emit the rate limit event");
+                        }
+                    }
+                });
+            }
+
             let maintenance = database.clone();
             app.manage(database);
             app.manage(auth_service);
+            app.manage(github_client);
 
             if let Some(window) = app.get_webview_window("main") {
                 window.show()?;
