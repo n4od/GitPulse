@@ -8,11 +8,4 @@
  * "expires but has no refresh token" (re-authenticate) from "expires and can
  * be renewed silently".
  */
-export type AuthSession = {
-  login: string;
-  avatarUrl: string | null;
-  displayName: string | null;
-  expiresAt: string | null;
-  scopes: Array<string>;
-  canRefresh: boolean;
-};
+export type AuthSession = { login: string, avatarUrl: string | null, displayName: string | null, expiresAt: string | null, scopes: Array<string>, canRefresh: boolean, };

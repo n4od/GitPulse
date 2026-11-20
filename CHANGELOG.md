@@ -13,6 +13,15 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+Nothing yet.
+
+---
+
+## [0.4.0] — 2026-11-20
+
+Polish and hardening: a settings panel, a command palette, and an honest account
+of what is actually verified.
+
 ### Added
 
 **Settings and polish (M10)**
@@ -31,17 +40,44 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 - **Keyboard map:** the palette and its navigation, alongside the focus-visible
   treatment every control already had. (`M10-05`)
 
+**Hardening (M11)**
+
+- **Resource measurement scripts:** `scripts/soak.ps1` reports memory growth per
+  hour against a 2 MB/h budget, and `scripts/idle-cpu.ps1` reports average CPU
+  against 1%. Both are written and neither has been run. (`M11-01`, `M11-02`)
+- **`VERIFICATION.md`:** every claim in the repository classified as verified
+  with evidence, verified only against a mock, or not verified — with the four
+  gaps that need credentials, a second platform, or a remote called out
+  explicitly.
+- **Dependency audit in CI:** `npm audit --audit-level=high` and
+  `rustsec/audit-check`. (`M11-07`)
+
 ### Changed
 
 - **Sign out moved into the settings panel and the palette.** It used to be a
   title-bar button beside the account name, one mis-click from logging you out.
+
+### Security
+
+- **Audited, not assumed:** no token-shaped strings outside test modules, exactly
+  one command returns a secret (the documented webhook setup path), CSP has no
+  `unsafe-eval` and no wildcards, capabilities grant only `core:default` and
+  `opener:allow-open-url`, and `npm audit` reports zero vulnerabilities.
+  (`M11-06`)
 
 ### Known issues
 
 - **The settings panel and palette have not been through Lighthouse.** The
   primitives were audited at 1.00 in M1 and the new surfaces reuse the same
   tokens and roles, but "same components" is not a measurement. (`M10-06`)
-- `v0.4.0` is not cut: the release also requires M11.
+- **The perf bench is not in CI** and there is no Playwright e2e suite;
+  `M11-03` and `M11-04` were left open rather than half-built. The bench remains
+  a manual `#/bench` run.
+- **`cargo audit` could not run on the build machine** — the advisory database
+  is fetched over git and that network path is blocked. It is wired into CI,
+  where it will run.
+- **The soak and idle-CPU scripts have not been executed,** so the 2 MB/h and
+  1% claims in the roadmap are budgets, not measurements.
 
 ---
 
@@ -392,6 +428,13 @@ foreign_keys = ON` impossible to set reliably — and without it every
 - The repository picker re-fetches a repository from GitHub before storing it,
   so a name supplied by the webview cannot become a row that misrepresents what
   it is. (`M6-01`)
+- Exactly one command returns a secret — `webhook_signing_secret` — because the
+  user has to paste it into GitHub's form. No event carries one. (`M8-09`)
+- Every webhook transport verifies the same HMAC over the raw body; a relay that
+  does not forward headers produces frames Pulse refuses rather than trusts.
+  (`M8-07`)
+- `npm audit` reports zero vulnerabilities; `cargo audit` is wired into CI.
+  (`M11-06`, `M11-07`)
 
 ### Known issues
 
@@ -445,6 +488,7 @@ Delete any heading that has no entries. Keep entries user-facing.
 | `0.1.0` | 2026-11-20 | Read-only dashboard | M0–M6      |
 | `0.2.0` | 2026-11-20 | Actions & insight   | M7         |
 | `0.3.0` | 2026-11-20 | Live & native       | M8–M9      |
+| `0.4.0` | 2026-11-20 | Polish & hardening  | M10–M11    |
 | `0.3.0` | planned    | Live & native       | M8–M9      |
 | `0.4.0` | planned    | Polish & hardening  | M10–M11    |
 | `1.0.0` | planned    | Release-ready       | M12        |

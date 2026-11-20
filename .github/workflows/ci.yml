@@ -41,6 +41,28 @@ jobs:
             exit 1
           fi
 
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      # High and critical only: a moderate advisory in a build tool is not
+      # worth blocking a release over, and treating it as one teaches people
+      # to ignore the gate.
+      - run: npm audit --audit-level=high
+
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: src-tauri
+
   backend:
     name: Backend (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

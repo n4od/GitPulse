@@ -390,15 +390,32 @@ launch does not spawn a process" is configured but untested.
 
 ---
 
-## M11 — Hardening · M → **v0.4.0**
+## M11 — Hardening · M → **v0.4.0** — **partially complete**
 
-- [ ] `M11-01` 8-hour soak script: RSS growth < 2 MB/h at 250 repos
-- [ ] `M11-02` Idle CPU measurement: < 1% over 10 min with window hidden
-- [ ] `M11-03` Perf bench wired into CI as a non-blocking report first, blocking later
-- [ ] `M11-04` `msw` handler set + Playwright e2e against the built binary with a mock GitHub
-- [ ] `M11-05` Coverage ≥ 80% lines on `lib/`, `stores/`, `components/status`, `components/dashboard`
-- [ ] `M11-06` Security pass: capability audit, CSP check, grep for `gh[pousr]_`, no token in logs
-- [ ] `M11-07` Dependency audit (`cargo audit`, `npm audit`) in CI
+- [x] `M11-01` `scripts/soak.ps1`: samples resident memory, reports growth per hour, fails above 2 MB/h. **Written, not executed** — it needs a signed-in profile.
+- [x] `M11-02` `scripts/idle-cpu.ps1`: samples processor time over a window and fails above 1%. **Written, not executed** — same reason.
+- [ ] `M11-03` Perf bench in CI — **not done.** The bench needs a real browser; automating it means Playwright plus a display, which is a larger change than this milestone had room for. It remains a manual `#/bench` run.
+- [ ] `M11-04` Playwright e2e — **not done.** Driving a Tauri binary needs `tauri-driver` per platform, and the browser download alone would not fit in the disk headroom.
+- [x] `M11-05` Coverage gate met: 91.5% lines and 84.3% branches on the gated scope, against 80/75.
+- [x] `M11-06` Security pass complete: no token-shaped strings outside tests, exactly one command returns a secret, CSP and capabilities reviewed, `npm audit` clean, redaction unit-tested.
+- [x] `M11-07` Dependency audit wired into CI (`npm audit --audit-level=high` and `rustsec/audit-check`). **Not executable here**: the advisory database is fetched over git, which this machine cannot reach.
+
+**The milestone's real output is [`VERIFICATION.md`](./VERIFICATION.md).** It
+classifies every claim in this repository as verified with evidence, verified
+only against a mock, or not verified at all — including the four gaps that
+cannot be closed without a GitHub client id, a second platform, or a remote.
+
+**Coverage by area (gated scope):** `lib/` and `stores/` are the bulk; the
+dashboard and status components are covered through their selectors and render
+tests rather than line-by-line.
+
+**Not cut as `v0.4.0`... yet** — see the release note below.
+
+**Release note:** `v0.4.0` is cut from M10 + M11 with M11-03 and M11-04
+explicitly open. Shipping a version that says "polish and hardening" while two
+of its seven tasks are undone is the kind of thing this file exists to prevent,
+so both are listed in the changelog under Known issues rather than quietly
+dropped.
 
 ---
 
