@@ -12,6 +12,12 @@ Last updated: 2026-11-20, after M10.
 
 ## Verified, with real evidence
 
+| **A real device flow completed** | A human authorised the app in a browser; the access token, refresh token and metadata landed in Windows Credential Manager |
+| **The stored token works** | `GET /user` with the keychain token returned `birukboss` |
+| **The endpoint layer works live** | `GET /user/repos` returned 2 real repositories; `GET /actions/runs` returned 2 real runs with statuses and conclusions |
+| **Polling writes real data** | The running app polled both repos; SQLite holds 2 repos, 2 runs and fresh `last_polled_at` timestamps |
+| **Transient network blips are survivable** | Earlier live polling failed repeatedly; after the retry fix, 75 seconds of live polling produced zero failures |
+
 | Claim                                                              | Evidence                                                                                                                               |
 | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | The app builds and starts                                          | Launched repeatedly; `pulse.exe` created, migrations applied, retention swept                                                          |
@@ -46,21 +52,17 @@ Last updated: 2026-11-20, after M10.
 
 ## Verified only against a mock
 
-| Claim                               | Why the mock is a limitation                                                                                                        |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Sign-in completes                   | The device flow is exercised against `wiremock`; the real GitHub device page, token exchange and keychain write have never happened |
-| Polling works                       | Run payloads are fixtures. GitHub's actual shapes, pagination and edge cases are unproven                                           |
-| Re-run / cancel / dispatch          | Request shapes are asserted; GitHub's acceptance is not                                                                             |
-| Job logs are readable               | The ZIP-vs-text discovery was made from documentation, not a live response                                                          |
-| Rate-limit handling                 | `403`/`429` are simulated. Secondary-limit behaviour in practice is unobserved                                                      |
-| Notifications fire once per failure | The dedupe key is unit-tested; no notification has ever been shown for a real build                                                 |
+| Claim                               | Why the mock is a limitation                                                        |
+| ----------------------------------- | ----------------------------------------------------------------------------------- |
+| Re-run / cancel / dispatch          | Request shapes are asserted; GitHub's acceptance is not                             |
+| Job logs are readable               | The ZIP-vs-text discovery was made from documentation, not a live response          |
+| Rate-limit handling                 | `403`/`429` are simulated. Secondary-limit behaviour in practice is unobserved      |
+| Notifications fire once per failure | The dedupe key is unit-tested; no notification has ever been shown for a real build |
 
 ## Not verified at all
 
 | Gap                                          | What it needs                                                                                                              |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| **A real sign-in**                           | A registered GitHub App client id, which cannot be created on the user's behalf                                            |
-| **A real poll**                              | The same                                                                                                                   |
 | **A real webhook delivery**                  | A public relay or tunnel, plus the same                                                                                    |
 | **macOS and Linux**                          | Hardware. The tray, dock badge, keychain backend and notification permission prompt are all platform-specific              |
 | **CI on macOS and Linux**                    | A remote. No remote is configured for this repository                                                                      |

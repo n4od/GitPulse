@@ -7,17 +7,4 @@ import type { AuthSession } from "./AuthSession";
  * Modelled as a discriminated union so the UI can exhaustively match on
  * `phase` instead of guessing from a pile of booleans.
  */
-export type AuthState =
-  | { phase: "signedOut" }
-  | { phase: "requestingCode" }
-  | {
-      phase: "awaitingUser";
-      userCode: string;
-      verificationUri: string;
-      expiresAt: string;
-    }
-  | { phase: "polling"; userCode: string; verificationUri: string; expiresAt: string }
-  | { phase: "authorized"; session: AuthSession }
-  | { phase: "denied" }
-  | { phase: "expired" }
-  | { phase: "failed"; code: string; message: string };
+export type AuthState = { "phase": "signedOut" } | { "phase": "requestingCode" } | { "phase": "awaitingUser", userCode: string, verificationUri: string, expiresAt: string, } | { "phase": "polling", userCode: string, verificationUri: string, expiresAt: string, } | { "phase": "authorized", session: AuthSession, } | { "phase": "denied" } | { "phase": "expired" } | { "phase": "failed", code: string, message: string, };

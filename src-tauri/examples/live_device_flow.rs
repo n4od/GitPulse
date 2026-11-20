@@ -22,6 +22,49 @@ use std::time::Duration;
 use pulse_lib::auth::oauth::{OAuthClient, PollOutcome};
 use pulse_lib::github::{build_client, Endpoints};
 
+struct KeychainToken;
+
+#[async_trait::async_trait]
+impl pulse_lib::github::TokenProvider for KeychainToken {
+    async fn access_token(&self) -> Result<secrecy::SecretString, pulse_lib::error::AppError> {
+        let token = pulse_lib::secrets::get("github-access-token")?
+            .ok_or_else(|| pulse_lib::error::AppError::AuthRequired)?;
+
+        Ok(secrecy::SecretString::new(token.into_boxed_str()))
+    }
+}
+
+/// Exercises the exact endpoint layer the app uses, with the real token.
+async fn check_api_with_token() -> Result<(), Box<dyn std::error::Error>> {
+    let budget = std::sync::Arc::new(pulse_lib::github::RateBudget::new(3600.0, 30.0));
+    let client = pulse_lib::github::GithubClient::new(
+        build_client()?,
+        Endpoints::github(),
+        std::sync::Arc::new(KeychainToken),
+        budget,
+    );
+
+    let repos = client.repos(1, 100).await?;
+    println!("GET /user/repos: {} repositories", repos.len());
+    for repo in repos.iter().take(5) {
+        println!("  {}", repo.full_name);
+    }
+
+    let runs = client.runs("birukboss/discord-testing", 20).await?;
+    println!("GET /actions/runs: {} runs", runs.len());
+    for run in runs.iter().take(5) {
+        println!(
+            "  #{} {} {} {:?}",
+            run.run_number.unwrap_or(0),
+            run.name.as_deref().unwrap_or("?"),
+            run.status,
+            run.conclusion
+        );
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client_id = std::env::var("PULSE_GITHUB_CLIENT_ID")
@@ -33,6 +76,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if std::env::args().any(|argument| argument == "--errors") {
         return check_error_paths(http, &client_id).await;
+    }
+
+    if std::env::args().any(|argument| argument == "--api-me") {
+        return check_api_with_token().await;
+    }
+
+    if std::env::args().any(|argument| argument == "--me") {
+        let token = pulse_lib::secrets::get("github-access-token")?
+            .ok_or("no access token in the keychain; sign in first")?;
+        let viewer = client.fetch_viewer(&token).await?;
+
+        println!("GET /user with the stored keychain token: {}", viewer.login);
+        return Ok(());
+    }
+
+    if std::env::args().any(|argument| argument == "--api") {
+        let response = http
+            .get("https://api.github.com/rate_limit")
+            .header(reqwest::header::USER_AGENT, "pulse-live-check")
+            .send()
+            .await?;
+
+        println!("api.github.com via reqwest: {}", response.status());
+        println!("body bytes: {}", response.bytes().await?.len());
+        return Ok(());
     }
 
     println!("requesting a device code from github.com…");

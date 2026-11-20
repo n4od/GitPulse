@@ -13,6 +13,15 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+### Verified against GitHub
+
+- **A real sign-in completed.** The device flow was authorised in a browser; the
+  access token, refresh token and metadata are in the OS keychain, and a real
+  `GET /user` returned the account.
+- **Live polling works end to end.** `GET /user/repos` returned the account's
+  repositories and `GET /actions/runs` returned real runs; the running app cached
+  both with fresh poll timestamps. This was previously mock-only.
+
 ### Fixed
 
 - **A network blip aborted sign-in.** Found by running the device flow against
