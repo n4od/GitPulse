@@ -3,12 +3,8 @@
 /**
  * A workflow definition, as the dispatch dialog needs it.
  */
-export type WorkflowSummary = {
-  id: number;
-  name: string;
-  path: string;
-  /**
-   * `active`, `disabled_manually`, … — only active workflows can be dispatched.
-   */
-  state: string;
-};
+export type WorkflowSummary = { id: number, name: string, path: string, 
+/**
+ * `active`, `disabled_manually`, … — only active workflows can be dispatched.
+ */
+state: string, };
