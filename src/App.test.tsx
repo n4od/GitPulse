@@ -74,7 +74,7 @@ describe("App shell", () => {
     seed(SIGNED_OUT);
     render(<App />);
 
-    expect(screen.getByText("Pulse")).toBeInTheDocument();
+    expect(screen.getByText("GitPulse")).toBeInTheDocument();
     expect(
       await screen.findByRole("heading", { name: /sign in to github/i }),
     ).toBeInTheDocument();

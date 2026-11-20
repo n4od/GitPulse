@@ -15,13 +15,13 @@ use crate::native::icon::{icon_for, TrayState};
 use crate::native::notifier::Notifier;
 use crate::poller::Poller;
 
-pub const TRAY_ID: &str = "pulse-tray";
+pub const TRAY_ID: &str = "gitpulse-tray";
 
 /// How long the tray's mute item silences notifications.
 const MUTE_DURATION: Duration = Duration::from_secs(60 * 60);
 
 pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Open Pulse", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open GitPulse", true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", "Pause polling", true, None::<&str>)?;
     let mute = MenuItem::with_id(
         app,

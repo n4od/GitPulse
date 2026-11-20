@@ -2,7 +2,7 @@
 
 What has been proven, what has only been proven against a mock, and what has not
 been proven at all. This file exists because "it has tests" is not the same
-claim as "it works", and the difference matters more here than usual: Pulse
+claim as "it works", and the difference matters more here than usual: GitPulse
 talks to a service that requires credentials, on platforms that are not all
 available on the machine it was built on.
 
@@ -20,7 +20,7 @@ Last updated: 2026-11-20, after M10.
 
 | Claim                                                              | Evidence                                                                                                                               |
 | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| The app builds and starts                                          | Launched repeatedly; `pulse.exe` created, migrations applied, retention swept                                                          |
+| The app builds and starts                                          | Launched repeatedly; `gitpulse.exe` created, migrations applied, retention swept                                                       |
 | Rust compiles clean                                                | `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`                                                                       |
 | TypeScript compiles clean                                          | `tsc --noEmit` on two projects                                                                                                         |
 | Linting clean                                                      | `eslint --max-warnings 0`                                                                                                              |
@@ -46,7 +46,7 @@ Last updated: 2026-11-20, after M10.
 | **The device-code request works against real GitHub**              | `examples/live_device_flow` with a real client id returned a user code, a verification URI, a 5-second interval and a 15-minute expiry |
 | **GitHub accepted our polling shape**                              | The same run's first `POST /login/oauth/access_token` returned `authorization_pending`                                                 |
 | **Device flow is enabled on the app registration**                 | Implied by the two rows above — GitHub refuses `device_flow_disabled` apps at the first call                                           |
-| **An unknown client id produces a usable error**                   | Live: GitHub answers `404`, and Pulse now reports "GitHub does not recognise this client id" instead of "resource not found"           |
+| **An unknown client id produces a usable error**                   | Live: GitHub answers `404`, and GitPulse now reports "GitHub does not recognise this client id" instead of "resource not found"        |
 | **A rejected device code produces a usable error**                 | Live: `incorrect_device_code` is reported as "the sign-in has to be restarted"                                                         |
 | **A transient network failure no longer aborts sign-in**           | Found live — a real blip aborted a real sign-in — then fixed with a bounded retry budget and unit tests                                |
 
@@ -76,7 +76,7 @@ Last updated: 2026-11-20, after M10.
 ## How to close the largest gaps
 
 1. **Register the app** (README, "GitHub authentication"), set
-   `PULSE_GITHUB_CLIENT_ID`, and sign in. That converts roughly eight rows from
+   `GITPULSE_GITHUB_CLIENT_ID`, and sign in. That converts roughly eight rows from
    "mock" to "real" in one step.
    _In progress:_ the client id is configured and the device-code half of the
    flow is verified against GitHub. Completing an authorisation converts the

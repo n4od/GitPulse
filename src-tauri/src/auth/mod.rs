@@ -19,14 +19,14 @@ pub use types::{AuthSession, AuthState};
 ///
 /// Empty by default, which is correct for a GitHub App: its permissions come
 /// from the app registration, and asking for scopes is ignored. An OAuth App
-/// needs explicit scopes instead, which is what `PULSE_GITHUB_SCOPES` is for.
+/// needs explicit scopes instead, which is what `GITPULSE_GITHUB_SCOPES` is for.
 ///
 /// This is the whole of the "GitHub App or OAuth App" decision: the flow, the
 /// storage and the refresh all work with either, because they branch on what
 /// the token response actually contains rather than on which app type it was.
 #[must_use]
 pub fn configured_scopes() -> Vec<String> {
-    std::env::var("PULSE_GITHUB_SCOPES")
+    std::env::var("GITPULSE_GITHUB_SCOPES")
         .ok()
         .map(|value| {
             value
@@ -46,14 +46,14 @@ pub fn configured_scopes() -> Vec<String> {
 /// repointed without a rebuild.
 #[must_use]
 pub fn configured_client_id() -> Option<String> {
-    if let Ok(value) = std::env::var("PULSE_GITHUB_CLIENT_ID") {
+    if let Ok(value) = std::env::var("GITPULSE_GITHUB_CLIENT_ID") {
         let value = value.trim().to_owned();
         if !value.is_empty() {
             return Some(value);
         }
     }
 
-    option_env!("PULSE_GITHUB_CLIENT_ID")
+    option_env!("GITPULSE_GITHUB_CLIENT_ID")
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_owned)

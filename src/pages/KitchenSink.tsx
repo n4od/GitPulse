@@ -214,7 +214,7 @@ export function KitchenSink() {
         <Card>
           <EmptyState
             title="No repositories yet"
-            description="Once authentication lands you can pick which repositories Pulse should watch."
+            description="Once authentication lands you can pick which repositories GitPulse should watch."
             action={
               <Button size="sm" variant="primary" disabled>
                 Sign in with GitHub

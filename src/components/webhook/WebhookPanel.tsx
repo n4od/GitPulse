@@ -104,7 +104,7 @@ export function WebhookPanel({ onClose }: { onClose: () => void }) {
       });
       toast(
         reachable ? "success" : "error",
-        reachable ? "The tunnel reaches Pulse" : "The tunnel did not answer",
+        reachable ? "The tunnel reaches GitPulse" : "The tunnel did not answer",
         reachable ? undefined : "Check the URL and that the tunnel is running.",
       );
     } catch (cause) {

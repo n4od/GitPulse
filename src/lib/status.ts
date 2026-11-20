@@ -1,5 +1,5 @@
 /**
- * The canonical mapping from GitHub's run vocabulary to Pulse's status badges.
+ * The canonical mapping from GitHub's run vocabulary to GitPulse's status badges.
  *
  * This module is the single source of truth for status semantics: the UI, the
  * tray icon and the notification rules all read from here. Adding a conclusion

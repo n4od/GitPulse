@@ -11,7 +11,7 @@ use crate::error::AppError;
 pub const API_VERSION: &str = "2022-11-28";
 
 /// Sent on every request. GitHub rejects requests without a user agent.
-pub const USER_AGENT: &str = concat!("Pulse/", env!("CARGO_PKG_VERSION"));
+pub const USER_AGENT: &str = concat!("GitPulse/", env!("CARGO_PKG_VERSION"));
 
 /// Origin set. Overridable so integration tests can point at a local mock.
 #[derive(Debug, Clone, PartialEq, Eq)]

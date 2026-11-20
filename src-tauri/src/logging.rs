@@ -93,7 +93,7 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), AppError> {
 
     let appender = RollingFileAppender::builder()
         .rotation(Rotation::DAILY)
-        .filename_prefix("pulse")
+        .filename_prefix("gitpulse")
         .filename_suffix("log")
         .max_log_files(7)
         .build(&directory)
@@ -102,7 +102,7 @@ pub fn init(app: &tauri::AppHandle) -> Result<(), AppError> {
     // Default to info, but keep our own crate verbose enough to debug the
     // backend during development.
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info,pulse_lib=debug"));
+        .unwrap_or_else(|_| EnvFilter::new("info,gitpulse_lib=debug"));
 
     let file_layer = tracing_subscriber::fmt::layer()
         .with_writer(RedactingMakeWriter {

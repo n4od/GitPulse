@@ -9,8 +9,8 @@
 //! client id and, to complete, a human.
 //!
 //! ```text
-//! PULSE_GITHUB_CLIENT_ID=Iv23li… cargo run --example live_device_flow
-//! PULSE_GITHUB_CLIENT_ID=Iv23li… cargo run --example live_device_flow -- --wait
+//! GITPULSE_GITHUB_CLIENT_ID=Iv23li… cargo run --example live_device_flow
+//! GITPULSE_GITHUB_CLIENT_ID=Iv23li… cargo run --example live_device_flow -- --wait
 //! ```
 //!
 //! `--wait` polls until the code is authorised (or expires) and then confirms
@@ -19,16 +19,16 @@
 
 use std::time::Duration;
 
-use pulse_lib::auth::oauth::{OAuthClient, PollOutcome};
-use pulse_lib::github::{build_client, Endpoints};
+use gitpulse_lib::auth::oauth::{OAuthClient, PollOutcome};
+use gitpulse_lib::github::{build_client, Endpoints};
 
 struct KeychainToken;
 
 #[async_trait::async_trait]
-impl pulse_lib::github::TokenProvider for KeychainToken {
-    async fn access_token(&self) -> Result<secrecy::SecretString, pulse_lib::error::AppError> {
-        let token = pulse_lib::secrets::get("github-access-token")?
-            .ok_or_else(|| pulse_lib::error::AppError::AuthRequired)?;
+impl gitpulse_lib::github::TokenProvider for KeychainToken {
+    async fn access_token(&self) -> Result<secrecy::SecretString, gitpulse_lib::error::AppError> {
+        let token = gitpulse_lib::secrets::get("github-access-token")?
+            .ok_or_else(|| gitpulse_lib::error::AppError::AuthRequired)?;
 
         Ok(secrecy::SecretString::new(token.into_boxed_str()))
     }
@@ -36,8 +36,8 @@ impl pulse_lib::github::TokenProvider for KeychainToken {
 
 /// Exercises the exact endpoint layer the app uses, with the real token.
 async fn check_api_with_token() -> Result<(), Box<dyn std::error::Error>> {
-    let budget = std::sync::Arc::new(pulse_lib::github::RateBudget::new(3600.0, 30.0));
-    let client = pulse_lib::github::GithubClient::new(
+    let budget = std::sync::Arc::new(gitpulse_lib::github::RateBudget::new(3600.0, 30.0));
+    let client = gitpulse_lib::github::GithubClient::new(
         build_client()?,
         Endpoints::github(),
         std::sync::Arc::new(KeychainToken),
@@ -67,8 +67,8 @@ async fn check_api_with_token() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client_id = std::env::var("PULSE_GITHUB_CLIENT_ID")
-        .map_err(|_| "set PULSE_GITHUB_CLIENT_ID to the app's client id")?;
+    let client_id = std::env::var("GITPULSE_GITHUB_CLIENT_ID")
+        .map_err(|_| "set GITPULSE_GITHUB_CLIENT_ID to the app's client id")?;
     let wait = std::env::args().any(|argument| argument == "--wait");
 
     let http = build_client()?;
@@ -87,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if std::env::args().any(|argument| argument == "--me") {
-        let token = pulse_lib::secrets::get("github-access-token")?
+        let token = gitpulse_lib::secrets::get("github-access-token")?
             .ok_or("no access token in the keychain; sign in first")?;
         let viewer = client.fetch_viewer(&token).await?;
 
@@ -98,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().any(|argument| argument == "--api") {
         let response = http
             .get("https://api.github.com/rate_limit")
-            .header(reqwest::header::USER_AGENT, "pulse-live-check")
+            .header(reqwest::header::USER_AGENT, "gitpulse-live-check")
             .send()
             .await?;
 
@@ -205,7 +205,10 @@ async fn check_error_paths(
 
     let real = OAuthClient::new(http, Endpoints::github(), Some(client_id.to_owned()));
 
-    match real.poll_device_code("pulse-not-a-real-device-code").await {
+    match real
+        .poll_device_code("gitpulse-not-a-real-device-code")
+        .await
+    {
         Ok(outcome) => println!("  bogus device code : UNEXPECTEDLY accepted ({outcome:?})"),
         Err(error) => println!("  bogus device code : {} ({})", error.code(), error),
     }
@@ -217,9 +220,9 @@ async fn check_error_paths(
 ///
 /// The secret is read from the keychain and never printed.
 async fn send_signed_webhook() -> Result<(), Box<dyn std::error::Error>> {
-    let secret = pulse_lib::secrets::get("github-webhook-secret")?
+    let secret = gitpulse_lib::secrets::get("github-webhook-secret")?
         .ok_or("no webhook secret; start the app with a relay first")?;
-    let url = std::env::var("PULSE_RELAY_URL")?;
+    let url = std::env::var("GITPULSE_RELAY_URL")?;
 
     let body = r#"{"action":"completed","repository":{"full_name":"birukboss/discord-testing"}}"#;
 

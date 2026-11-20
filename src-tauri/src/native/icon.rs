@@ -26,10 +26,10 @@ impl TrayState {
     #[must_use]
     pub const fn tooltip(self) -> &'static str {
         match self {
-            Self::Idle => "Pulse — all clear",
-            Self::Running => "Pulse — builds running",
-            Self::Failure => "Pulse — build failures",
-            Self::AuthRequired => "Pulse — sign in required",
+            Self::Idle => "GitPulse — all clear",
+            Self::Running => "GitPulse — builds running",
+            Self::Failure => "GitPulse — build failures",
+            Self::AuthRequired => "GitPulse — sign in required",
         }
     }
 

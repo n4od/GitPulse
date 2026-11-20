@@ -9,7 +9,7 @@
 use crate::error::AppError;
 
 /// Namespaced by bundle identifier so entries cannot collide with another app's.
-pub const SERVICE: &str = "dev.pulse.workflowmonitor";
+pub const SERVICE: &str = "dev.gitpulse.workflowmonitor";
 
 fn unavailable(error: &keyring::Error) -> AppError {
     AppError::KeyringUnavailable(error.to_string())

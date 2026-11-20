@@ -1,7 +1,7 @@
 //! Webhook signature verification.
 //!
 //! A webhook endpoint that does not verify its payloads is an open door: anyone
-//! who can reach the URL can tell Pulse that a build finished, and Pulse would
+//! who can reach the URL can tell `GitPulse` that a build finished, and `GitPulse` would
 //! believe it.
 //!
 //! Two rules matter, and both are the kind that look like paranoia until they

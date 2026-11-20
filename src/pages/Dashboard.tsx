@@ -108,7 +108,7 @@ export function Dashboard() {
       <EmptyState
         icon={<Activity className="size-5" aria-hidden="true" />}
         title="No repositories yet"
-        description="Choose the repositories Pulse should watch. Nothing is polled until you pick one."
+        description="Choose the repositories GitPulse should watch. Nothing is polled until you pick one."
         action={
           <Button
             size="sm"

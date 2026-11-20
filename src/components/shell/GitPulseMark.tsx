@@ -1,4 +1,4 @@
-export function PulseMark({ className }: { className?: string }) {
+export function GitPulseMark({ className }: { className?: string }) {
   return (
     <svg
       width="18"

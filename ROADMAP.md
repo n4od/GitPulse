@@ -1,4 +1,4 @@
-# Pulse — Roadmap
+# GitPulse — Roadmap
 
 Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + React 19).
 
@@ -41,7 +41,7 @@ except M8, which depends on M4 (client) and M3 (persistence).
 - [x] `M0-02` `src-tauri` crate, `#![forbid(unsafe_code)]`, release profile (`lto`, `codegen-units=1`, `strip`)
 - [x] `M0-03` `package.json`, Vite 8, React 19, TypeScript 6 strict (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)
 - [x] `M0-04` Tailwind CSS 4 wired to `src/styles/tokens.css`
-- [x] `M0-05` `tauri.conf.json`: identifier `dev.pulse.workflowmonitor`, CSP without `unsafe-eval`, bundle targets for all three OSes
+- [x] `M0-05` `tauri.conf.json`: identifier `dev.gitpulse.workflowmonitor`, CSP without `unsafe-eval`, bundle targets for all three OSes
 - [x] `M0-06` `capabilities/default.json` — minimal permission set, no `shell`/`fs`/`http`
 - [x] `M0-07` `error.rs`: `AppError` + `{ code, message, retryable }` serialization + redaction on serialize
 - [x] `M0-08` `logging.rs`: `tracing` + daily rolling file + secret redaction layer
@@ -50,8 +50,8 @@ except M8, which depends on M4 (client) and M3 (persistence).
 
 **Verified locally:** `cargo test` (7 passing), `clippy -D warnings`, `fmt --check`,
 `tsc`, `eslint --max-warnings 0`, `vitest`, `vite build` (69.7 kB gzipped),
-`tauri build --debug` produced `pulse.exe`, and the binary starts and writes a
-redacted log to `%LOCALAPPDATA%\dev.pulse.workflowmonitor\logs`.
+`tauri build --debug` produced `gitpulse.exe`, and the binary starts and writes a
+redacted log to `%LOCALAPPDATA%\dev.gitpulse.workflowmonitor\logs`.
 
 **Still open:** the macOS/Linux legs have never run — that needs the first CI
 push. A human should confirm the window renders with `npm run tauri dev`.
@@ -140,7 +140,7 @@ Depends on M0.
 cascade delete across four child tables, diff behaviour for unchanged runs /
 bare `updated_at` bumps / re-runs, delivery replay rejection, retention pruning
 and `VACUUM` cadence. The binary was launched for real: it created
-`%APPDATA%\dev.pulse.workflowmonitor\pulse.db`, applied both migrations, ran the
+`%APPDATA%\dev.gitpulse.workflowmonitor\gitpulse.db`, applied both migrations, ran the
 retention sweep and left `-wal` / `-shm` files behind, confirming WAL.
 
 **Measured:** 250 repositories × 20 runs (5,000 rows) — "list all repos" plus
@@ -326,7 +326,7 @@ database. It records the delivery and asks the poller to refresh that one
 repository. That costs one API request per event instead of zero, and buys
 three things: the event-to-state mapping stays in the one place that is already
 tested, there is no second writer racing the poller's transaction, and a
-payload Pulse misreads cannot leave the cache wrong — the refresh fetches the
+payload GitPulse misreads cannot leave the cache wrong — the refresh fetches the
 truth. See ADR-016.
 
 **Verified:** 149 backend and 140 frontend tests pass. The webhook tests bind a
@@ -335,7 +335,7 @@ codes and dedupe are exercised end to end rather than mocked.
 
 **Not verified:** no delivery from GitHub has ever arrived. The signature
 algorithm is tested against known-good HMACs, but GitHub's actual delivery —
-including whether a relay forwards the headers Pulse requires — is untested.
+including whether a relay forwards the headers GitPulse requires — is untested.
 
 **Release note:** `v0.3.0` is _not_ cut here. The release map defines it as
 M8–M9, and M9 (tray, notifications, autostart, single instance) is not done.
@@ -470,7 +470,7 @@ Open ones are below.
 | D2     | Webhook transport         | **Relay only** (smee-style, zero config) vs relay + tunnel + local server                                        | Relay + local server, tunnel documented                  | M8      |
 | D3     | Polling default           | 60 s min / 15 min max vs user-set fixed interval                                                                 | Budget-aware adaptive                                    | M5, M10 |
 | D4     | Log retention             | Keep log text on disk vs fetch-on-demand only                                                                    | Fetch-on-demand, cache nothing                           | M7, M11 |
-| D5     | Product name / identifier | `Pulse` / `dev.pulse.workflowmonitor`                                                                            | As written                                               | M0      |
+| D5     | Product name / identifier | `GitPulse` / `dev.gitpulse.workflowmonitor`                                                                      | As written                                               | M0      |
 
 Record the outcome of each in `ARCHITECTURE.md` under "Decisions" and tick the corresponding
 `**BLOCKED**` task.

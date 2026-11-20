@@ -482,7 +482,7 @@ fn dashboard_queries_scale_to_250_repositories() {
 #[tokio::test]
 async fn db_wrapper_opens_a_file_and_uses_wal() {
     let directory = tempfile::tempdir().expect("temp dir");
-    let db = Db::open(directory.path().join("nested").join("pulse.db")).expect("open");
+    let db = Db::open(directory.path().join("nested").join("gitpulse.db")).expect("open");
 
     let journal_mode: String = db
         .with_connection(|connection| {

@@ -110,7 +110,7 @@ export function LogViewer({ download }: { download: LogDownload }) {
 
       {download.truncated || linesTruncated ? (
         <div className="shrink-0 border-b border-warn/30 bg-warn/10 px-3 py-1 text-[11px] text-warn">
-          This log was cut short — Pulse caps a single download at 5 MB.
+          This log was cut short — GitPulse caps a single download at 5 MB.
         </div>
       ) : null}
 

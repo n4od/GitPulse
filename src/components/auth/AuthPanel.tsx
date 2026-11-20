@@ -90,9 +90,9 @@ export function AuthPanel({
               </Button>
               {state.code === "config" ? (
                 <p className="pt-2 text-[11px] leading-4 text-ink-muted">
-                  Set <code className="font-mono">PULSE_GITHUB_CLIENT_ID</code> to the
+                  Set <code className="font-mono">GITPULSE_GITHUB_CLIENT_ID</code> to the
                   client id of an OAuth App or GitHub App with device flow enabled, then
-                  restart Pulse.
+                  restart GitPulse.
                 </p>
               ) : null}
             </>
@@ -105,7 +105,7 @@ export function AuthPanel({
         <Frame
           icon={<LogIn className="size-5 text-accent" />}
           title="Sign in to GitHub"
-          description="Pulse reads your workflow runs directly from GitHub. Your token is stored in this machine's keychain, never sent anywhere else."
+          description="GitPulse reads your workflow runs directly from GitHub. Your token is stored in this machine's keychain, never sent anywhere else."
           action={
             <Button
               variant="primary"

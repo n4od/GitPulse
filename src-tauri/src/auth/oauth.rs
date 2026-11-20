@@ -99,7 +99,7 @@ impl OAuthClient {
         self.client_id.as_deref().ok_or_else(|| {
             AppError::Config(
                 "no GitHub client id is configured. Register an OAuth App or GitHub App with \
-                 device flow enabled, then set PULSE_GITHUB_CLIENT_ID."
+                 device flow enabled, then set GITPULSE_GITHUB_CLIENT_ID."
                     .to_owned(),
             )
         })
@@ -131,7 +131,7 @@ impl OAuthClient {
         if response.status() == reqwest::StatusCode::NOT_FOUND {
             return Err(AppError::Config(
                 "GitHub does not recognise this client id. Check that \
-                 PULSE_GITHUB_CLIENT_ID matches the app's Client ID, and that device flow \
+                 GITPULSE_GITHUB_CLIENT_ID matches the app's Client ID, and that device flow \
                  is enabled on that app."
                     .to_owned(),
             ));

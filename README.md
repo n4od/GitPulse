@@ -1,4 +1,4 @@
-# Pulse
+# GitPulse
 
 A local-first desktop monitor for GitHub Actions workflows, deployments and
 pull requests. Tauri 2 + Rust core, React 19 frontend, everything cached on
@@ -65,7 +65,7 @@ bytes GitHub signed. The HMAC covers the _exact_ original bytes, and re-encoding
 a parsed object does not reproduce them — keys get reordered, escaping can
 differ — so the signature can never match.
 
-Pulse refuses such a payload and says so:
+GitPulse refuses such a payload and says so:
 
 ```
 refusing a relayed payload whose body is not raw text; this relay re-encodes
@@ -90,21 +90,21 @@ and save. Then:
    - **Which events**: I'd like to receive _individual_ events — at minimum
      `Workflow runs`, `Workflow jobs`, `Deployments`, `Pull requests` and
      `Check runs`
-3. Press **Test** in the panel to confirm the tunnel reaches Pulse.
+3. Press **Test** in the panel to confirm the tunnel reaches GitPulse.
 
 Rotating the secret invalidates the old one immediately, so update GitHub in the
 same breath.
 
 ### What a delivery does
 
-Pulse records the delivery ID — so a GitHub retry or a relay replay is ignored —
+GitPulse records the delivery ID — so a GitHub retry or a relay replay is ignored —
 and then asks the poller to refresh that one repository right away. It does not
 apply the payload to the database directly: that keeps the event-to-state
 mapping in the one place that already has tests for it, and avoids a second
 writer racing the poller.
 
 That means a webhook costs one API request rather than zero. In exchange it is
-impossible for a payload Pulse misreads to leave the cache wrong — the refresh
+impossible for a payload GitPulse misreads to leave the cache wrong — the refresh
 fetches the truth.
 
 ## Scripts
@@ -142,8 +142,8 @@ CHANGELOG.md      what shipped
 
 ## GitHub authentication
 
-Pulse uses the OAuth 2.0 **device flow**: no client secret ships in the binary,
-and there is no personal access token to paste. You register an app, give Pulse
+GitPulse uses the OAuth 2.0 **device flow**: no client secret ships in the binary,
+and there is no personal access token to paste. You register an app, give GitPulse
 its public client id, and approve the sign-in in your browser.
 
 ### 1. Register an app
@@ -152,14 +152,14 @@ Either app type works. The code branches on what GitHub's token response
 actually contains, so nothing needs rebuilding to switch.
 
 **GitHub App** — supports expiring user tokens with rotating refresh tokens, so
-Pulse stays signed in without ever hitting an expiry wall.
+GitPulse stays signed in without ever hitting an expiry wall.
 
 1. GitHub → Settings → Developer settings → **GitHub Apps** → **New GitHub App**
 2. Homepage / callback URL: `http://127.0.0.1` — the device flow does not use
    them, but the form requires a value
 3. Under **Identifying and authorizing users**, tick **Enable Device Flow**
 4. Tick **Expire user authorization tokens** to get refresh tokens
-5. Save and copy the **Client ID**. Pulse never needs the client secret.
+5. Save and copy the **Client ID**. GitPulse never needs the client secret.
 
 **OAuth App** — simpler, but the token never expires and there is no refresh.
 
@@ -167,21 +167,21 @@ Pulse stays signed in without ever hitting an expiry wall.
 2. Tick **Enable Device Flow**
 3. Copy the **Client ID**
 
-### 2. Configure Pulse
+### 2. Configure GitPulse
 
 ```powershell
-$env:PULSE_GITHUB_CLIENT_ID = "Iv1.0123456789abcdef"
+$env:GITPULSE_GITHUB_CLIENT_ID = "Iv1.0123456789abcdef"
 ```
 
 An OAuth App also needs scopes requested explicitly, because its permissions
 come from the token rather than the app registration:
 
 ```powershell
-$env:PULSE_GITHUB_SCOPES = "repo workflow read:user"
+$env:GITPULSE_GITHUB_SCOPES = "repo workflow read:user"
 ```
 
 `repo` is required for private repositories and `workflow` is required to
-re-run or dispatch workflows. Without them Pulse can still read public sources.
+re-run or dispatch workflows. Without them GitPulse can still read public sources.
 
 Both variables are read at runtime, falling back to compile-time values of the
 same name, so a packaged build can be repointed without a rebuild.
@@ -194,7 +194,7 @@ client secret is never requested, stored, or shipped.
 The access and refresh tokens go to the OS keychain (Windows Credential
 Manager, macOS Keychain, Secret Service on Linux) and nowhere else — not to
 SQLite, not to a config file, not to the webview. If the keychain is
-unavailable, Pulse falls back to **session-only** in-memory storage and says so
+unavailable, GitPulse falls back to **session-only** in-memory storage and says so
 in the log; it never writes a token to disk in plaintext.
 
 ## Troubleshooting

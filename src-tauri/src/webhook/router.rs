@@ -18,7 +18,7 @@ use crate::db::{self, Db};
 use crate::error::AppError;
 use crate::poller::Poller;
 
-/// Events Pulse reacts to.
+/// Events `GitPulse` reacts to.
 ///
 /// Anything else is recorded and ignored; a webhook that returns 500 because
 /// GitHub added an event type would be retried forever.

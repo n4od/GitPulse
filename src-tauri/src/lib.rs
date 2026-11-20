@@ -1,4 +1,4 @@
-//! Pulse — local-first GitHub workflow monitor.
+//! `GitPulse` — local-first GitHub workflow monitor.
 //!
 //! The binary is intentionally thin: [`run`] owns the Tauri builder, every
 //! other module is a leaf that can be unit-tested without a window. This file
@@ -112,7 +112,7 @@ pub fn run() {
 
     if let Err(error) = result {
         // The tracing subscriber may not exist yet if setup failed early.
-        eprintln!("fatal: failed to start Pulse: {error}");
+        eprintln!("fatal: failed to start GitPulse: {error}");
         std::process::exit(1);
     }
 }
@@ -126,7 +126,7 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .path()
         .app_data_dir()
         .map_err(|error| error.to_string())?;
-    let database = db::Db::open(data_directory.join("pulse.db"))?;
+    let database = db::Db::open(data_directory.join("gitpulse.db"))?;
 
     let http = github::client::build_client()?;
     let endpoints = github::client::Endpoints::github();
@@ -153,7 +153,7 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         target_os = std::env::consts::OS,
         database = %database.path().display(),
         client_id_configured = auth::configured_client_id().is_some(),
-        "pulse starting"
+        "gitpulse starting"
     );
 
     auth_service.bootstrap(app.handle())?;

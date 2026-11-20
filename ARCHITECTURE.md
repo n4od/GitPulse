@@ -1,6 +1,6 @@
 # Architecture
 
-Pulse is a local-first desktop client for GitHub Actions. There is no Pulse
+GitPulse is a local-first desktop client for GitHub Actions. There is no GitPulse
 server: the app talks to the GitHub API and (optionally) receives webhooks
 through a relay, and everything it learns is cached in a local SQLite file.
 
@@ -247,7 +247,7 @@ the poller would have made later anyway.
 
 ### ADR-017 — What a relay must forward
 
-A relay is not a transparent pipe, and that is the whole difficulty. Pulse
+A relay is not a transparent pipe, and that is the whole difficulty. GitPulse
 verifies every payload against the signing secret, and the signature lives in a
 header. A relay that forwards only the body produces frames that must be
 rejected.
@@ -261,7 +261,7 @@ path accepts an envelope carrying both:
 
 A frame without headers, without a signature, or with a signature that does not
 match is logged and dropped. That means **a relay which strips headers simply
-will not work with Pulse**, and the log says so explicitly rather than failing
+will not work with GitPulse**, and the log says so explicitly rather than failing
 somewhere downstream. The alternative — trusting anything that reaches the relay
 URL — would make the URL itself the only secret, and relay URLs are pasted into
 configuration files and chat windows.
@@ -276,7 +276,7 @@ configuration files and chat windows.
 
 An HMAC is over the exact bytes GitHub signed. A parsed-and-re-serialised object
 does not reproduce them — `serde_json` orders keys, and escaping can differ — so
-the signature can never match. Pulse refuses the payload and names the reason.
+the signature can never match. GitPulse refuses the payload and names the reason.
 
 The tempting fix is to verify the re-encoded body against itself. That would
 accept anything holding the signing secret and prove nothing about GitHub, which
@@ -571,13 +571,13 @@ component gallery (visual) and the e2e sweep (M11-04).
 
 Carried from the roadmap; each one changes the shape of a milestone.
 
-| #   | Decision                                                       | Default if unresolved                 | Affects |
-| --- | -------------------------------------------------------------- | ------------------------------------- | ------- |
-| D1  | GitHub App (refresh tokens) vs OAuth App (non-expiring token)  | GitHub App                            | M2      |
-| D2  | Webhook transport: relay only vs relay + tunnel + local server | Relay + local                         | M8      |
-| D3  | Polling: budget-aware adaptive vs user-fixed interval          | Adaptive                              | M5      |
-| D4  | Log retention: cache text vs fetch on demand                   | Fetch on demand                       | M7      |
-| D5  | Product name / bundle identifier                               | `Pulse` / `dev.pulse.workflowmonitor` | shipped |
+| #   | Decision                                                       | Default if unresolved                       | Affects |
+| --- | -------------------------------------------------------------- | ------------------------------------------- | ------- |
+| D1  | GitHub App (refresh tokens) vs OAuth App (non-expiring token)  | GitHub App                                  | M2      |
+| D2  | Webhook transport: relay only vs relay + tunnel + local server | Relay + local                               | M8      |
+| D3  | Polling: budget-aware adaptive vs user-fixed interval          | Adaptive                                    | M5      |
+| D4  | Log retention: cache text vs fetch on demand                   | Fetch on demand                             | M7      |
+| D5  | Product name / bundle identifier                               | `GitPulse` / `dev.gitpulse.workflowmonitor` | shipped |
 
 ## 7. Known constraints of the current toolchain
 

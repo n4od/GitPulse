@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Idle CPU check: confirm Pulse is quiet when nothing is happening.
+  Idle CPU check: confirm GitPulse is quiet when nothing is happening.
 
 .DESCRIPTION
   A background monitor that burns 5% of a core at idle is a battery complaint.
@@ -20,7 +20,7 @@ param(
     [int]$Minutes = 10,
     [int]$IntervalSecs = 15,
     [double]$MaxPercent = 1.0,
-    [string]$Exe = "src-tauri/target/debug/pulse.exe"
+    [string]$Exe = "src-tauri/target/debug/gitpulse.exe"
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,7 +47,7 @@ try {
         Start-Sleep -Seconds $IntervalSecs
 
         if ($process.HasExited) {
-            throw "Pulse exited unexpectedly with code $($process.ExitCode)"
+            throw "GitPulse exited unexpectedly with code $($process.ExitCode)"
         }
 
         $process.Refresh()

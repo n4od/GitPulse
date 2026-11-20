@@ -7,7 +7,7 @@
 //! - **Relay** — a public endpoint forwards deliveries down a long-lived
 //!   connection. Zero configuration beyond a URL.
 //! - **Local** — bind a loopback listener and put a tunnel in front of it. The
-//!   tunnel is the user's to run; Pulse can verify it reaches the listener.
+//!   tunnel is the user's to run; `GitPulse` can verify it reaches the listener.
 //!
 //! All three share one signature verifier, so a transport cannot be "the weak
 //! one".

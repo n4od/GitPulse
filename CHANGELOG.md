@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **Pulse** are documented in this file.
+All notable changes to **GitPulse** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -31,7 +31,7 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
   but no total timeout. Found by pointing the app at a real relay.
 - **A relay that re-encodes the body is now refused with a reason.** smee.io
   sends `body` as a parsed JSON object, so the bytes GitHub signed are gone and
-  the signature cannot be verified. Pulse previously said "a frame Pulse does
+  the signature cannot be verified. GitPulse previously said "a frame GitPulse does
   not recognise"; it now names the cause and points at the tunnel instead.
 - **A network blip aborted sign-in.** Found by running the device flow against
   real GitHub, not against a mock: the first poll succeeded, the next hit a
@@ -42,7 +42,7 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
   for an unrecognised client id rather than an OAuth error body, so the message
   pointed at the wrong problem. It now names the setting to check and the
   registration requirement.
-- **A rejected device code reported "this is a bug in Pulse".** It is not: it
+- **A rejected device code reported "this is a bug in GitPulse".** It is not: it
   means the code was not one GitHub issued, or it was mangled. The message now
   says the sign-in has to be restarted.
 
@@ -127,7 +127,7 @@ of what is actually verified.
 
 ## [0.3.0] — 2026-11-20
 
-Pulse becomes a real desktop citizen: a tray icon that reports status at a
+GitPulse becomes a real desktop citizen: a tray icon that reports status at a
 glance, notifications that respect attention, and webhook ingestion.
 
 ### Added
@@ -169,7 +169,7 @@ glance, notifications that respect attention, and webhook ingestion.
   GitHub retries anything slower than ten seconds. (`M8-05`)
 - **Relay transport:** a long-lived SSE connection with exponential backoff,
   using the same verifier. A relay that does not forward headers produces frames
-  Pulse refuses — deliberately. (`M8-07`)
+  GitPulse refuses — deliberately. (`M8-07`)
 - **Tunnel support:** local mode plus a reachability check that asks a public
   URL whether it reaches this listener. (`M8-08`)
 - **Webhook panel:** transport selection, copyable endpoint, secret reveal and
@@ -183,13 +183,13 @@ glance, notifications that respect attention, and webhook ingestion.
   and asks the poller to refresh that repository instead of applying the payload
   to the cache. One extra API request buys a single tested mapping, no second
   writer racing the poller, and a cache that cannot be left wrong by a payload
-  Pulse misreads. (`M8-06`)
+  GitPulse misreads. (`M8-06`)
 
 ### Known issues
 
 - **No delivery from GitHub has arrived.** The verifier is tested against
   known-good HMACs and the listener against real HTTP, but GitHub's actual
-  delivery — and whether a given relay forwards the headers Pulse needs — is
+  delivery — and whether a given relay forwards the headers GitPulse needs — is
   unverified.
 - **Notification click does not deep-link to the run.** The notification plugin
   has no click callback, and a per-platform implementation was not written.
@@ -342,7 +342,7 @@ than something to install and rely on.
   and returns to the sign-in screen instead of looping on a dead token.
   (`M2-07`)
 - **Keychain failure handling:** when the OS keychain is unavailable (a Linux
-  session with no Secret Service, typically) Pulse degrades to session-only
+  session with no Secret Service, typically) GitPulse degrades to session-only
   in-memory storage rather than writing secrets to disk. (`M2-08`)
 - **Auth UI:** a presentational `AuthPanel` covering every phase — signing out,
   requesting a code, awaiting approval, polling, denied, expired and failed —
@@ -475,7 +475,7 @@ foreign_keys = ON` impossible to set reliably — and without it every
 - Exactly one command returns a secret — `webhook_signing_secret` — because the
   user has to paste it into GitHub's form. No event carries one. (`M8-09`)
 - Every webhook transport verifies the same HMAC over the raw body; a relay that
-  does not forward headers produces frames Pulse refuses rather than trusts.
+  does not forward headers produces frames GitPulse refuses rather than trusts.
   (`M8-07`)
 - `npm audit` reports zero vulnerabilities; `cargo audit` is wired into CI.
   (`M11-06`, `M11-07`)

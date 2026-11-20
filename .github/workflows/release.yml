@@ -101,7 +101,7 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
           tagName: ${{ steps.tag.outputs.name }}
-          releaseName: "Pulse ${{ steps.tag.outputs.name }}"
+          releaseName: "GitPulse ${{ steps.tag.outputs.name }}"
           # Draft: a human reads the notes and checks the artifacts first.
           releaseDraft: true
           prerelease: false

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Soak test: run Pulse for a while and watch for a memory leak.
+  Soak test: run GitPulse for a while and watch for a memory leak.
 
 .DESCRIPTION
   A monitor that grows a few megabytes an hour is a monitor that gets killed by
@@ -22,7 +22,7 @@ param(
     [int]$Hours = 8,
     [int]$IntervalSecs = 60,
     [double]$MaxGrowthMbPerHour = 2.0,
-    [string]$Exe = "src-tauri/target/debug/pulse.exe",
+    [string]$Exe = "src-tauri/target/debug/gitpulse.exe",
     [string]$OutFile = "soak.csv"
 )
 
@@ -43,7 +43,7 @@ try {
         Start-Sleep -Seconds $IntervalSecs
 
         if ($process.HasExited) {
-            throw "Pulse exited unexpectedly with code $($process.ExitCode)"
+            throw "GitPulse exited unexpectedly with code $($process.ExitCode)"
         }
 
         $process.Refresh()

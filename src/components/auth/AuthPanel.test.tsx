@@ -109,7 +109,7 @@ describe("AuthPanel", () => {
       message: "no GitHub client id is configured",
     });
 
-    expect(screen.getByText("PULSE_GITHUB_CLIENT_ID")).toBeInTheDocument();
+    expect(screen.getByText("GITPULSE_GITHUB_CLIENT_ID")).toBeInTheDocument();
   });
 
   it("renders nothing once authorized, leaving the dashboard in charge", () => {

@@ -102,7 +102,7 @@ export const RepoCard = memo(function RepoCard({
           </div>
         ) : (
           <p className="text-xs text-ink-muted">
-            Pulse has not seen a run for this repository yet.
+            GitPulse has not seen a run for this repository yet.
           </p>
         )}
 

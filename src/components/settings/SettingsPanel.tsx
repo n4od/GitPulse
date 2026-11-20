@@ -133,7 +133,7 @@ export function SettingsPanel({ onClose, onOpenWebhooks }: SettingsPanelProps) {
                       toggle("autostart", event.target.checked);
                     }}
                   />
-                  Start Pulse when I sign in
+                  Start GitPulse when I sign in
                 </label>
               </fieldset>
 

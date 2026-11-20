@@ -11,7 +11,7 @@ use crate::error::AppError;
 use crate::github::GithubClient;
 use crate::poller::Poller;
 
-/// A repository GitHub offers that Pulse may or may not already watch.
+/// A repository GitHub offers that `GitPulse` may or may not already watch.
 #[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../src/lib/bindings/")]
@@ -35,7 +35,7 @@ pub async fn repos_list(db: State<'_, Db>) -> Result<Vec<RepoCard>, AppError> {
     db.with_connection(db::repos::cards).await
 }
 
-/// Repositories the signed-in user can access, annotated with whether Pulse
+/// Repositories the signed-in user can access, annotated with whether `GitPulse`
 /// already watches them.
 #[tauri::command]
 #[allow(

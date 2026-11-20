@@ -5,9 +5,9 @@
 //! deliveries down a long-lived connection. smee.io is the one this is built
 //! for, but anything that speaks the same shape works.
 //!
-//! **The relay must forward headers.** Pulse verifies every payload against the
+//! **The relay must forward headers.** `GitPulse` verifies every payload against the
 //! signing secret, and the signature lives in a header. A relay that forwards
-//! only the body produces frames Pulse will refuse — deliberately, because the
+//! only the body produces frames `GitPulse` will refuse — deliberately, because the
 //! alternative is trusting anything that can reach the relay URL.
 
 use std::collections::BTreeMap;
@@ -162,7 +162,7 @@ async fn dispatch(frame: &[u8], db: &Db, poller: &Arc<Poller>, signing_secret: &
 
     let Ok(envelope) = serde_json::from_str::<Envelope>(&data) else {
         tracing::warn!(
-            "the relay sent a frame Pulse does not recognise; it must forward the \
+            "the relay sent a frame GitPulse does not recognise; it must forward the \
              webhook headers and the raw body"
         );
         return;

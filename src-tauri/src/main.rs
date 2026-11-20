@@ -3,5 +3,5 @@
 #![forbid(unsafe_code)]
 
 fn main() {
-    pulse_lib::run();
+    gitpulse_lib::run();
 }
