@@ -24,6 +24,20 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ### Fixed
 
+### Fixed
+
+- **CI is green on all three operating systems.** The first run failed four
+  ways: clippy broke on a drifting `stable` toolchain, the audit job lacked
+  `checks: write` and could not report what it found, `macos-14` is a retired
+  runner label, and the macOS leg could not compile `#[cfg(target_os =
+"macos")]` code that had never been built on its target platform. Details in
+  the commits.
+- **`webpki-root-certs` 1.0.7 → 1.0.12**, clearing the distrusted-intermediate
+  advisory.
+- **The Windows taskbar overlay icon is implemented.** It was recorded as
+  needing Win32 calls; Tauri exposes `Window::set_overlay_icon`, and it now uses
+  the same generated icon as the tray.
+
 - **The relay died every twenty seconds.** The shared HTTP client sets a
   twenty-second _total_ timeout, which is right for an API call and fatal for an
   SSE stream: the connection was aborted and re-established on a loop, so no
