@@ -16,6 +16,12 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# The default token is read-only in new repositories. Creating the draft
+# release, uploading assets to it, and reading it back in `verify` all need
+# write access to release contents.
+permissions:
+  contents: write
+
 env:
   CARGO_TERM_COLOR: always
 
