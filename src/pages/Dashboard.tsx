@@ -5,6 +5,7 @@ import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
 import { FilterBar } from "@/components/dashboard/FilterBar";
 import { RepoCardSkeletonGrid } from "@/components/dashboard/RepoCardSkeleton";
 import { RepoPicker } from "@/components/dashboard/RepoPicker";
+import { useUiStore } from "@/stores/ui";
 import { RunDetail } from "@/components/runs/RunDetail";
 import { EmptyState } from "@/components/shell/EmptyState";
 import { Button } from "@/components/primitives/Button";
@@ -28,7 +29,8 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<RepoFilter>("all");
   const [picking, setPicking] = useState(false);
-  const [openRepoId, setOpenRepoId] = useState<number | null>(null);
+  const openRepoId = useUiStore((store) => store.inspectedRepoId);
+  const setOpenRepoId = useUiStore((store) => store.inspect);
 
   const cards = useMemo(
     () => sortCards(filterCards(repos.data ?? [], filter, query)),

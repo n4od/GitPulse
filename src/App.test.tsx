@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -33,11 +33,33 @@ const SIGNED_IN: AuthState = {
  * what happens on a real launch.
  */
 function seed(state: AuthState): void {
-  invoke.mockImplementation((command: string) =>
-    // The dashboard is only mounted when signed in, and it needs a list, not
-    // an auth payload.
-    command === "repos_list" ? Promise.resolve([]) : Promise.resolve(state),
-  );
+  invoke.mockImplementation((command: string) => {
+    // The dashboard and the settings panel are only mounted when signed in,
+    // and they need their own payloads, not the auth one.
+    switch (command) {
+      case "repos_list":
+        return Promise.resolve([]);
+      case "native_get_settings":
+        return Promise.resolve({
+          notificationsEnabled: true,
+          quietHours: null,
+          autostart: false,
+          closeToTray: true,
+        });
+      case "system_metrics":
+        return Promise.resolve({
+          dbSizeMb: 0,
+          monitoredRepos: 0,
+          cachedRuns: 0,
+          deliveries: 0,
+          budgetAvailable: 30,
+          uptimeSecs: 1,
+        });
+      default:
+        return Promise.resolve(state);
+    }
+  });
+
   useAuthStore.setState({ state, ready: true });
 }
 
@@ -63,18 +85,16 @@ describe("App shell", () => {
     render(<App />);
 
     expect(screen.getByText("octocat")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /sign out/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^settings$/i })).toBeInTheDocument();
   });
 
-  it("signs out through the backend when the button is used", async () => {
+  it("opens settings from the title bar", async () => {
     seed(SIGNED_IN);
     render(<App />);
 
-    await userEvent.click(screen.getByRole("button", { name: /sign out/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^settings$/i }));
 
-    await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith("auth_sign_out", undefined);
-    });
+    expect(await screen.findByText(/notify me when a build fails/i)).toBeInTheDocument();
   });
 
   it("keeps the dev gallery out of the default route", () => {

@@ -375,14 +375,18 @@ launch does not spawn a process" is configured but untested.
 
 ## M10 — Settings & polish · M → **v0.4.0**
 
-- [ ] `M10-01` `settings_get` / `settings_set` with optimistic store and rollback
-- [ ] `M10-02` `SettingsPanel`: polling, notifications, webhook, autostart, tray, retention, sign out
-- [ ] `M10-03` `CommandPalette` (`Cmd/Ctrl+K`) fuzzy jump to repo / run / action
-- [ ] `M10-04` Metrics panel (`rss_mb`, `db_size_mb`, `last_poll_ms`, `requests_last_hour`) + clear cache
-- [ ] `M10-05` Keyboard map documented and implemented
-- [ ] `M10-06` a11y audit: live regions, roles, contrast, reduced motion
-- [ ] `M10-07` Zero-repo onboarding: browse and pick repositories
-- [ ] `M10-08` Loading / empty / error state for every surface
+- [x] `M10-01` Settings store with an optimistic update and rollback to the previous value on failure
+- [x] `M10-02` `SettingsPanel`: notifications, quiet hours, close-to-tray, autostart, a plain-language polling explanation, diagnostics, cache clearing, webhooks and sign out
+- [x] `M10-03` `CommandPalette` on `Ctrl`/`Cmd`+`K` with subsequence matching over repositories and actions
+- [x] `M10-04` Metrics and cache clearing. **Deviation:** no `rss_mb` (needs a platform call through `unsafe`, which this crate forbids) and no `last_poll_ms` or `requests_last_hour` (neither is tracked, and inventing a number is worse than omitting it). Reports cache size, repository and run counts, deliveries, remaining budget and uptime instead.
+- [x] `M10-05` Keyboard map: `Ctrl`/`Cmd`+`K` palette, arrows and Enter within it, Escape to dismiss, focus-visible everywhere
+- [ ] `M10-06` a11y audit — **partially done.** The primitives and the gallery audited at 1.00 in M1; the settings panel and palette have correct roles and labels but have not been re-audited.
+- [x] `M10-07` Zero-repo onboarding: the repository picker, shipped in M6
+- [x] `M10-08` Loading, empty and error states across the dashboard, inspector, log viewer, picker and settings
+
+**Verified:** 168 backend and 156 frontend tests pass; the app builds and starts.
+
+**Not cut as `v0.4.0`** — that release also requires M11.
 
 ---
 

@@ -13,7 +13,35 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+**Settings and polish (M10)**
+
+- **Settings panel:** notifications, quiet hours, close-to-tray, autostart, a
+  plain-language explanation of the polling interval, diagnostics, cache
+  clearing, a route into the webhook panel, and sign out. (`M10-02`)
+- **Optimistic settings:** a checkbox moves immediately and is restored, with an
+  explanation, if the backend refuses the change. (`M10-01`)
+- **Command palette:** `Ctrl`/`Cmd`+`K` opens a subsequence search over
+  repositories and actions; arrows and Enter navigate, Escape dismisses.
+  (`M10-03`)
+- **Diagnostics:** cache size, monitored repositories, cached runs, webhook
+  deliveries, remaining local budget and uptime, plus a "clear cache" that keeps
+  repositories and settings. (`M10-04`)
+- **Keyboard map:** the palette and its navigation, alongside the focus-visible
+  treatment every control already had. (`M10-05`)
+
+### Changed
+
+- **Sign out moved into the settings panel and the palette.** It used to be a
+  title-bar button beside the account name, one mis-click from logging you out.
+
+### Known issues
+
+- **The settings panel and palette have not been through Lighthouse.** The
+  primitives were audited at 1.00 in M1 and the new surfaces reuse the same
+  tokens and roles, but "same components" is not a measurement. (`M10-06`)
+- `v0.4.0` is not cut: the release also requires M11.
 
 ---
 

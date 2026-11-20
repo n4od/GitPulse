@@ -1,27 +1,33 @@
-import { useState } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Webhook } from "lucide-react";
+import { useEffect, useState } from "react";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { Settings } from "lucide-react";
 import { Button } from "@/components/primitives/Button";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/primitives/Toast";
+import { CommandPalette } from "@/components/shell/CommandPalette";
+import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { RateLimitMeter } from "@/components/status/RateLimitMeter";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WebhookPanel } from "@/components/webhook/WebhookPanel";
 import { useAuthBridge } from "@/hooks/useAuthBridge";
 import { useLiveUpdates } from "@/hooks/useLiveUpdates";
+import { useRepos } from "@/hooks/useRepos";
 import { signOut } from "@/lib/auth-commands";
+import { call } from "@/lib/ipc";
 import { createQueryClient } from "@/lib/queryClient";
 import { navigate, useRoute } from "@/lib/router";
+import { toast } from "@/stores/toasts";
+import { Bench } from "@/pages/Bench";
 import { Home } from "@/pages/Home";
 import { KitchenSink } from "@/pages/KitchenSink";
-import { Bench } from "@/pages/Bench";
 import { useSession } from "@/stores/auth";
+import { useUiStore } from "@/stores/ui";
+
+type Overlay = "palette" | "settings" | "webhooks" | null;
 
 /**
- * Application shell: header, routed content, global toast region.
- *
- * The query client is created once per mount and shared through context, so
- * every hook in the tree talks to the same cache.
+ * Application shell: header, routed content, global toast region, and the
+ * keyboard-driven overlays.
  */
 export default function App() {
   const [queryClient] = useState(createQueryClient);
@@ -38,11 +44,68 @@ export default function App() {
 function Shell() {
   const route = useRoute();
   const session = useSession();
-  const [webhooksOpen, setWebhooksOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const inspect = useUiStore((store) => store.inspect);
 
-  // Each connects to the backend exactly once, for the whole tree.
+  const [overlay, setOverlay] = useState<Overlay>(null);
+
+  // Both bridges connect to the backend exactly once, for the whole tree.
   useAuthBridge();
   useLiveUpdates();
+
+  const repos = useRepos(Boolean(session));
+  const cards = repos.data ?? [];
+
+  // Ctrl/Cmd+K opens the palette; Escape closes whatever is open. Registered
+  // here, at the root, so it works regardless of what has focus.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent): void {
+      const openPalette =
+        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
+
+      if (openPalette) {
+        event.preventDefault();
+        setOverlay((current) => (current === "palette" ? null : "palette"));
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setOverlay(null);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
+  async function refreshAll(): Promise<void> {
+    const ids = cards.map((card) => card.repo.id);
+
+    await Promise.all(ids.map((repoId) => call("repos_refresh", { repoId })));
+    toast("info", `Queued ${ids.length} ${ids.length === 1 ? "refresh" : "refreshes"}`);
+  }
+
+  function runPaletteAction(id: string): void {
+    switch (id) {
+      case "settings":
+        setOverlay("settings");
+        break;
+      case "webhooks":
+        setOverlay("webhooks");
+        break;
+      case "refresh-all":
+        void refreshAll();
+        break;
+      case "sign-out":
+        void signOut();
+        queryClient.removeQueries({ queryKey: ["repos"] });
+        break;
+      default:
+        break;
+    }
+  }
 
   return (
     <div className="flex h-full flex-col bg-surface text-ink">
@@ -50,19 +113,6 @@ function Shell() {
         actions={
           <>
             <RateLimitMeter />
-
-            {session ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Webhook settings"
-                onClick={() => {
-                  setWebhooksOpen(true);
-                }}
-              >
-                <Webhook className="size-3.5" />
-              </Button>
-            ) : null}
 
             {import.meta.env.DEV ? (
               <Button
@@ -77,27 +127,32 @@ function Shell() {
             ) : null}
 
             {session ? (
-              <div className="flex items-center gap-2">
-                {session.avatarUrl ? (
-                  <img
-                    src={session.avatarUrl}
-                    alt=""
-                    width={20}
-                    height={20}
-                    className="size-5 rounded-full border border-line"
-                  />
-                ) : null}
-                <span className="text-xs text-ink-soft">{session.login}</span>
+              <>
                 <Button
                   variant="ghost"
                   size="sm"
+                  aria-label="Settings"
+                  title="Settings (Ctrl+K for the command palette)"
                   onClick={() => {
-                    void signOut();
+                    setOverlay("settings");
                   }}
                 >
-                  Sign out
+                  <Settings className="size-3.5" />
                 </Button>
-              </div>
+
+                <div className="flex items-center gap-2">
+                  {session.avatarUrl ? (
+                    <img
+                      src={session.avatarUrl}
+                      alt=""
+                      width={20}
+                      height={20}
+                      className="size-5 rounded-full border border-line"
+                    />
+                  ) : null}
+                  <span className="text-xs text-ink-soft">{session.login}</span>
+                </div>
+              </>
             ) : null}
           </>
         }
@@ -115,11 +170,33 @@ function Shell() {
 
       <Toaster />
 
-      {webhooksOpen ? (
+      {overlay === "settings" ? (
+        <SettingsPanel
+          onClose={() => {
+            setOverlay(null);
+          }}
+          onOpenWebhooks={() => {
+            setOverlay("webhooks");
+          }}
+        />
+      ) : null}
+
+      {overlay === "webhooks" ? (
         <WebhookPanel
           onClose={() => {
-            setWebhooksOpen(false);
+            setOverlay(null);
           }}
+        />
+      ) : null}
+
+      {overlay === "palette" ? (
+        <CommandPalette
+          cards={cards}
+          onClose={() => {
+            setOverlay(null);
+          }}
+          onOpenRepo={inspect}
+          onAction={runPaletteAction}
         />
       ) : null}
     </div>

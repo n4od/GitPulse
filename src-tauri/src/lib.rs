@@ -83,6 +83,8 @@ pub fn run() {
             commands::auth::auth_refresh_session,
             commands::shell::native_get_settings,
             commands::shell::native_set_settings,
+            commands::diagnostics::system_clear_cache,
+            commands::diagnostics::system_metrics,
             commands::poller::repos_refresh,
             commands::repos::repos_available,
             commands::repos::repos_deployments,

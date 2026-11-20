@@ -67,3 +67,25 @@ pub fn delete_received_before(
         )
         .map_err(AppError::db)
 }
+
+/// Empties everything the app can re-fetch from GitHub.
+///
+/// Repositories stay, because they are the user's choices rather than cached
+/// data; so does everything in `meta`.
+pub fn clear_cache(connection: &Connection) -> Result<(), AppError> {
+    let transaction = connection.unchecked_transaction().map_err(AppError::db)?;
+
+    for statement in [
+        "DELETE FROM workflow_runs",
+        "DELETE FROM jobs",
+        "DELETE FROM deployments",
+        "DELETE FROM pull_requests",
+        "DELETE FROM webhook_deliveries",
+    ] {
+        transaction.execute(statement, []).map_err(AppError::db)?;
+    }
+
+    transaction.commit().map_err(AppError::db)?;
+
+    Ok(())
+}
