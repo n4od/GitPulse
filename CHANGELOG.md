@@ -13,6 +13,16 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [0.5.0] — 2026-11-21
+
+The first release anyone can build. Signing is deliberately absent, so it needs
+no certificates and no secrets, and the pipeline produces both **installers** and
+**portable** builds on all three platforms.
+
 ### Verified against GitHub
 
 - **A real sign-in completed.** The device flow was authorised in a browser; the
@@ -27,9 +37,6 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 - **`rusqlite` 0.38 → 0.43**, which moves `libsqlite3-sys` from 0.36.0 to
   0.40.0 and clears **CVE-2026-119375** in its bundled SQLite. No source changes
   were needed: the test suite, clippy and the running app all pass on it.
-
-### Fixed
-
 - **CI is green on all three operating systems.** The first run failed four
   ways: clippy broke on a drifting `stable` toolchain, the audit job lacked
   `checks: write` and could not report what it found, `macos-14` is a retired
@@ -64,14 +71,30 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
   means the code was not one GitHub issued, or it was mangled. The message now
   says the sign-in has to be restarted.
 
+### Changed
+
+- **Updater artifacts are deferred.** `createUpdaterArtifacts` is now `false`.
+  With the updater plugin not installed, `latest.json` was being produced for
+  nothing, and the flag forces a signing key — which stood between a tag and a
+  set of installers. Re-enable it together with the plugin.
+- **Releases are unsigned until certificates exist.** `release.yml` produces
+  installers with no secrets configured; adding them turns signing on with no
+  edit to the workflow.
+
 ### Added
 
 - **Release pipeline:** `release.yml` builds a draft release across four targets
   on three operating systems, verifies that every expected artifact exists, and
-  refuses to publish an incomplete one. Signing and notarization secrets are
-  wired and documented. **It has never run.**
-- **`createUpdaterArtifacts`** enabled so a signed `latest.json` is produced with
-  each build.
+  refuses to publish an incomplete one. It needs no secrets to produce installers.
+  Its first real execution is the `v0.5.0` tag carrying this entry.
+- **Portable builds, not just installers.** Each platform also ships a way to run
+  GitPulse without installing it: a `.zip` holding the single Windows `.exe`, a
+  `.tar.gz` of the macOS `.app`, and the Linux `.AppImage`. Packaging lives in
+  `scripts/package-portable.ps1` / `.sh`, shared by CI and local builds so the two
+  cannot drift.
+- **`RELEASING.md`:** how a tag becomes installers, every signing secret and
+  where it comes from, what an unsigned build means for whoever installs it, and
+  why `v1.0.0` is still reserved.
 
 - **`examples/live_device_flow`:** a repeatable check against real GitHub, with
   `--wait` to complete an authorisation by hand and `--errors` to verify the

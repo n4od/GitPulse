@@ -61,17 +61,16 @@ Last updated: 2026-11-20, after M10.
 
 ## Not verified at all
 
-| Gap                                          | What it needs                                                                                                              |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| **A real webhook delivery**                  | A public relay or tunnel, plus the same                                                                                    |
-| **macOS and Linux**                          | Hardware. The tray, dock badge, keychain backend and notification permission prompt are all platform-specific              |
-| **CI on macOS and Linux**                    | A remote. No remote is configured for this repository                                                                      |
-| **24-hour soak, 250 repositories**           | `scripts/soak.ps1` exists and is unexecuted                                                                                |
-| **Idle CPU under 1%**                        | `scripts/idle-cpu.ps1` exists and is unexecuted                                                                            |
-| **`cargo audit`**                            | Blocked here: the advisory database is fetched over git and this machine cannot reach it. Wired into CI, where it will run |
-| **Notification click deep-link**             | Not implemented; the plugin exposes no click callback                                                                      |
-| **Windows taskbar overlay icon**             | Not implemented; needs Win32 calls                                                                                         |
-| **Settings panel and palette accessibility** | Lighthouse has not been run against them                                                                                   |
+| Gap                                          | What it needs                                                                                                                                |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A real webhook delivery**                  | A public relay or tunnel, plus the same                                                                                                      |
+| **macOS and Linux runtimes**                 | Hardware. CI now builds and tests both, but the tray, dock badge, keychain backend and notification permission prompt only exist at run time |
+| **24-hour soak, 250 repositories**           | `scripts/soak.ps1` exists and is unexecuted                                                                                                  |
+| **Idle CPU under 1%**                        | `scripts/idle-cpu.ps1` exists and is unexecuted                                                                                              |
+| **The release pipeline**                     | Written and reconciled with the bundle config, but no release has been cut from it yet                                                       |
+| **Notification click deep-link**             | Not implemented; the plugin exposes no click callback                                                                                        |
+| **Windows taskbar overlay icon**             | Implemented with Tauri's `set_overlay_icon`; nobody has seen it on a real taskbar                                                            |
+| **Settings panel and palette accessibility** | Lighthouse has not been run against them                                                                                                     |
 
 ## How to close the largest gaps
 
@@ -83,8 +82,10 @@ Last updated: 2026-11-20, after M10.
    token, refresh and `/user` rows as well.
 2. **Let it run overnight.** `scripts/soak.ps1 -Hours 8` turns the soak row into
    evidence, and the idle check takes ten minutes after that.
-3. **Push to a remote.** The three-OS matrix has never executed; a single push
-   would tell you more about macOS and Linux than every test in this repository.
+3. ~~**Push to a remote.**~~ **Done.** The three-OS matrix runs green on every
+   push to `main`, and it immediately found a compile error on macOS that no
+   amount of testing on Windows could have surfaced. That closed the CI row and
+   the build half of the platform row in one step.
 4. **Point a tunnel at it** and let GitHub deliver one real webhook.
 
 ## Why this file is checked in
@@ -110,9 +111,13 @@ Ten criteria were written at the start of the project. This is the honest score.
 | 6   | Every row of the status table is unit-tested                                                     | **Verified.** 14 rows, plus precedence and fallback cases.                                                                                                                                                                                                                                                                                  |
 | 7   | Tray reflects a completed run within 2s; exactly one notification per failed run                 | **Partial.** The state function and the dedupe key are unit-tested; neither has been observed against a real build.                                                                                                                                                                                                                         |
 | 8   | Every performance budget is measured by a script and reported in CI                              | **Not met.** `scripts/soak.ps1` and `scripts/idle-cpu.ps1` exist and have never been executed; neither is wired into CI.                                                                                                                                                                                                                    |
-| 9   | Architecture, registration and trade-offs are documented                                         | **Verified.** README, `ARCHITECTURE.md` (18 ADRs) and this file.                                                                                                                                                                                                                                                                            |
+| 9   | Architecture, registration and trade-offs are documented                                         | **Verified.** README, `ARCHITECTURE.md` (18 ADRs), `RELEASING.md` and this file.                                                                                                                                                                                                                                                            |
 | 10  | Zero `unwrap`, `panic!`, `TODO`, `any`, `dangerouslySetInnerHTML` or `unsafe` in production code | **Two exceptions.** `redact.rs` calls `.expect()` on two compile-time-constant regexes. Deliberate: a bad pattern is a build-time bug, and the alternatives are a silent fallback that leaks secrets or an unreadable `match`. Everything else is clean; 214 further occurrences are all inside test modules.                               |
 
 **Score: 3 verified, 5 partial, 1 not met, 1 with documented exceptions.**
 
-Nothing here is a surprise. The partials cluster on one cause — no remote, no tunnel, no second machine — and they would collapse quickly with those three things.
+Nothing here is a surprise. The partials cluster on one cause — no tunnel, no
+second machine, no signing certificates — and they would collapse quickly with
+those three things. The remote, which was on that list, is now in place: CI runs
+green on all three platforms and caught a real macOS-only compile error the
+moment it first ran.

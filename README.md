@@ -114,7 +114,7 @@ fetches the truth.
 | `npm run dev`         | Vite dev server on `:1420` (Tauri's `beforeDevCommand`) |
 | `npm run tauri dev`   | Full desktop app with hot reload                        |
 | `npm run build`       | Typecheck + production frontend bundle                  |
-| `npm run tauri build` | Signed-less installers for the current OS               |
+| `npm run tauri build` | Unsigned installers for the current OS                  |
 | `npm run typecheck`   | `tsc --noEmit` over app and tooling configs             |
 | `npm run lint`        | ESLint, zero warnings tolerated                         |
 | `npm run test`        | Vitest                                                  |
@@ -138,6 +138,8 @@ src-tauri/migrations/   SQLite migrations
 ARCHITECTURE.md   decisions, threat model, module map
 ROADMAP.md        milestones and task IDs
 CHANGELOG.md      what shipped
+VERIFICATION.md   what is proven, and what is not
+RELEASING.md      how a tag becomes installers
 ```
 
 ## GitHub authentication

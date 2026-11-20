@@ -84,31 +84,60 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          # Update signing. Without these, `createUpdaterArtifacts` fails rather
-          # than producing an unsigned updater — which is the correct failure.
+          # Signing is deliberately *not* configured yet, so these resolve to
+          # empty strings and the bundles are produced unsigned. An unset secret
+          # is not an error here; it simply means "do not sign". Adding the
+          # secrets below turns signing on with no edit to this file. See
+          # RELEASING.md for what each one is and where it comes from.
+          #
+          # TAURI_SIGNING_PRIVATE_KEY        updater signatures (needs
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD  createUpdaterArtifacts: true)
+          # APPLE_CERTIFICATE                macOS signing
+          # APPLE_CERTIFICATE_PASSWORD
+          # APPLE_SIGNING_IDENTITY
+          # APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID   notarization
+          # WINDOWS_CERTIFICATE              Windows signing
+          # WINDOWS_CERTIFICATE_PASSWORD
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-
-          # macOS notarization. Apple requires an app-specific password here,
-          # not the account password.
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-
-          # Windows code signing. Unsigned installers trigger SmartScreen, which
-          # is a delivery problem rather than a build one.
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         with:
           tagName: ${{ steps.tag.outputs.name }}
           releaseName: "GitPulse ${{ steps.tag.outputs.name }}"
           # Draft: a human reads the notes and checks the artifacts first.
+          # Left as a full release rather than a prerelease on purpose — the
+          # draft is where that decision is made, and an unsigned bundle is a
+          # reason to publish it as a prerelease.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # The bundles above are the *install* path. This is the run-it-straight-
+      # from-the-archive path: no admin rights, nothing written outside the
+      # user's own data directory. Linux already ships one -- the AppImage.
+      - name: Package a portable build (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: ./scripts/package-portable.ps1 -Tag "${{ steps.tag.outputs.name }}"
+
+      - name: Package a portable build (macOS)
+        if: startsWith(matrix.platform, 'macos')
+        shell: bash
+        run: bash scripts/package-portable.sh "${{ steps.tag.outputs.name }}" "${{ matrix.args }}"
+
+      - name: Upload the portable build
+        if: matrix.platform != 'ubuntu-22.04'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ steps.tag.outputs.name }}" portable/* --clobber
 
   verify:
     name: Verify the draft
@@ -132,8 +161,13 @@ jobs:
           echo "$assets"
 
           missing=0
+          # One per installed bundle target in tauri.conf.json, plus the
+          # portable archives built afterwards. The updater artifacts
+          # (.app.tar.gz, latest.json) are intentionally absent while
+          # `createUpdaterArtifacts` is off, so they are not listed here.
           for pattern in \
-            '\.dmg$' '\.app\.tar\.gz$' '\.AppImage$' '\.deb$' '\.exe$' '\.msi$' 'latest\.json$'
+            '\.dmg$' '\.AppImage$' '\.deb$' '\.exe$' '\.msi$' \
+            'portable\.zip$' '_portable\.tar\.gz$'
           do
             if ! grep -Eq "$pattern" <<< "$assets"; then
               echo "::error::no artifact matching $pattern in the draft release"

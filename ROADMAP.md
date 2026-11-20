@@ -19,13 +19,14 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 
 ## Release map
 
-| Version | Theme               | Milestones | Definition of done                                 |
-| ------- | ------------------- | ---------- | -------------------------------------------------- |
-| `0.1.0` | Read-only dashboard | M0 → M6    | Sign in, see live status for N repos, nothing else |
-| `0.2.0` | Actions & insight   | M7         | Inspect runs, read logs, re-run and dispatch       |
-| `0.3.0` | Live & native       | M8 → M9    | Webhooks, tray, notifications, autostart           |
-| `0.4.0` | Polish & hardening  | M10 → M11  | Perf budgets measured, a11y audited, e2e green     |
-| `1.0.0` | Release-ready       | M12        | Signed installers on three OSes, auto-update       |
+| Version | Theme               | Milestones | Definition of done                                                       |
+| ------- | ------------------- | ---------- | ------------------------------------------------------------------------ |
+| `0.1.0` | Read-only dashboard | M0 → M6    | Sign in, see live status for N repos, nothing else                       |
+| `0.2.0` | Actions & insight   | M7         | Inspect runs, read logs, re-run and dispatch                             |
+| `0.3.0` | Live & native       | M8 → M9    | Webhooks, tray, notifications, autostart                                 |
+| `0.4.0` | Polish & hardening  | M10 → M11  | Perf budgets measured, a11y audited, e2e green                           |
+| `0.5.0` | Buildable release   | M12        | Installers and portable builds on three OSes, with no secrets configured |
+| `1.0.0` | Release-ready       | M12        | Signed installers on three OSes, auto-update                             |
 
 **Critical path:** M0 → M1 → M2 → M3 → M4 → M5 → M6. Everything after M6 is parallelisable
 except M8, which depends on M4 (client) and M3 (persistence).
@@ -419,24 +420,27 @@ dropped.
 
 ---
 
-## M12 — Release engineering · M → **v1.0.0** — **configured, not executed**
+## M12 — Release engineering · M → **v1.0.0** — **wired, not yet executed**
 
 - [x] `M12-01` `release.yml`: `tauri-action`, four build targets across three OSes, a draft release, and a verification job that refuses to publish if an artifact is missing
-- [x] `M12-02` `createUpdaterArtifacts` enabled; `TAURI_SIGNING_PRIVATE_KEY` wired. The updater _plugin_ is not installed, so `latest.json` is produced but nothing consumes it yet.
-- [x] `M12-03` Notarization and code-signing secrets wired and documented; none are committed
+- [x] `M12-02` Updater artifacts **deferred on purpose.** `createUpdaterArtifacts` is `false` until the updater plugin is installed: `latest.json` was being produced for nothing, and the flag forces a signing key that stood between a tag and a set of installers. The signing variables stay wired in `release.yml`, so turning it back on is configuration, not code.
+- [x] `M12-03` Notarization and code-signing secrets wired and documented; none are committed. Until they exist, releases are **unsigned** — installers are produced, but macOS Gatekeeper and Windows SmartScreen will warn.
 - [x] `M12-04` `ARCHITECTURE.md`: 18 ADRs, threat model, module map
 - [x] `M12-05` README: registration, tunnel trade-offs, troubleshooting, and why smee.io does not work
+- [x] `M12-05b` [`RELEASING.md`](./RELEASING.md): how a tag becomes installers, every signing secret and where it comes from, the unsigned-build caveat, and the secret-free path a release takes today
 - [x] `M12-06` Acceptance walkthrough recorded in [`VERIFICATION.md`](./VERIFICATION.md): 3 verified, 5 partial, 1 not met, 1 with documented exceptions
-- [ ] `M12-07` Tag `v1.0.0` — **not done, deliberately.** The milestone's own exit criterion is signed installers produced and verified on three operating systems. None has been produced: there are no signing certificates, no Apple developer account, and no remote to run the matrix.
+- [ ] `M12-07` Tag `v1.0.0` — **not done, deliberately.** The milestone's own exit criterion is signed installers produced and verified on three operating systems, with auto-update. None holds: there are no signing certificates, and the updater plugin is not installed. A release can be cut today, but it is unsigned and therefore `0.x`.
 
 **What this milestone actually delivers:** a release pipeline that is correct on
-inspection and has never run. `release.yml` builds a draft, checks that every
-expected artifact is present, and refuses to publish without them — but the first
-execution will be the first test.
+inspection and has not run. `release.yml` builds a draft, checks that every
+expected artifact is present, and refuses to publish without them — but the
+first execution will be the first test. It runs with **no secrets configured**,
+so the very first tag produces installers; the signing path is a later upgrade.
 
 Tagging `v1.0.0` here would assert that three operating systems produce signed,
-working installers. They do not, and this file has spent a whole project arguing
-that unearned claims are the expensive kind.
+working installers with auto-update. They do not, and this file has spent a whole
+project arguing that unearned claims are the expensive kind. The credential-free
+release that _does_ work is documented in [`RELEASING.md`](./RELEASING.md).
 
 ---
 
