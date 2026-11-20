@@ -1,0 +1,9 @@
+[toolchain]
+# Pinned deliberately.
+#
+# Everything in this repository was verified against this toolchain. Letting CI
+# take whatever `stable` is on the day means a new clippy release can break the
+# build without a single line changing — which is exactly what happened on the
+# first CI run. Updating this file is a deliberate act with a test run attached.
+channel = "1.95.0"
+components = ["rustfmt", "clippy"]

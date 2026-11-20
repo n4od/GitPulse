@@ -44,6 +44,12 @@ jobs:
   dependencies:
     name: Dependency audit
     runs-on: ubuntu-latest
+    # The default token is read-only in new repositories, and `rustsec/audit-check`
+    # writes a check run — which is why it failed with "Resource not accessible
+    # by integration" instead of reporting the advisories it found.
+    permissions:
+      contents: read
+      checks: write
     steps:
       - uses: actions/checkout@v4
 
@@ -58,10 +64,50 @@ jobs:
       # to ignore the gate.
       - run: npm audit --audit-level=high
 
-      - uses: rustsec/audit-check@v2
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
+
+      - uses: taiki-e/install-action@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          working-directory: src-tauri
+          tool: cargo-audit
+
+      # Each advisory is emitted as a workflow annotation, so it is readable
+      # without downloading logs — including by tooling that has no token.
+      - name: Audit Rust dependencies
+        run: |
+          cargo audit --file src-tauri/Cargo.lock --json > audit.json || true
+
+          python3 - <<'PY'
+          import json, sys
+
+          report = json.load(open("audit.json"))
+          vulnerabilities = report.get("vulnerabilities", {}).get("list", []) or []
+
+          for item in vulnerabilities:
+              advisory = item["advisory"]
+              package = item["package"]
+              print(
+                  f"::error title={advisory['id']}::"
+                  f"{package['name']} {package['version']} — {advisory['title']} "
+                  f"({advisory.get('url', '')})"
+              )
+
+          warnings = report.get("warnings", {}) or {}
+          for kind, items in warnings.items():
+              for item in items or []:
+                  advisory = item.get("advisory", {})
+                  package = item.get("package", {})
+                  print(
+                      f"::warning title={kind}::"
+                      f"{package.get('name')} {package.get('version')} — "
+                      f"{advisory.get('title', '')}"
+                  )
+
+          print(f"{len(vulnerabilities)} vulnerabilities")
+
+          if vulnerabilities:
+              sys.exit(1)
+          PY
 
   backend:
     name: Backend (${{ matrix.os }})
@@ -84,9 +130,8 @@ jobs:
             patchelf \
             libsecret-1-dev
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - name: Install the pinned toolchain
+        run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@v2
         with:
