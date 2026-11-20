@@ -48,10 +48,10 @@ single owner.
 | `src-tauri/src/logging.rs`      | Rolling file log + redacting writer                       | M0        |
 | `src-tauri/src/state.rs`        | Shared process state                                      | M0        |
 | `src-tauri/src/commands/`       | IPC surface, input validation                             | M0+       |
-| `src-tauri/src/auth/`           | Device flow, token store, refresh                         | M2        |
+| `src-tauri/src/auth/`           | Device flow, token custody, single-flight refresh         | M2        |
 | `src-tauri/src/db/`             | Schema, migrations, DAOs, diffing, retention              | M3        |
 | `src-tauri/migrations/`         | Append-only `.sql` schema versions                        | M3        |
-| `src-tauri/src/github/`         | Client, ETag cache, rate budget, endpoints                | M4        |
+| `src-tauri/src/github/`         | HTTP client and endpoints (ETag + budget from M4)         | M2+       |
 | `src-tauri/src/poller/`         | Scheduler, budget math, backoff                           | M5        |
 | `src-tauri/src/webhook/`        | Local server, relay, HMAC verification                    | M8        |
 | `src/lib/ipc.ts`                | Typed `invoke` wrapper, error normalisation               | M0        |
@@ -120,6 +120,101 @@ have given us:
 
 `VACUUM` is deliberately excluded from migrations: SQLite refuses to run it
 inside a transaction, so it lives in the retention sweep on its own cadence.
+
+### ADR-011 — Device flow, and one auth path for both app types
+
+**Why the device flow.** A desktop binary cannot keep a client secret, so the
+authorization-code flow would be a fiction. The device flow needs only a public
+client id, has no redirect URI to register or hijack, and keeps the user's
+password inside their browser rather than an embedded webview. The cost is a
+code the user must copy — which is why the UI treats that code as the primary
+element of the screen, not a detail.
+
+**Why the code does not care which app type you register.** The plan framed
+this as a fork: GitHub App for refresh tokens, OAuth App for simplicity. It is
+not a fork. The flow, the storage and the refresh logic are identical; the only
+difference is whether the token response contains `refresh_token` and
+`expires_in`. So the implementation branches on the response:
+
+- refresh token present: proactive refresh 10 minutes before expiry,
+  single-flight, rotation persisted
+- refresh token absent: the token is treated as long-lived and used until
+  GitHub rejects it
+
+The decision therefore stays a deployment choice rather than a rewrite, and an
+OAuth App does not get 8-hour expiry handling bolted on that it cannot support.
+
+**Why the refresh token is written before the access token.** GitHub invalidates
+a refresh token as soon as it issues a replacement. If the process died after
+persisting the new access token but before the new refresh token, the stored
+refresh token would already be dead and the user would be signed out for good.
+Writing refresh-first means the worst case is a stale access token, which is
+exactly the case a refresh fixes.
+
+**Why refresh is single-flight.** Two concurrent refreshes with the same
+refresh token leave one caller holding a token the other has invalidated. The
+manager serialises refresh behind an async gate and **re-checks after
+acquiring it**, so 20 simultaneous requests collapse into one network call. A
+test asserts that, rather than assuming it.
+
+**Why keychain failure degrades to memory rather than failing closed.**
+"Fail closed" here would mean refusing to run on a headless Linux box. The
+property that matters is _never write a token to disk in plaintext_, and
+in-memory storage satisfies it: the user signs in again after a restart (logged
+as a warning), and no secret ever leaves the keychain abstraction.
+
+**Why redirects are disabled on the HTTP client.** GitHub serves log archives
+as a redirect to a signed CDN URL. `reqwest`'s default policy can replay
+headers across hosts; with `Policy::none()` every redirect is resolved by hand,
+and the follow-up request carries no `Authorization` header.
+
+### ADR-011 — Device flow, and one auth path for both app types
+
+**Why the device flow.** A desktop binary cannot keep a client secret, so the
+authorization-code flow would be a fiction. The device flow needs only a public
+client id, has no redirect URI to register or hijack, and keeps the user's
+password inside their browser rather than an embedded webview. The cost is a
+code the user must copy — which is why the UI treats that code as the primary
+element of the screen, not a detail.
+
+**Why the code does not care which app type you register.** The plan framed
+this as a fork: GitHub App for refresh tokens, OAuth App for simplicity. It is
+not a fork. The flow, the storage and the refresh logic are identical; the only
+difference is whether the token response contains `refresh_token` and
+`expires_in`. So the implementation branches on the response:
+
+- refresh token present → proactive refresh 10 minutes before expiry,
+  single-flight, rotation persisted
+- refresh token absent → the token is treated as long-lived and used until
+  GitHub rejects it
+
+This means the decision stays a deployment choice, not a rewrite. It also means
+an OAuth App does not silently get 8-hour expiry handling bolted on that it
+cannot support.
+
+**Why the refresh token is written before the access token.** GitHub invalidates
+a refresh token as soon as it issues a replacement. If the process died after
+persisting the new access token but before the new refresh token, the stored
+refresh token would already be dead and the user would be signed out for good.
+Writing refresh-first means the worst case is a stale access token, which is
+exactly the case a refresh fixes.
+
+**Why refresh is single-flight.** Two concurrent refreshes with the same
+refresh token leave one caller holding a token the other has invalidated. The
+manager therefore serialises refresh behind an async gate and **re-checks after
+acquiring it**, so 20 simultaneous requests collapse into 1 network call. This
+is asserted by a test rather than assumed.
+
+**Why keychain failure degrades to memory rather than failing closed.** "Fail
+closed" here would mean refusing to run on a headless Linux box. The property
+that matters is _never write a token to disk in plaintext_, and in-memory
+storage satisfies it: the user signs in again after a restart (logged as a
+warning), and no secret ever leaves the keychain abstraction.
+
+**Why redirects are disabled on the HTTP client.** GitHub serves log archives as
+a redirect to a signed CDN URL. `reqwest`'s default policy can replay headers
+across hosts; with `Policy::none()` every redirect is resolved by hand, and the
+follow-up request carries no `Authorization` header.
 
 ### ADR-003 — Boxed error causes
 
@@ -216,7 +311,7 @@ component gallery (visual) and the e2e sweep (M11-04).
    verification over raw bytes happens _before_ deserialization, and the local
    listener is bound to `127.0.0.1` behind a secret path segment.
 
-### Mitigations in place (M0–M1)
+### Mitigations in place (M0–M2)
 
 - CSP with no `unsafe-eval`, no wildcard origins, `script-src 'self'`.
 - Capability file grants `core:default` + `opener:allow-open-url` only — no

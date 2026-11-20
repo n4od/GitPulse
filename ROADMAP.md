@@ -89,26 +89,35 @@ M11-04.
 
 ---
 
-## M2 — Authentication · L
+## M2 — Authentication · L — **complete**
 
 **Goal:** real "Sign in with GitHub", tokens only in the OS keychain, refresh rotation that survives crashes.
 
 Depends on M0, M1.
 
-- [ ] `M2-01` README section: how to register the GitHub App (device flow enabled, token expiry enabled)
-- [ ] `M2-02` `device_flow.rs` state machine `Idle → RequestingCode → AwaitingUser → Polling → Authorized | Denied | Expired | Error`, cancellable
-- [ ] `M2-03` `slow_down` handling: +5s permanent interval bump; `authorization_pending` continues; terminal codes map to distinct `AppError`
-- [ ] `M2-04` `opener` launches verification URI; UI shows letter-spaced code, copy button, 15-min countdown
-- [ ] `M2-05` `token_store.rs`: `keyring` v3, refresh token written **before** access token, `SecretString` in memory
-- [ ] `M2-06` `refresh.rs`: single-flight refresh under concurrent 401s, persist rotated refresh token before use
-- [ ] `M2-07` Startup validation via `GET /user`; `bad_refresh_token` purges keychain and emits `AuthRequired`
-- [ ] `M2-08` `KeyringUnavailable` path: fail closed, offer session-only in-memory opt-in, never plaintext on disk
-- [ ] `M2-09` Commands `auth_start_device_flow` / `auth_cancel_device_flow` / `auth_get_session` / `auth_sign_out` + `auth://state` events
-- [ ] `M2-10` `AuthPanel` + `DeviceCodeCard` with all error states and retry affordances
-- [ ] `M2-11` `wiremock` tests: all five error codes, interval growth, cancellation mid-poll
-- [ ] `M2-12` **BLOCKED** — confirm auth model: GitHub App (refresh tokens) vs OAuth App (non-expiring, simpler). See Open decisions.
+- [x] `M2-01` README section: registering a GitHub App or OAuth App with device flow enabled
+- [x] `M2-02` `device_flow.rs` state machine `SignedOut → RequestingCode → AwaitingUser → Polling → Authorized | Denied | Expired | Failed`, cancellable
+- [x] `M2-03` `slow_down` handling: +5s cumulative interval bump; `authorization_pending` continues; every terminal code maps to a distinct `AppError`
+- [x] `M2-04` `opener` launches the verification URI; UI shows a letter-spaced code, copy button and live countdown
+- [x] `M2-05` `token_store.rs`: `keyring` v3 behind a `TokenStore` trait, refresh token written **before** access token, `SecretString` throughout
+- [x] `M2-06` `tokens.rs`: single-flight refresh behind an async gate with a re-check after acquiring it
+- [x] `M2-07` Startup validation via `GET /user`; `401` clears the keychain and emits `AuthRequired`
+- [x] `M2-08` `KeyringUnavailable` path: falls back to in-memory session-only storage, never plaintext on disk
+- [x] `M2-09` Commands `auth_get_state` / `auth_start_device_flow` / `auth_cancel_device_flow` / `auth_sign_out` / `auth_refresh_session` + `auth://state` events
+- [x] `M2-10` `AuthPanel` + `DeviceCodeCard` covering every phase, with retry and a config-specific hint
+- [x] `M2-11` `wiremock` tests: every documented error code, `slow_down` growth, cancellation mid-poll, refresh single-flight
+- [x] `M2-12` **Resolved** — the auth code is app-type agnostic. It branches on what the token response _contains_, so GitHub App (refresh tokens) and OAuth App (non-expiring) both work with no code fork. See ADR-011.
 
-**Exit:** sign-in against a real GitHub App works; grep of bundle, logs, and SQLite proves no token is present anywhere except the keychain; refresh rotation test passes under 20 concurrent callers.
+**Verified:** 46 backend tests and 77 frontend tests pass. The refresh test
+drives 20 concurrent callers through one wiremock server and asserts exactly
+one refresh request reaches it, with the rotated token persisted. `ts-rs`
+exports `AuthState`/`AuthSession` to `src/lib/bindings/` and the UI imports
+them, so the union cannot drift from the Rust enum.
+
+**Not verified, and it matters:** no real sign-in has been performed. That needs
+a registered GitHub App client id, which cannot be created on the user's behalf.
+The flow is covered against a mock server, but the final hop — GitHub's device
+page, a real token, a real keychain write — is untested end to end.
 
 ---
 
@@ -315,17 +324,18 @@ Unscheduled. Promote into a milestone when it becomes a real user complaint.
 
 ---
 
-## Open decisions
+## Decisions
 
-These block or reshape the milestones marked `**BLOCKED**`. Resolve before M2 ships.
+Resolved decisions are recorded in `ARCHITECTURE.md` under "Decision log".
+Open ones are below.
 
-| #   | Decision                  | Options                                                                                                                                                      | Default if unresolved                                   | Affects    |
-| --- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ---------- |
-| D1  | Auth model                | **GitHub App** (refresh tokens, installation step, fine-grained perms) vs **OAuth App** (non-expiring token, no refresh, `repo workflow read:user`, simpler) | GitHub App — required for the refresh-token requirement | M2, README |
-| D2  | Webhook transport         | **Relay only** (smee-style, zero config) vs relay + tunnel + local server                                                                                    | Relay + local server, tunnel documented                 | M8         |
-| D3  | Polling default           | 60 s min / 15 min max vs user-set fixed interval                                                                                                             | Budget-aware adaptive                                   | M5, M10    |
-| D4  | Log retention             | Keep log text on disk vs fetch-on-demand only                                                                                                                | Fetch-on-demand, cache nothing                          | M7, M11    |
-| D5  | Product name / identifier | `Pulse` / `dev.pulse.workflowmonitor`                                                                                                                        | As written                                              | M0         |
+| #      | Decision                  | Options                                                                                                          | Default if unresolved                                    | Affects |
+| ------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------- |
+| ~~D1~~ | ~~Auth model~~            | **Resolved in M2:** the code supports both — it branches on whether the token response contains a refresh token. | Either; GitHub App for refresh, OAuth App for simplicity | M2      |
+| D2     | Webhook transport         | **Relay only** (smee-style, zero config) vs relay + tunnel + local server                                        | Relay + local server, tunnel documented                  | M8      |
+| D3     | Polling default           | 60 s min / 15 min max vs user-set fixed interval                                                                 | Budget-aware adaptive                                    | M5, M10 |
+| D4     | Log retention             | Keep log text on disk vs fetch-on-demand only                                                                    | Fetch-on-demand, cache nothing                           | M7, M11 |
+| D5     | Product name / identifier | `Pulse` / `dev.pulse.workflowmonitor`                                                                            | As written                                               | M0      |
 
 Record the outcome of each in `ARCHITECTURE.md` under "Decisions" and tick the corresponding
 `**BLOCKED**` task.

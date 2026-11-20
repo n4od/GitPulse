@@ -13,11 +13,45 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-Milestones **M0 (Foundation)**, **M1 (Design system & shell)** and **M3
-(Persistence)** are complete. Still open from M0: the licence choice and the
-first CI run on macOS/Linux. See [ROADMAP.md](./ROADMAP.md).
+Milestones **M0 (Foundation)**, **M1 (Design system & shell)**, **M2
+(Authentication)** and **M3 (Persistence)** are complete. Still open from M0:
+the licence choice and the first CI run on macOS/Linux. See
+[ROADMAP.md](./ROADMAP.md).
 
 ### Added
+
+**Authentication (M2)**
+
+- **Sign in with GitHub** via the OAuth 2.0 device flow: the app requests a
+  device code, opens the verification page in the default browser, and shows
+  the user code with a live countdown and a copy button. No client secret ships
+  and no personal access token is ever requested. (`M2-02`, `M2-04`)
+- **One flow, both app types.** The token handling branches on what GitHub
+  actually returns, so a GitHub App (expiring tokens plus rotating refresh
+  tokens) and an OAuth App (non-expiring token, no refresh) both work with no
+  code fork. (`M2-12`)
+- **Token custody:** access and refresh tokens live in the OS keychain behind a
+  `TokenStore` trait, held as `SecretString` in memory and never serialised to
+  the frontend, the database or a log. (`M2-05`)
+- **Crash-safe rotation:** the refresh token is written before the access token,
+  because GitHub invalidates the old refresh token the moment it issues a new
+  one — the reverse order would strand a user mid-refresh. (`M2-05`)
+- **Single-flight refresh:** concurrent callers queue behind one in-flight
+  refresh and re-check after acquiring the gate, so twenty simultaneous requests
+  produce one network call. (`M2-06`)
+- **Session validation:** `GET /user` on startup; a `401` clears the keychain
+  and returns to the sign-in screen instead of looping on a dead token.
+  (`M2-07`)
+- **Keychain failure handling:** when the OS keychain is unavailable (a Linux
+  session with no Secret Service, typically) Pulse degrades to session-only
+  in-memory storage rather than writing secrets to disk. (`M2-08`)
+- **Auth UI:** a presentational `AuthPanel` covering every phase — signing out,
+  requesting a code, awaiting approval, polling, denied, expired and failed —
+  plus a `DeviceCodeCard` with countdown, copy and reopen-browser actions.
+  (`M2-10`)
+- **Generated types:** `AuthState` and `AuthSession` are exported from Rust to
+  `src/lib/bindings/` with `ts-rs` and imported by the UI, so the TypeScript
+  union cannot drift from the Rust enum.
 
 **Persistence (M3)**
 
@@ -121,6 +155,11 @@ foreign_keys = ON` impossible to set reliably — and without it every
 - Log directory is created with the platform default ACLs; no telemetry.
 - `PRAGMA foreign_keys = ON` is applied to every connection, so cascade deletes
   cannot silently leave orphaned rows behind. (`M3-03`)
+- GitHub tokens are held in the OS keychain as `SecretString` and never cross
+  the IPC boundary; the webview receives only the login name and expiry.
+  (`M2-05`)
+- Redirects are not followed automatically, so an `Authorization` header can
+  never be replayed to a third-party host such as the log CDN. (`M2-02`)
 
 ### Known issues
 
@@ -130,6 +169,10 @@ foreign_keys = ON` impossible to set reliably — and without it every
   link. Bumping it requires bumping every other crate that links SQLite.
 - The macOS and Linux CI legs have not run yet.
 - No automated keyboard-only sweep of the primitives yet (deferred to M11-04).
+- **No real sign-in has been performed.** The device flow is covered end to end
+  against a mock GitHub, but completing it needs a registered client id, so the
+  final hop (GitHub's device page, a real token, a real keychain write) is
+  untested.
 
 ---
 

@@ -64,9 +64,60 @@ CHANGELOG.md      what shipped
 
 ## GitHub authentication
 
-Pulse uses the OAuth 2.0 **device flow**, so there is no client secret in the
-binary and no personal access token to paste. Registration steps are
-documented in M2 of the roadmap and will land with the auth milestone.
+Pulse uses the OAuth 2.0 **device flow**: no client secret ships in the binary,
+and there is no personal access token to paste. You register an app, give Pulse
+its public client id, and approve the sign-in in your browser.
+
+### 1. Register an app
+
+Either app type works. The code branches on what GitHub's token response
+actually contains, so nothing needs rebuilding to switch.
+
+**GitHub App** — supports expiring user tokens with rotating refresh tokens, so
+Pulse stays signed in without ever hitting an expiry wall.
+
+1. GitHub → Settings → Developer settings → **GitHub Apps** → **New GitHub App**
+2. Homepage / callback URL: `http://127.0.0.1` — the device flow does not use
+   them, but the form requires a value
+3. Under **Identifying and authorizing users**, tick **Enable Device Flow**
+4. Tick **Expire user authorization tokens** to get refresh tokens
+5. Save and copy the **Client ID**. Pulse never needs the client secret.
+
+**OAuth App** — simpler, but the token never expires and there is no refresh.
+
+1. Settings → Developer settings → **OAuth Apps** → **New OAuth App**
+2. Tick **Enable Device Flow**
+3. Copy the **Client ID**
+
+### 2. Configure Pulse
+
+```powershell
+$env:PULSE_GITHUB_CLIENT_ID = "Iv1.0123456789abcdef"
+```
+
+An OAuth App also needs scopes requested explicitly, because its permissions
+come from the token rather than the app registration:
+
+```powershell
+$env:PULSE_GITHUB_SCOPES = "repo workflow read:user"
+```
+
+`repo` is required for private repositories and `workflow` is required to
+re-run or dispatch workflows. Without them Pulse can still read public sources.
+
+Both variables are read at runtime, falling back to compile-time values of the
+same name, so a packaged build can be repointed without a rebuild.
+
+A client id is **not** a secret — it identifies the app, not the user. The
+client secret is never requested, stored, or shipped.
+
+### Where tokens live
+
+The access and refresh tokens go to the OS keychain (Windows Credential
+Manager, macOS Keychain, Secret Service on Linux) and nowhere else — not to
+SQLite, not to a config file, not to the webview. If the keychain is
+unavailable, Pulse falls back to **session-only** in-memory storage and says so
+in the log; it never writes a token to disk in plaintext.
 
 ## Troubleshooting
 
