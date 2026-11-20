@@ -13,11 +13,33 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-Milestones **M0 (Foundation)** and **M1 (Design system & shell)** are complete.
-Still open from M0: the licence choice and the first CI run on macOS/Linux. See
-[ROADMAP.md](./ROADMAP.md).
+Milestones **M0 (Foundation)**, **M1 (Design system & shell)** and **M3
+(Persistence)** are complete. Still open from M0: the licence choice and the
+first CI run on macOS/Linux. See [ROADMAP.md](./ROADMAP.md).
 
 ### Added
+
+**Persistence (M3)**
+
+- **Local cache:** normalized `SQLite` schema for repositories, workflow runs,
+  jobs, deployments, pull requests and webhook deliveries, with indexes on the
+  dashboard's hot paths and `ON DELETE CASCADE` from a repository to everything
+  it owns. (`M3-01`, `M3-02`)
+- **Migrations:** forward-only `.sql` versions embedded at compile time and
+  recorded in a `schema_migrations` ledger, applied automatically and
+  idempotently on every launch. (`M3-03b`)
+- **DAOs** for every table, all writes expressed as idempotent
+  `ON CONFLICT DO UPDATE` upserts keyed on the GitHub numeric id. (`M3-04`)
+- **Change detection:** `diff_runs()` fingerprints `status`, `conclusion` and
+  `run_attempt` and writes only the runs that actually moved, so an unchanged
+  poll produces no writes and no UI events. (`M3-05`)
+- **Retention:** runs older than 90 days and deliveries older than 30 days are
+  pruned on startup, with `VACUUM` throttled to once every 30 days because it
+  rewrites the whole file. (`M3-06`)
+- **Delivery ledger:** `X-GitHub-Delivery` ids are recorded so a replayed
+  webhook is rejected rather than reprocessed. (`M3-02`)
+- **Pull-request sweeping:** open pull requests not reported by the latest sync
+  are removed, so a PR merged upstream stops showing as open locally. (`M3-04`)
 
 **Design system (M1)**
 
@@ -62,12 +84,33 @@ retryable }` and redacts secrets on the way out. (`M0-07`)
 
 ### Changed
 
+- **Persistence architecture:** the planned 4-reader/1-writer `deadpool-sqlite`
+  pool was replaced by a single `Mutex<Connection>`. `deadpool-sqlite 0.13` has
+  no connection-init hook, which makes the per-connection `PRAGMA
+foreign_keys = ON` impossible to set reliably — and without it every
+  `ON DELETE CASCADE` in the schema is silently inert. Reasoning in
+  `ARCHITECTURE.md` ADR-002. (`M3-03`)
+- **Migration tooling:** `rusqlite_migration` was dropped in favour of ~40 lines
+  of hand-rolled, append-only migrations, because it cannot coexist with another
+  `rusqlite` version in the same dependency graph (`libsqlite3-sys` may only be
+  linked once). (`M3-03b`)
+- **Rust MSRV** raised from 1.77 to 1.85. Cargo's MSRV-aware resolver had been
+  silently selecting a five-year-old `deadpool-sqlite` to satisfy the lower
+  bound.
 - **Colour tokens** adjusted to meet WCAG AA as measured, rather than by eye:
   `--color-ink-muted` `#6B7480` → `#77808C` (4.12:1 → 4.89:1) and `--color-bad`
   `#EF4444` → `#F05252` (4.48:1 → 4.80:1 on its own badge tint). (`M1-08`)
 - **Test coverage scope** narrowed to logic-bearing modules (`lib/`, `stores/`,
   `components/status`), matching the roadmap gate. Coverage is 100% lines and
   branches on that scope. (`M1-08`)
+
+### Fixed
+
+- **Deployment column mismatch:** the first schema declared the deployments
+  column as `ref` while the DAO wrote `git_ref`, which failed at runtime rather
+  than at compile time. Since nothing has shipped, migration `0001_init` was
+  corrected in place instead of adding a corrective migration. Caught by the
+  idempotency test. (`M3-01`)
 
 ### Security
 
@@ -76,11 +119,15 @@ retryable }` and redacts secrets on the way out. (`M0-07`)
   `shell`, `fs` or `http` permissions granted.
 - `#![forbid(unsafe_code)]` on both crate roots.
 - Log directory is created with the platform default ACLs; no telemetry.
+- `PRAGMA foreign_keys = ON` is applied to every connection, so cascade deletes
+  cannot silently leave orphaned rows behind. (`M3-03`)
 
 ### Known issues
 
 - `npm ci` requires the `allowScripts` entry for `esbuild@0.28.2`; upgrading
   esbuild without bumping that pin breaks the Vite build.
+- `rusqlite` is pinned to `0.38` to match the graph's single `libsqlite3-sys`
+  link. Bumping it requires bumping every other crate that links SQLite.
 - The macOS and Linux CI legs have not run yet.
 - No automated keyboard-only sweep of the primitives yet (deferred to M11-04).
 

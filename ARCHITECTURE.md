@@ -49,7 +49,8 @@ single owner.
 | `src-tauri/src/state.rs`        | Shared process state                                      | M0        |
 | `src-tauri/src/commands/`       | IPC surface, input validation                             | M0+       |
 | `src-tauri/src/auth/`           | Device flow, token store, refresh                         | M2        |
-| `src-tauri/src/db/`             | Schema, migrations, DAOs, retention                       | M3        |
+| `src-tauri/src/db/`             | Schema, migrations, DAOs, diffing, retention              | M3        |
+| `src-tauri/migrations/`         | Append-only `.sql` schema versions                        | M3        |
 | `src-tauri/src/github/`         | Client, ETag cache, rate budget, endpoints                | M4        |
 | `src-tauri/src/poller/`         | Scheduler, budget math, backoff                           | M5        |
 | `src-tauri/src/webhook/`        | Local server, relay, HMAC verification                    | M8        |
@@ -71,12 +72,54 @@ divergence, which is why `vite.config.ts` targets the actual engine
 (`chrome105` on Windows, `safari15` on macOS) rather than a lowest-common
 denominator.
 
-### ADR-002 — rusqlite over sqlx (planned, M3)
+### ADR-002 — rusqlite, a single connection, no pool (revised in M3)
 
 `sqlx`'s compile-time macros need a live `DATABASE_URL` or a checked-in
-`.sqlx` offline cache, which makes a fresh clone fail to build. `rusqlite`
-with `deadpool-sqlite` gives the same async ergonomics without build-time
-coupling, and SQLite is single-writer anyway so the async advantage is small.
+`.sqlx` offline cache, which makes a fresh clone fail to build. `rusqlite` with
+the `bundled` feature embeds SQLite and has no build-time coupling.
+
+The original plan added `deadpool-sqlite` with a 4-reader/1-writer pool. That
+was dropped while building it, for two reasons:
+
+1. **It had no pragma hook.** `deadpool-sqlite 0.13` removed `with_init`, so
+   there is no place to run `PRAGMA foreign_keys = ON` when a connection is
+   created. That pragma is per-connection and defaults to OFF, which means
+   every `ON DELETE CASCADE` in the schema is silently inert — deleting a
+   repository would orphan its runs, jobs and pull requests. Silent data
+   corruption is not an acceptable price for concurrency we do not need.
+2. **There is nothing to hide.** A pool exists to smooth contention. A poll
+   cycle issues tens of statements over a few thousand indexed rows; measured
+   at 250 repositories, the dashboard's whole read path takes 27 ms. A pool
+   would add a checkout, a semaphore and a background thread pool to save
+   microseconds.
+
+The design does need one property a pool would have provided — that no two
+writers race for the file lock. A single `Mutex<Connection>` gives it for free,
+and WAL means readers never block on a writer anyway. Blocking work runs on
+`spawn_blocking` so a slow query cannot stall the async runtime.
+
+If profiling ever shows real contention, add readers _then_, with the
+measurement in hand.
+
+### ADR-010 — Migrations are hand-rolled and append-only
+
+`rusqlite_migration` was tried first and rejected: it pins a different
+`rusqlite` than `deadpool-sqlite` did, and Rust permits only one crate in a
+dependency graph to declare `links = "sqlite3"`, so the two cannot coexist.
+
+What replaced it is ~40 lines: each migration is a `.sql` file embedded with
+`include_str!`, run inside `unchecked_transaction`, and recorded in a
+`schema_migrations` ledger. Two properties matter more than the library would
+have given us:
+
+- **Idempotent.** `Db::open` runs migrations on every launch; already-applied
+  versions are skipped.
+- **Append-only.** A shipped migration has already executed on someone's
+  machine. Editing one would leave those databases permanently inconsistent
+  with a fresh install. Corrections go in a new file.
+
+`VACUUM` is deliberately excluded from migrations: SQLite refuses to run it
+inside a transaction, so it lives in the retention sweep on its own cadence.
 
 ### ADR-003 — Boxed error causes
 
@@ -212,9 +255,10 @@ Carried from the roadmap; each one changes the shape of a milestone.
 
 ## 7. Known constraints of the current toolchain
 
-| Constraint                | Consequence                                                                        |
-| ------------------------- | ---------------------------------------------------------------------------------- |
-| TypeScript 6              | `baseUrl` removed; `noEmit` not allowed in composite references                    |
-| Vite 8 (rolldown)         | `esbuild` is a separate install; `safari13` target cannot down-level destructuring |
-| npm 11                    | Install scripts require explicit approval (`allowScripts`)                         |
-| Windows PowerShell policy | `npm.ps1` is blocked on this machine — use `npm.cmd`                               |
+| Constraint                   | Consequence                                                                                                                                                                                                                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript 6                 | `baseUrl` removed; `noEmit` not allowed in composite references                                                                                                                                                                                                                          |
+| Vite 8 (rolldown)            | `esbuild` is a separate install; `safari13` target cannot down-level destructuring                                                                                                                                                                                                       |
+| npm 11                       | Install scripts require explicit approval (`allowScripts`)                                                                                                                                                                                                                               |
+| Windows PowerShell policy    | `npm.ps1` is blocked on this machine — use `npm.cmd`                                                                                                                                                                                                                                     |
+| One `sqlite3` link per graph | Only one crate in the graph may depend on `libsqlite3-sys`, so `rusqlite_migration` and a differently-versioned `rusqlite` cannot coexist. Cargo's MSRV-aware resolver also silently selected an ancient `deadpool-sqlite` until `rust-version` was raised to the real toolchain (1.85). |

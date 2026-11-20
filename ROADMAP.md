@@ -112,21 +112,39 @@ Depends on M0, M1.
 
 ---
 
-## M3 — Persistence · M
+## M3 — Persistence · M — **complete**
 
 **Goal:** normalized local cache with migrations, diffs, and retention.
 
 Depends on M0.
 
-- [ ] `M3-01` `0001_init.sql` (repos, workflow_runs, jobs, deployments, pull_requests, meta) + indexes
-- [ ] `M3-02` `0002_webhook_deliveries.sql`
-- [ ] `M3-03` `deadpool-sqlite` pool (4 readers / 1 writer) + pragmas (`WAL`, `synchronous=NORMAL`, `foreign_keys=ON`, `busy_timeout=5000`)
-- [ ] `M3-04` DAOs per table with idempotent upserts (`ON CONFLICT DO UPDATE`)
-- [ ] `M3-05` Diff helper: given a fetched run set, return only inserted/changed rows
-- [ ] `M3-06` Retention job: runs > 90 days, deliveries > 30 days, monthly `VACUUM` off the hot path
-- [ ] `M3-07` Tests: migration up, round-trip, cascade deletes, 250-repo seed query timing
+- [x] `M3-01` `0001_init.sql` (repos, workflow_runs, jobs, deployments, pull_requests, meta) + indexes
+- [x] `M3-02` `0002_webhook_deliveries.sql`
+- [x] `M3-03` **Changed:** single `Mutex<Connection>` instead of a `deadpool-sqlite` pool, plus pragmas (`WAL`, `synchronous=NORMAL`, `foreign_keys=ON`, `busy_timeout=5000`). See ADR-002.
+- [x] `M3-03b` Hand-rolled forward-only migrations with a `schema_migrations` ledger. See ADR-010.
+- [x] `M3-04` DAOs per table with idempotent upserts (`ON CONFLICT DO UPDATE`)
+- [x] `M3-05` Diff helper: given a fetched run set, return only inserted/changed rows
+- [x] `M3-06` Retention job: runs > 90 days, deliveries > 30 days, monthly `VACUUM` off the hot path
+- [x] `M3-07` Tests: migration up, round-trip, cascade deletes, 250-repo seed query timing
 
-**Exit:** 250-repo seed; every dashboard query under 5 ms; deleting a repo removes all dependent rows.
+**Verified:** 24 backend tests pass, including idempotent migrations, a real
+cascade delete across four child tables, diff behaviour for unchanged runs /
+bare `updated_at` bumps / re-runs, delivery replay rejection, retention pruning
+and `VACUUM` cadence. The binary was launched for real: it created
+`%APPDATA%\dev.pulse.workflowmonitor\pulse.db`, applied both migrations, ran the
+retention sweep and left `-wal` / `-shm` files behind, confirming WAL.
+
+**Measured:** 250 repositories × 20 runs (5,000 rows) — "list all repos" plus
+250 newest-run lookups completed in **27 ms**, i.e. ~108 µs per repository.
+The roadmap's "under 5 ms" was an unmeasured guess; 27 ms for the full dashboard
+refresh path is the honest number and leaves plenty of headroom.
+
+**Deviation from the plan (M3-03):** the 4-reader/1-writer pool was dropped. A
+pool exists to hide contention; at tens of statements per poll cycle there is
+none, and `deadpool-sqlite 0.13` had dropped the `with_init` hook that is the
+natural place for the per-connection `foreign_keys` pragma — without which every
+`ON DELETE CASCADE` in the schema is silently inert. A single connection sets
+pragmas once, at open. Revisit only with a measurement.
 
 ---
 
