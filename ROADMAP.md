@@ -433,14 +433,17 @@ dropped.
 
 **What this milestone actually delivers:** a release pipeline that runs. The
 `v0.5.0` tag produced installers and portable builds for all three operating
-systems and passed its own artifact check. The first execution failed on all four
-builds, for four different reasons, every one of them now fixed and written down:
+systems and passed its own artifact check. Getting here took three release runs,
+each exposing a different failure, all now fixed and written down:
 
-1. a read-only token that could not create the draft release,
-2. an empty `APPLE_CERTIFICATE` that made Tauri try to import a blank certificate,
+1. a read-only token that could not create the draft release (Windows and Linux),
+2. an empty `APPLE_CERTIFICATE` that made Tauri try to import a blank certificate
+   (every macOS build),
 3. a macOS `.app` deleted before the portable step could pack it, because `app`
-   was missing from `bundle.targets`,
-4. and a pinned-toolchain drift in the audit job before all of that.
+   was missing from `bundle.targets`.
+
+The dependency-audit toolchain drift fixed earlier in this milestone belongs to
+the same story: none of it was findable without running the pipeline for real.
 
 Tagging `v1.0.0` here would assert that three operating systems produce signed,
 working installers with auto-update. They do not, and this file has spent a whole
