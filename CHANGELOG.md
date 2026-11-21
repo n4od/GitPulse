@@ -17,6 +17,25 @@ _Nothing yet._
 
 ---
 
+## [0.5.2] — 2026-11-21
+
+One-click downloads on the README: the release pipeline now also uploads
+version-less copies of every artifact, so a download link can stay stable across
+releases instead of carrying the version in its filename.
+
+### Added
+
+- **Stable download filenames.** Each release now carries
+  `GitPulse-windows-x64-setup.exe`, `GitPulse-macos-arm64.dmg`,
+  `GitPulse-linux-x64.AppImage` and the rest of the set, alongside the versioned
+  files. The README links to `/releases/latest/download/<name>`, which only works
+  when the name never changes.
+- **The verify job checks them.** A draft missing any stable-named asset is
+  refused, so a broken download button fails the release instead of reaching a
+  user.
+
+---
+
 ## [0.5.1] — 2026-11-21
 
 This release makes the published installers usable: v0.5.0 shipped without a

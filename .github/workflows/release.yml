@@ -132,6 +132,50 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ steps.tag.outputs.name }}" portable/* --clobber
 
+      # Stable, version-less copies, so the README's download buttons can point
+      # at /releases/latest/download/<name> permanently. The Tauri bundles carry
+      # the version in the filename, which means a link to one of those 404s the
+      # moment the next tag is cut.
+      - name: Publish stable-named downloads
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.tag.outputs.name }}"
+          version="${tag#v}"
+          mkdir -p stable
+
+          # Fail loudly rather than uploading an empty file.
+          first() { find "$1" -maxdepth 1 -type f -name "$2" -print -quit; }
+
+          case "${{ matrix.platform }}" in
+            windows-latest)
+              suffix=windows-x64
+              cp "$(first src-tauri/target/release/bundle/nsis '*.exe')"      "stable/GitPulse-${suffix}-setup.exe"
+              cp "$(first src-tauri/target/release/bundle/msi '*.msi')"       "stable/GitPulse-${suffix}.msi"
+              cp "portable/GitPulse_${version}_x64_portable.zip"              "stable/GitPulse-${suffix}-portable.zip"
+              ;;
+            ubuntu-22.04)
+              suffix=linux-x64
+              cp "$(first src-tauri/target/release/bundle/deb '*.deb')"           "stable/GitPulse-${suffix}.deb"
+              cp "$(first src-tauri/target/release/bundle/appimage '*.AppImage')" "stable/GitPulse-${suffix}.AppImage"
+              ;;
+            macos-latest)
+              case "${{ matrix.args }}" in
+                *aarch64*) arch=aarch64; suffix=macos-arm64 ;;
+                *)         arch=x86_64;  suffix=macos-x64 ;;
+              esac
+              cp "$(first "src-tauri/target/${arch}-apple-darwin/release/bundle/dmg" '*.dmg')" \
+                 "stable/GitPulse-${suffix}.dmg"
+              cp "portable/GitPulse_${version}_${arch}_portable.tar.gz" \
+                 "stable/GitPulse-${suffix}-portable.tar.gz"
+              ;;
+          esac
+
+          ls -l stable
+          gh release upload "$tag" stable/* --clobber
+
   verify:
     name: Verify the draft
     needs: build
@@ -161,6 +205,22 @@ jobs:
           for pattern in \
             '\.dmg$' '\.AppImage$' '\.deb$' '\.exe$' '\.msi$' \
             'portable\.zip$' '_portable\.tar\.gz$'
+          do
+            if ! grep -Eq "$pattern" <<< "$assets"; then
+              echo "::error::no artifact matching $pattern in the draft release"
+              missing=1
+            fi
+          done
+
+          # The stable copies the README's download buttons link to. If one of
+          # these is missing the buttons break, so it is checked here rather
+          # than discovered by a user.
+          for pattern in \
+            'GitPulse-windows-x64-setup\.exe$' 'GitPulse-windows-x64\.msi$' \
+            'GitPulse-windows-x64-portable\.zip$' \
+            'GitPulse-macos-arm64\.dmg$' 'GitPulse-macos-x64\.dmg$' \
+            'GitPulse-macos-arm64-portable\.tar\.gz$' 'GitPulse-macos-x64-portable\.tar\.gz$' \
+            'GitPulse-linux-x64\.deb$' 'GitPulse-linux-x64\.AppImage$'
           do
             if ! grep -Eq "$pattern" <<< "$assets"; then
               echo "::error::no artifact matching $pattern in the draft release"
