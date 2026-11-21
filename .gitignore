@@ -27,3 +27,7 @@ logs/
 
 # Local release packaging output (scripts/package-portable.*)
 portable/
+
+# Kept release binaries. Build output, not source: ~30 MB per release, so it
+# lives on disk for convenience but never in the repository.
+releases/
