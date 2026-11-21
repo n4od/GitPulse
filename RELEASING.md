@@ -133,6 +133,28 @@ in `CHANGELOG.md`, which is the durable record.
 
 ---
 
+## The GitHub client id
+
+The published app has to know which GitHub App to sign users in through. That
+value is baked into the binary at compile time by `option_env!` in
+`auth::configured_client_id`, and the release workflow supplies it from a
+repository **variable**:
+
+| Variable                    | Value                                  |
+| --------------------------- | -------------------------------------- |
+| `GITPULSE_GITHUB_CLIENT_ID` | the app's public client id (`Iv23li…`) |
+
+Set it under **Settings → Secrets and variables → Actions → Variables**. It is a
+variable rather than a secret on purpose: a client id identifies the app, not the
+user, and the device flow never sends a client secret.
+
+If the variable is missing the build still succeeds, but the installers cannot
+sign anyone in — which is exactly what happened to `v0.5.0`. A runtime
+`GITPULSE_GITHUB_CLIENT_ID` still overrides the compiled value, so a local
+checkout can point at a different app without rebuilding.
+
+---
+
 ## Adding signing
 
 Two things are needed: the secrets, and an `env:` block in `release.yml` that

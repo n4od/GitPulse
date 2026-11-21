@@ -24,6 +24,12 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Baked into the binary at compile time by `option_env!` in
+  # auth::configured_client_id, so a packaged build can sign in without the user
+  # setting anything. A client id is public by design - it identifies the app,
+  # not the user - and the device flow never uses a client secret. Stored as a
+  # repository variable so it can be repointed without editing this file.
+  GITPULSE_GITHUB_CLIENT_ID: ${{ vars.GITPULSE_GITHUB_CLIENT_ID }}
 
 jobs:
   build:

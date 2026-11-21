@@ -13,8 +13,23 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [0.5.1] — 2026-11-21
+
+This release makes the published installers usable: v0.5.0 shipped without a
+GitHub client id, so sign-in could not work on a fresh machine. It also carries
+the dashboard restyle.
+
 ### Fixed
 
+- **Published builds can sign in.** `release.yml` never set
+  `GITPULSE_GITHUB_CLIENT_ID`, so the compile-time fallback baked in nothing and
+  every installer asked for a client id it could not have. It is now supplied at
+  build time from the repository variable `GITPULSE_GITHUB_CLIENT_ID`; the runtime
+  override still wins, so development is unchanged.
 - **The soak and idle-CPU scripts can find a binary again.** Both defaulted to
   `src-tauri/target/debug/gitpulse.exe`, which a build cleanup deletes; they now
   prefer a release build and fall back to the newest kept binary under
