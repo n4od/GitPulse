@@ -32,7 +32,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi", "dmg", "appimage", "deb"],
+    "targets": ["nsis", "msi", "dmg", "app", "appimage", "deb"],
     "category": "DeveloperTool",
     "shortDescription": "Monitor GitHub workflows locally",
     "longDescription": "GitPulse watches GitHub Actions workflows, deployments and pull requests across your repositories, entirely on your machine.",

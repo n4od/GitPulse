@@ -69,6 +69,11 @@ The portable archives are built by `scripts/package-portable.ps1` (Windows) and
 bundles exist. They are the same scripts a local `npm run tauri build` uses, so
 a local release and a CI release cannot drift.
 
+> **`app` must stay in `bundle.targets`.** Without it, Tauri builds the macOS
+> `.app` only as a throwaway step on the way to the `.dmg` and then _deletes_
+> it — so the portable step has nothing to pack. The first `v0.5.0` release run
+> failed exactly this way.
+
 ---
 
 ## Unsigned builds, and what that means for users
