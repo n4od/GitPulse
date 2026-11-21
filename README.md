@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/banner.png" alt="GitPulse — GitHub Actions, watched locally" width="100%">
+</p>
+
 # GitPulse
 
 A local-first desktop monitor for GitHub Actions workflows, deployments and
@@ -6,6 +10,10 @@ your machine.
 
 > **Status:** M0 (foundation) complete — the window, toolchain and CI exist.
 > Authentication lands in M2. See [ROADMAP.md](./ROADMAP.md).
+
+## Screenshot
+
+![GitPulse dashboard showing twelve repositories with passing, failing and running builds](./docs/app-dashboard.png)
 
 ## Requirements
 

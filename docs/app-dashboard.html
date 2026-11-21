@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>GitPulse</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1440px; height: 900px; overflow: hidden; }
+  body {
+    background: #0B0C0E;
+    color: #E8ECF2;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .window { width: 1440px; height: 900px; display: flex; flex-direction: column; background: #0B0C0E; }
+
+  /* ── title bar ── */
+  .titlebar {
+    height: 56px; flex: 0 0 56px; display: flex; align-items: center; gap: 14px;
+    padding: 0 20px; background: #101217; border-bottom: 1px solid #1E222B;
+  }
+  .mark { width: 26px; height: 26px; border-radius: 8px; background: #14231C;
+          border: 1px solid #1F3A2C; display: grid; place-items: center; }
+  .brand { font-weight: 700; font-size: 15px; letter-spacing: -0.2px; }
+  .spacer { flex: 1; }
+  .meter { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #8A94A6; }
+  .meter .track { width: 92px; height: 6px; border-radius: 3px; background: #1B1F27; overflow: hidden; }
+  .meter .fill { height: 100%; width: 78%; background: linear-gradient(90deg,#2E9E6B,#34D399); border-radius: 3px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: #1E2A3A;
+            border: 1px solid #2B3A4E; display: grid; place-items: center;
+            font-size: 12px; font-weight: 700; color: #9FB4CC; }
+  .winbtns { display: flex; gap: 16px; color: #5F697A; font-size: 12px; margin-left: 8px; }
+
+  /* ── header ── */
+  .header { padding: 26px 34px 18px; display: flex; align-items: center; gap: 16px; }
+  .h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
+  .count { font-size: 12px; color: #6B7484; background: #15181F; border: 1px solid #23272F;
+           padding: 3px 9px; border-radius: 999px; }
+  .spacer2 { flex: 1; }
+  .chips { display: flex; gap: 6px; background: #12141A; border: 1px solid #23272F; border-radius: 10px; padding: 4px; }
+  .chip { font-size: 12px; color: #8A94A6; padding: 6px 12px; border-radius: 7px; }
+  .chip.active { background: #1C2029; color: #E8ECF2; font-weight: 600; }
+  .chip .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .search { width: 210px; height: 34px; background: #12141A; border: 1px solid #23272F; border-radius: 9px;
+            display: flex; align-items: center; gap: 8px; padding: 0 12px; color: #5F697A; font-size: 12px; }
+  .refresh { height: 34px; padding: 0 14px; border-radius: 9px; background: #E8ECF2; color: #0B0C0E;
+             font-size: 12px; font-weight: 700; display: flex; align-items: center; }
+
+  /* ── grid ── */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 0 34px 34px; }
+  .card { background: #171A21; border: 1px solid #262A33; border-radius: 14px; padding: 16px 16px 14px; }
+  .row1 { display: flex; align-items: center; gap: 10px; }
+  .repo { font-size: 14.5px; font-weight: 650; letter-spacing: -0.1px; }
+  .pill { margin-left: auto; font-size: 9.5px; font-weight: 700; letter-spacing: 0.6px;
+          padding: 4px 9px; border-radius: 999px; }
+  .ok   { color: #34D399; background: rgba(52,211,153,.14); }
+  .bad  { color: #F05252; background: rgba(240,82,82,.14); }
+  .run  { color: #F5B942; background: rgba(245,185,66,.14); }
+  .workflow { margin-top: 5px; font-size: 11.5px; color: #6B7484; }
+  .workflow b { color: #9AA4B4; font-weight: 600; }
+  .spark { width: 100%; height: 42px; margin: 10px 0 6px; display: block; }
+  .meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #6B7484; }
+  .sep { width: 3px; height: 3px; border-radius: 50%; background: #39404C; }
+  .live { width: 7px; height: 7px; border-radius: 50%; background: #F5B942; box-shadow: 0 0 0 3px rgba(245,185,66,.15); }
+  .statusbar { margin-top: auto; height: 46px; flex: 0 0 46px; display: flex; align-items: center; gap: 10px;
+               padding: 0 34px; border-top: 1px solid #1E222B; background: #0D0F13; font-size: 11.5px; color: #6B7484; }
+  .dotlive { width: 7px; height: 7px; border-radius: 50%; background: #34D399; box-shadow: 0 0 0 3px rgba(52,211,153,.13); }
+</style>
+</head>
+<body>
+<div class="window">
+
+  <div class="titlebar">
+    <div class="mark">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <polyline points="1,8 4,8 5.5,4 7,12 8.5,6 10,9 15,9" stroke="#34D399" stroke-width="1.6"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="brand">GitPulse</div>
+    <div class="spacer"></div>
+    <div class="meter">
+      <span>GitHub API</span>
+      <div class="track"><div class="fill"></div></div>
+      <span>4,982 / 5,000</span>
+    </div>
+    <div class="avatar">B</div>
+    <div class="winbtns"><span>—</span><span>▢</span><span>✕</span></div>
+  </div>
+
+  <div class="header">
+    <div class="h1">Repositories</div>
+    <div class="count">12 monitored</div>
+    <div class="spacer2"></div>
+    <div class="chips">
+      <div class="chip active">All</div>
+      <div class="chip"><span class="dot" style="background:#F05252"></span>Failing</div>
+      <div class="chip"><span class="dot" style="background:#F5B942"></span>Running</div>
+    </div>
+    <div class="search">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="#5F697A" stroke-width="1.4"/><path d="M10.5 10.5 L14 14" stroke="#5F697A" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Search repositories
+    </div>
+    <div class="refresh">↻ Refresh all</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- 1 passing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/rocket-api</div><div class="pill ok">PASSING</div></div>
+      <div class="workflow"><b>CI</b> · main · a1b2c3d</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,30 36,28 73,29 109,24 145,26 182,21 218,23 255,18 291,20 327,15 364,17 400,12" fill="none" stroke="#34D399" stroke-width="2"/></svg>
+      <div class="meta">2m ago <span class="sep"></span> 48s <span class="sep"></span> 10 runs</div>
+    </div>
+
+    <!-- 2 failing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/web-console</div><div class="pill bad">FAILING</div></div>
+      <div class="workflow"><b>Build &amp; test</b> · feature/nav · e4f5g6h</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,12 36,15 73,14 109,19 145,18 182,23 218,21 255,26 291,25 327,30 364,28 400,33" fill="none" stroke="#F05252" stroke-width="2"/></svg>
+      <div class="meta">5m ago <span class="sep"></span> 1m 12s <span class="sep"></span> 10 runs</div>
+    </div>
+
+    <!-- 3 running -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/billing-service</div><div class="pill run">RUNNING</div></div>
+      <div class="workflow"><b>CI</b> · main · i7j8k9l</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,24 36,23 73,24 109,21 145,22 182,20 218,21 255,19 291,20 327,18 364,19 400,17" fill="none" stroke="#F5B942" stroke-width="2"/><circle cx="400" cy="17" r="3.5" fill="#F5B942"/></svg>
+      <div class="meta"><span class="live"></span> running now <span class="sep"></span> 32s</div>
+    </div>
+
+    <!-- 4 passing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/data-pipeline</div><div class="pill ok">PASSING</div></div>
+      <div class="workflow"><b>Nightly ETL</b> · main · m0n1o2p</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,26 36,25 73,26 109,22 145,23 182,20 218,21 255,18 291,19 327,16 364,17 400,14" fill="none" stroke="#34D399" stroke-width="2"/></svg>
+      <div class="meta">1h ago <span class="sep"></span> 54s <span class="sep"></span> 10 runs</div>
+    </div>
+
+    <!-- 5 passing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/mobile-app</div><div class="pill ok">PASSING</div></div>
+      <div class="workflow"><b>Release</b> · release/2.1 · q3r4s5t</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,22 36,24 73,21 109,23 145,19 182,21 218,17 255,19 291,15 327,17 364,13 400,15" fill="none" stroke="#34D399" stroke-width="2"/></svg>
+      <div class="meta">3h ago <span class="sep"></span> 2m 04s <span class="sep"></span> 10 runs</div>
+    </div>
+
+    <!-- 6 failing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/docs-site</div><div class="pill bad">FAILING</div></div>
+      <div class="workflow"><b>Deploy</b> · main · u6v7w8x</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,20 36,17 73,19 109,15 145,18 182,14 218,16 255,22 291,19 327,25 364,23 400,30" fill="none" stroke="#F05252" stroke-width="2"/></svg>
+      <div class="meta">12m ago <span class="sep"></span> 21s <span class="sep"></span> 10 runs</div>
+    </div>
+
+    <!-- 7 passing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/auth-gateway</div><div class="pill ok">PASSING</div></div>
+      <div class="workflow"><b>CI</b> · main · y9z0a1b</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,28 36,27 73,28 109,23 145,25 182,21 218,23 255,18 291,20 327,16 364,18 400,13" fill="none" stroke="#34D399" stroke-width="2"/></svg>
+      <div class="meta">8m ago <span class="sep"></span> 1m 05s <span class="sep"></span> 10 runs</div>
+    </div>
+
+    <!-- 8 failing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/worker-queue</div><div class="pill bad">FAILING</div></div>
+      <div class="workflow"><b>CI</b> · main · c2d3e4f</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,16 36,19 73,17 109,22 145,20 182,25 218,23 255,27 291,26 327,31 364,29 400,34" fill="none" stroke="#F05252" stroke-width="2"/></svg>
+      <div class="meta">20m ago <span class="sep"></span> 38s <span class="sep"></span> 10 runs</div>
+    </div>
+
+    <!-- 9 running -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/design-system</div><div class="pill run">RUNNING</div></div>
+      <div class="workflow"><b>Chromatic</b> · main · g5h6i7j</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,25 36,24 73,25 109,22 145,23 182,21 218,22 255,20 291,21 327,19 364,20 400,18" fill="none" stroke="#F5B942" stroke-width="2"/><circle cx="400" cy="18" r="3.5" fill="#F5B942"/></svg>
+      <div class="meta"><span class="live"></span> running now <span class="sep"></span> 1m 20s</div>
+    </div>
+
+    <!-- 10 passing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/notifications</div><div class="pill ok">PASSING</div></div>
+      <div class="workflow"><b>CI</b> · main · k8l9m0n</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,27 36,26 73,27 109,22 145,24 182,20 218,22 255,17 291,19 327,15 364,16 400,12" fill="none" stroke="#34D399" stroke-width="2"/></svg>
+      <div class="meta">45m ago <span class="sep"></span> 1m 12s <span class="sep"></span> 10 runs</div>
+    </div>
+
+    <!-- 11 failing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/search-index</div><div class="pill bad">FAILING</div></div>
+      <div class="workflow"><b>Reindex</b> · main · o1p2q3r</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,15 36,18 73,16 109,21 145,19 182,24 218,22 255,28 291,26 327,32 364,30 400,35" fill="none" stroke="#F05252" stroke-width="2"/></svg>
+      <div class="meta">2h ago <span class="sep"></span> 3m 40s <span class="sep"></span> 10 runs</div>
+    </div>
+
+    <!-- 12 passing -->
+    <div class="card">
+      <div class="row1"><div class="repo">acme/analytics</div><div class="pill ok">PASSING</div></div>
+      <div class="workflow"><b>Nightly</b> · main · s4t5u6v</div>
+      <svg class="spark" viewBox="0 0 400 40" preserveAspectRatio="none"><polyline points="0,24 36,23 73,24 109,20 145,21 182,18 218,19 255,16 291,17 327,14 364,15 400,11" fill="none" stroke="#34D399" stroke-width="2"/></svg>
+      <div class="meta">5h ago <span class="sep"></span> 1m 48s <span class="sep"></span> 10 runs</div>
+    </div>
+
+  </div>
+
+  <div class="statusbar">
+    <span class="dotlive"></span>
+    <span>Poller idle · last sweep 12s ago · next check in 48s</span>
+    <div class="spacer2"></div>
+    <span>Cache: 12 repositories · 196 runs · 8.1 MB</span>
+  </div>
+</div>
+</body>
+</html>

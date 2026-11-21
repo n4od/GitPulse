@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-label="GitPulse — monitor GitHub Actions locally">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B0C0E"/>
+      <stop offset="1" stop-color="#0E1117"/>
+    </linearGradient>
+    <radialGradient id="glowGreen" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#34D399" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#34D399" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowBlue" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#5B8CFF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#5B8CFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pulse" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34D399" stop-opacity="0.15"/>
+      <stop offset="0.55" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#34D399" stop-opacity="0.05"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0 H0 V40" fill="none" stroke="#151820" stroke-width="1"/>
+    </pattern>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="1280" height="400" fill="url(#bg)"/>
+  <rect width="1280" height="400" fill="url(#grid)" opacity="0.55"/>
+  <ellipse cx="300" cy="200" rx="380" ry="230" fill="url(#glowGreen)"/>
+  <ellipse cx="980" cy="150" rx="420" ry="260" fill="url(#glowBlue)"/>
+
+  <!-- ───────────── left: brand ───────────── -->
+  <text x="64" y="168" fill="#F5F7FA" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="84" font-weight="700" letter-spacing="-2">GitPulse</text>
+  <text x="67" y="212" fill="#8A94A6" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="22">GitHub Actions, watched locally.</text>
+
+  <!-- heartbeat -->
+  <polyline points="64,270 150,270 162,248 176,292 190,238 204,270 300,270 312,256 326,284 340,270 440,270"
+            fill="none" stroke="url(#pulse)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" filter="url(#soft)"/>
+  <circle cx="190" cy="238" r="4" fill="#34D399" filter="url(#soft)"/>
+
+  <text x="66" y="318" fill="#5F697A" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="14" letter-spacing="0.4">Tauri 2 · Rust · React 19 · local-first · no telemetry</text>
+
+  <!-- ───────────── right: mock dashboard ───────────── -->
+  <rect x="556" y="44" width="672" height="312" rx="16" fill="#12141A" stroke="#262A33" stroke-width="1.5" filter="url(#shadow)"/>
+
+  <!-- window chrome -->
+  <circle cx="580" cy="66" r="5" fill="#F05252" opacity="0.7"/>
+  <circle cx="596" cy="66" r="5" fill="#F5B942" opacity="0.7"/>
+  <circle cx="612" cy="66" r="5" fill="#34D399" opacity="0.7"/>
+  <text x="636" y="71" fill="#6B7484" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12">4 repositories monitored</text>
+
+  <!-- card 1: passing -->
+  <rect x="572" y="96" width="312" height="118" rx="12" fill="#171A21" stroke="#262A33"/>
+  <text x="588" y="124" fill="#E8ECF2" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="600">acme/rocket-api</text>
+  <rect x="790" y="110" width="78" height="22" rx="11" fill="#34D399" fill-opacity="0.14"/>
+  <text x="829" y="125" fill="#34D399" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10" font-weight="700" letter-spacing="0.6" text-anchor="middle">PASSING</text>
+  <line x1="588" y1="184" x2="868" y2="184" stroke="#22262F" stroke-width="1"/>
+  <polyline points="588,176 613,172 639,174 664,168 690,170 715,166 741,168 766,164 792,166 817,163 843,165 868,162"
+            fill="none" stroke="#34D399" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="588" y="204" fill="#6B7484" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11">2m ago · 48s</text>
+
+  <!-- card 2: failing -->
+  <rect x="900" y="96" width="312" height="118" rx="12" fill="#171A21" stroke="#262A33"/>
+  <text x="916" y="124" fill="#E8ECF2" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="600">acme/web-console</text>
+  <rect x="1118" y="110" width="78" height="22" rx="11" fill="#F05252" fill-opacity="0.14"/>
+  <text x="1157" y="125" fill="#F05252" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10" font-weight="700" letter-spacing="0.6" text-anchor="middle">FAILING</text>
+  <line x1="916" y1="184" x2="1196" y2="184" stroke="#22262F" stroke-width="1"/>
+  <polyline points="916,166 941,170 967,168 992,174 1018,176 1043,178 1069,175 1094,180 1120,178 1145,182 1171,180 1196,183"
+            fill="none" stroke="#F05252" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="916" y="204" fill="#6B7484" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11">5m ago · failed</text>
+
+  <!-- card 3: running -->
+  <rect x="572" y="226" width="312" height="118" rx="12" fill="#171A21" stroke="#262A33"/>
+  <text x="588" y="254" fill="#E8ECF2" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="600">acme/billing-service</text>
+  <rect x="790" y="240" width="78" height="22" rx="11" fill="#F5B942" fill-opacity="0.14"/>
+  <text x="829" y="255" fill="#F5B942" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10" font-weight="700" letter-spacing="0.6" text-anchor="middle">RUNNING</text>
+  <line x1="588" y1="314" x2="868" y2="314" stroke="#22262F" stroke-width="1"/>
+  <polyline points="588,304 613,302 639,303 664,300 690,301 715,299 741,300 766,298 792,299 817,297 843,298 868,296"
+            fill="none" stroke="#F5B942" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="868" cy="296" r="3.5" fill="#F5B942"/>
+  <text x="588" y="334" fill="#6B7484" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11">running · 32s</text>
+
+  <!-- card 4: passing -->
+  <rect x="900" y="226" width="312" height="118" rx="12" fill="#171A21" stroke="#262A33"/>
+  <text x="916" y="254" fill="#E8ECF2" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15" font-weight="600">acme/data-pipeline</text>
+  <rect x="1118" y="240" width="78" height="22" rx="11" fill="#34D399" fill-opacity="0.14"/>
+  <text x="1157" y="255" fill="#34D399" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="10" font-weight="700" letter-spacing="0.6" text-anchor="middle">PASSING</text>
+  <line x1="916" y1="314" x2="1196" y2="314" stroke="#22262F" stroke-width="1"/>
+  <polyline points="916,306 941,304 967,305 992,302 1018,303 1043,301 1069,302 1094,299 1120,300 1145,298 1171,299 1196,297"
+            fill="none" stroke="#34D399" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="916" y="334" fill="#6B7484" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11">1h ago · 54s</text>
+</svg>
