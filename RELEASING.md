@@ -211,12 +211,15 @@ releases carry `0.x` until the conditions are actually met.
 
 The failures seen so far, and their causes:
 
-| Symptom                              | Cause                                                                                            |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `verify` says an artifact is missing | a bundle target changed and the pattern list in `release.yml` was not updated                    |
-| A build job fails on clippy          | the toolchain pin in the workflow drifted from the one the code was verified on                  |
-| `createUpdaterArtifacts` error       | the flag is on but `TAURI_SIGNING_PRIVATE_KEY` is not set — turn the flag off, or add the secret |
-| macOS build fails to compile         | platform-specific code that has never been built on macOS; this is what CI exists to catch       |
+| Symptom                                                            | Cause                                                                                            |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `verify` says an artifact is missing                               | a bundle target changed and the pattern list in `release.yml` was not updated                    |
+| A build job fails on clippy                                        | the toolchain pin in the workflow drifted from the one the code was verified on                  |
+| `Resource not accessible by integration` when creating the release | the workflow is missing `permissions: contents: write`                                           |
+| macOS: `security import -f pkcs12` failed                          | a signing variable is declared but empty — remove the line, or set the secret                    |
+| macOS: `no .app bundle under .../bundle/macos`                     | `app` was removed from `bundle.targets`; Tauri deletes the `.app` after building the `.dmg`      |
+| `createUpdaterArtifacts` error                                     | the flag is on but `TAURI_SIGNING_PRIVATE_KEY` is not set — turn the flag off, or add the secret |
+| macOS build fails to compile                                       | platform-specific code that has never been built on macOS; this is what CI exists to catch       |
 
 Fix it on `main`, then **delete the tag and re-push it**:
 

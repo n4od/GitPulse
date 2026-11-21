@@ -67,10 +67,16 @@ Last updated: 2026-11-20, after M10.
 | **macOS and Linux runtimes**                 | Hardware. CI now builds and tests both, but the tray, dock badge, keychain backend and notification permission prompt only exist at run time |
 | **24-hour soak, 250 repositories**           | `scripts/soak.ps1` exists and is unexecuted                                                                                                  |
 | **Idle CPU under 1%**                        | `scripts/idle-cpu.ps1` exists and is unexecuted                                                                                              |
-| **The release pipeline**                     | Written and reconciled with the bundle config, but no release has been cut from it yet                                                       |
 | **Notification click deep-link**             | Not implemented; the plugin exposes no click callback                                                                                        |
 | **Windows taskbar overlay icon**             | Implemented with Tauri's `set_overlay_icon`; nobody has seen it on a real taskbar                                                            |
 | **Settings panel and palette accessibility** | Lighthouse has not been run against them                                                                                                     |
+
+**No longer on this list:** the release pipeline. It has now run. The `v0.5.0`
+tag built installers and portable archives on `ubuntu-22.04`, `windows-latest`
+and `macos-latest`, and the `verify` job confirmed every expected artifact was
+present. The resulting release is a **draft**, and its bundles are **unsigned** -
+no certificate exists - so this is "the pipeline works", not "the app is
+release-ready".
 
 ## How to close the largest gaps
 

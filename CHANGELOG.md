@@ -88,7 +88,8 @@ no certificates and no secrets, and the pipeline produces both **installers** an
 - **Release pipeline:** `release.yml` builds a draft release across four targets
   on three operating systems, verifies that every expected artifact exists, and
   refuses to publish an incomplete one. It needs no secrets to produce installers.
-  Its first real execution is the `v0.5.0` tag carrying this entry.
+  It ran on the `v0.5.0` tag: four build jobs and the verification job all green,
+  eleven assets on the draft.
 - **Portable builds, not just installers.** Each platform also ships a way to run
   GitPulse without installing it: a `.zip` holding the single Windows `.exe`, a
   `.tar.gz` of the macOS `.app`, and the Linux `.AppImage`. Packaging lives in

@@ -420,22 +420,27 @@ dropped.
 
 ---
 
-## M12 — Release engineering · M → **v1.0.0** — **wired, not yet executed**
+## M12 — Release engineering · M → **v1.0.0** — **executed; `v0.5.0` is a draft release**
 
 - [x] `M12-01` `release.yml`: `tauri-action`, four build targets across three OSes, a draft release, and a verification job that refuses to publish if an artifact is missing
-- [x] `M12-02` Updater artifacts **deferred on purpose.** `createUpdaterArtifacts` is `false` until the updater plugin is installed: `latest.json` was being produced for nothing, and the flag forces a signing key that stood between a tag and a set of installers. The signing variables stay wired in `release.yml`, so turning it back on is configuration, not code.
-- [x] `M12-03` Notarization and code-signing secrets wired and documented; none are committed. Until they exist, releases are **unsigned** — installers are produced, but macOS Gatekeeper and Windows SmartScreen will warn.
+- [x] `M12-02` Updater artifacts **deferred on purpose.** `createUpdaterArtifacts` is `false` until the updater plugin is installed: the flag forces a signing key that stood between a tag and a set of installers. Re-enable it with the plugin.
+- [x] `M12-03` Signing is not configured, so releases are **unsigned** — installers are produced, but macOS Gatekeeper and Windows SmartScreen will warn. The secrets and the exact `env:` block to add are in `RELEASING.md`; none is committed. Declaring a signing variable _empty_ is not the same as leaving it unset: an empty `APPLE_CERTIFICATE` made Tauri import a blank certificate and fail the whole macOS bundle.
 - [x] `M12-04` `ARCHITECTURE.md`: 18 ADRs, threat model, module map
 - [x] `M12-05` README: registration, tunnel trade-offs, troubleshooting, and why smee.io does not work
 - [x] `M12-05b` [`RELEASING.md`](./RELEASING.md): how a tag becomes installers, every signing secret and where it comes from, the unsigned-build caveat, and the secret-free path a release takes today
 - [x] `M12-06` Acceptance walkthrough recorded in [`VERIFICATION.md`](./VERIFICATION.md): 3 verified, 5 partial, 1 not met, 1 with documented exceptions
-- [ ] `M12-07` Tag `v1.0.0` — **not done, deliberately.** The milestone's own exit criterion is signed installers produced and verified on three operating systems, with auto-update. None holds: there are no signing certificates, and the updater plugin is not installed. A release can be cut today, but it is unsigned and therefore `0.x`.
+- [ ] `M12-07` Tag `v1.0.0` — **not done, deliberately.** The milestone's own exit criterion is signed installers produced and verified on three operating systems, with auto-update. None holds: there are no signing certificates, and the updater plugin is not installed. `v0.5.0` is cut instead, and it is unsigned.
 
-**What this milestone actually delivers:** a release pipeline that is correct on
-inspection and has not run. `release.yml` builds a draft, checks that every
-expected artifact is present, and refuses to publish without them — but the
-first execution will be the first test. It runs with **no secrets configured**,
-so the very first tag produces installers; the signing path is a later upgrade.
+**What this milestone actually delivers:** a release pipeline that runs. The
+`v0.5.0` tag produced installers and portable builds for all three operating
+systems and passed its own artifact check. The first execution failed on all four
+builds, for four different reasons, every one of them now fixed and written down:
+
+1. a read-only token that could not create the draft release,
+2. an empty `APPLE_CERTIFICATE` that made Tauri try to import a blank certificate,
+3. a macOS `.app` deleted before the portable step could pack it, because `app`
+   was missing from `bundle.targets`,
+4. and a pinned-toolchain drift in the audit job before all of that.
 
 Tagging `v1.0.0` here would assert that three operating systems produce signed,
 working installers with auto-update. They do not, and this file has spent a whole
