@@ -22,21 +22,37 @@ param(
     [int]$Hours = 8,
     [int]$IntervalSecs = 60,
     [double]$MaxGrowthMbPerHour = 2.0,
-    [string]$Exe = "src-tauri/target/debug/gitpulse.exe",
-    [string]$OutFile = "soak.csv"
+    [string]$Exe = "",
+    [string]$OutFile = "soak.csv",
+    [int]$Minutes = 0
 )
 
 $ErrorActionPreference = "Stop"
 
-if (-not (Test-Path $Exe)) {
-    throw "Binary not found at $Exe. Build it first: npm run tauri build -- --debug --no-bundle"
+# Resolve the binary instead of assuming a build tree exists: after a cleanup the
+# only copy may be the released one under releases/. Prefer a release build, then
+# a debug build, then whichever kept release binary is newest.
+if (-not $Exe) {
+    foreach ($candidate in @("src-tauri/target/release/gitpulse.exe", "src-tauri/target/debug/gitpulse.exe")) {
+        if (Test-Path $candidate) { $Exe = $candidate; break }
+    }
+}
+if (-not $Exe -or -not (Test-Path $Exe)) {
+    $kept = Get-ChildItem "releases" -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -in @("GitPulse.exe", "gitpulse.exe") } |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($kept) { $Exe = $kept.FullName }
+}
+if (-not $Exe -or -not (Test-Path $Exe)) {
+    throw "Binary not found. Build one (npm run tauri build) or pass -Exe <path>."
 }
 
 $process = Start-Process -FilePath $Exe -PassThru
-"soak: pid $($process.Id), $Hours h, sampling every $IntervalSecs s"
+$window = if ($Minutes -gt 0) { "$Minutes min" } else { "$Hours h" }
+"soak: pid $($process.Id), $window, sampling every $IntervalSecs s"
 
 $samples = @()
-$deadline = (Get-Date).AddHours($Hours)
+$deadline = if ($Minutes -gt 0) { (Get-Date).AddMinutes($Minutes) } else { (Get-Date).AddHours($Hours) }
 
 try {
     while ((Get-Date) -lt $deadline) {
@@ -70,6 +86,16 @@ $perHour = if ($elapsedHours -gt 0) { $growth / $elapsedHours } else { 0 }
 
 ""
 "start {0:N1} MB -> end {1:N1} MB over {2:N2} h" -f $first.RssMb, $last.RssMb, $elapsedHours
+
+# Extrapolating a per-hour rate from a few minutes turns ordinary allocator
+# jitter into a fake leak: 0.4 MB of movement over five minutes reads as
+# ~5 MB/h. Below half an hour the only honest verdict is "not enough data".
+if ($elapsedHours -lt 0.5) {
+    "movement {0:N2} MB total - too small a window for a per-hour rate" -f $growth
+    "INCONCLUSIVE: run with -Hours 1 (or more) for a verdict"
+    exit 0
+}
+
 "growth {0:N2} MB/h (budget {1:N2})" -f $perHour, $MaxGrowthMbPerHour
 
 if ($perHour -gt $MaxGrowthMbPerHour) {

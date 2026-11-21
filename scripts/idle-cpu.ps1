@@ -20,13 +20,27 @@ param(
     [int]$Minutes = 10,
     [int]$IntervalSecs = 15,
     [double]$MaxPercent = 1.0,
-    [string]$Exe = "src-tauri/target/debug/gitpulse.exe"
+    [string]$Exe = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-if (-not (Test-Path $Exe)) {
-    throw "Binary not found at $Exe. Build it first: npm run tauri build -- --debug --no-bundle"
+# Resolve the binary instead of assuming a build tree exists: after a cleanup the
+# only copy may be the released one under releases/. Prefer a release build, then
+# a debug build, then whichever kept release binary is newest.
+if (-not $Exe) {
+    foreach ($candidate in @("src-tauri/target/release/gitpulse.exe", "src-tauri/target/debug/gitpulse.exe")) {
+        if (Test-Path $candidate) { $Exe = $candidate; break }
+    }
+}
+if (-not $Exe -or -not (Test-Path $Exe)) {
+    $kept = Get-ChildItem "releases" -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -in @("GitPulse.exe", "gitpulse.exe") } |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if ($kept) { $Exe = $kept.FullName }
+}
+if (-not $Exe -or -not (Test-Path $Exe)) {
+    throw "Binary not found. Build one (npm run tauri build) or pass -Exe <path>."
 }
 
 $cores = [Environment]::ProcessorCount
@@ -59,7 +73,7 @@ try {
         $percent = if ($wallSeconds -gt 0) { ($cpuSeconds / ($wallSeconds * $cores)) * 100 } else { 0 }
 
         $readings += $percent
-        "{0}  {1:N2}% of one core" -f $nowAt.ToString("HH:mm:ss"), $percent
+        "{0}  {1:N2}% of total CPU" -f $nowAt.ToString("HH:mm:ss"), $percent
 
         $lastCpu = $nowCpu
         $lastAt = $nowAt

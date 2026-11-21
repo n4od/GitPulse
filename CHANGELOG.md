@@ -13,7 +13,14 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **The soak and idle-CPU scripts can find a binary again.** Both defaulted to
+  `src-tauri/target/debug/gitpulse.exe`, which a build cleanup deletes; they now
+  prefer a release build and fall back to the newest kept binary under
+  `releases/`, so a measurement never fails on a missing path.
+- **The idle-CPU output claimed "% of one core" while computing a percentage of
+  total CPU.** The label now matches the arithmetic.
 
 ---
 
