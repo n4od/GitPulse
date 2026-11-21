@@ -4,7 +4,7 @@ use chrono::{Duration, Utc};
 use rusqlite::Connection;
 
 use super::models::{DeploymentUpsert, JobUpsert, PullRequestUpsert, RepoUpsert, RunUpsert};
-use super::{deliveries, diff, migrate, pulls, repos, retention, runs, Db};
+use super::{cache, deliveries, diff, migrate, pulls, repos, retention, runs, Db};
 use crate::error::AppError;
 
 fn connection() -> Connection {
@@ -509,4 +509,82 @@ async fn db_wrapper_opens_a_file_and_uses_wal() {
     let count = db.with_connection(repos::count).await.expect("read");
 
     assert_eq!(count, 1);
+}
+
+#[test]
+fn signing_out_purges_the_account_cache() {
+    let connection = connection();
+    let repo_id = repos::upsert(&connection, &repo_upsert(1, "acme/api")).expect("insert repo");
+    runs::upsert(
+        &connection,
+        &run_upsert(repo_id, 500, "completed", Some("success")),
+    )
+    .expect("insert run");
+
+    let removed = cache::purge_account_data(&connection).expect("purge");
+
+    assert!(
+        removed >= 2,
+        "expected the repo and its run to be removed, removed {removed}"
+    );
+    assert_eq!(repos::count(&connection).expect("count repos"), 0);
+    assert_eq!(
+        connection
+            .query_row("SELECT COUNT(*) FROM workflow_runs", [], |row| row
+                .get::<_, i64>(0))
+            .expect("count runs"),
+        0
+    );
+    // No owner is recorded once the cache is empty, so the next sign-in claims
+    // it from scratch rather than comparing against a stale login.
+    assert_eq!(
+        super::meta::get(&connection, cache::ACCOUNT_KEY).expect("read owner"),
+        None
+    );
+}
+
+#[test]
+fn a_different_account_discards_the_previous_cache() {
+    let connection = connection();
+
+    // Claiming an empty cache records the owner and deletes nothing.
+    assert!(!cache::claim_for_account(&connection, "birukboss").expect("claim"));
+
+    repos::upsert(&connection, &repo_upsert(1, "acme/api")).expect("insert repo");
+
+    // The same account keeps its cache.
+    assert!(!cache::claim_for_account(&connection, "birukboss").expect("claim"));
+    assert_eq!(repos::count(&connection).expect("count"), 1);
+
+    // A different account inherits nothing from the first one.
+    assert!(cache::claim_for_account(&connection, "someone-else").expect("claim"));
+    assert_eq!(repos::count(&connection).expect("count"), 0);
+    assert_eq!(
+        super::meta::get(&connection, cache::ACCOUNT_KEY)
+            .expect("read owner")
+            .as_deref(),
+        Some("someone-else")
+    );
+}
+
+#[test]
+fn an_unowned_cache_is_not_trusted() {
+    // Rows written before the owner key existed cannot be attributed to whoever
+    // signs in now, so they are discarded rather than displayed. This is the
+    // upgrade path: the first launch after the fix must not keep showing the
+    // previous account's repositories.
+    let connection = connection();
+    repos::upsert(&connection, &repo_upsert(1, "someones-else/api")).expect("insert repo");
+
+    assert!(cache::claim_for_account(&connection, "birukboss").expect("claim"));
+    assert_eq!(repos::count(&connection).expect("count"), 0);
+    assert_eq!(
+        super::meta::get(&connection, cache::ACCOUNT_KEY)
+            .expect("read owner")
+            .as_deref(),
+        Some("birukboss")
+    );
+
+    // And it is a one-time cost: the next launch sees a matching owner.
+    assert!(!cache::claim_for_account(&connection, "birukboss").expect("claim"));
 }

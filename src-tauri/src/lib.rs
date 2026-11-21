@@ -146,7 +146,12 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         Arc::new(github::RateBudget::for_github()),
     ));
 
-    let auth_service = Arc::new(AuthService::new(oauth, tokens, auth::configured_scopes()));
+    let auth_service = Arc::new(AuthService::new(
+        oauth,
+        tokens,
+        auth::configured_scopes(),
+        database.clone(),
+    ));
 
     tracing::info!(
         version = env!("CARGO_PKG_VERSION"),

@@ -10,6 +10,7 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_opener::OpenerExt;
 use tokio_util::sync::CancellationToken;
 
+use crate::db::{cache, Db};
 use crate::error::AppError;
 
 use super::device_flow;
@@ -24,17 +25,24 @@ pub struct AuthService {
     oauth: Arc<OAuthClient>,
     tokens: Arc<TokenManager>,
     scopes: Vec<String>,
+    db: Db,
     state: Mutex<AuthState>,
     in_flight: Mutex<Option<CancellationToken>>,
 }
 
 impl AuthService {
     #[must_use]
-    pub fn new(oauth: Arc<OAuthClient>, tokens: Arc<TokenManager>, scopes: Vec<String>) -> Self {
+    pub fn new(
+        oauth: Arc<OAuthClient>,
+        tokens: Arc<TokenManager>,
+        scopes: Vec<String>,
+        db: Db,
+    ) -> Self {
         Self {
             oauth,
             tokens,
             scopes,
+            db,
             state: Mutex::new(AuthState::SignedOut),
             in_flight: Mutex::new(None),
         }
@@ -51,10 +59,36 @@ impl AuthService {
         &self.tokens
     }
 
+    /// Makes the cache belong to `login`, discarding another account's data.
+    ///
+    /// The synchronous form is for startup, where there is no async context to
+    /// hand the connection to.
+    fn claim_account_blocking(&self, login: &str) {
+        if let Err(error) = self
+            .db
+            .with_connection_blocking(|connection| cache::claim_for_account(connection, login))
+        {
+            tracing::warn!(%error, "could not reconcile the cached account");
+        }
+    }
+
+    async fn claim_account(&self, login: &str) -> Result<(), AppError> {
+        let login = login.to_owned();
+        self.db
+            .with_connection(move |connection| cache::claim_for_account(connection, &login))
+            .await?;
+        Ok(())
+    }
+
     /// Loads a stored session and publishes it, without hitting the network.
     pub fn bootstrap(&self, app: &AppHandle) -> Result<(), AppError> {
         let state = match self.tokens.hydrate()? {
-            Some(session) => AuthState::Authorized { session },
+            Some(session) => {
+                // Reconciled before the Authorized state is published, so the
+                // window can never paint the previous account's repositories.
+                self.claim_account_blocking(&session.login);
+                AuthState::Authorized { session }
+            }
             None => AuthState::SignedOut,
         };
 
@@ -73,7 +107,12 @@ impl AuthService {
 
         tauri::async_runtime::spawn(async move {
             match service.tokens.validate().await {
-                Ok(session) => service.publish(&app, &AuthState::Authorized { session }),
+                Ok(session) => {
+                    if let Err(error) = service.claim_account(&session.login).await {
+                        tracing::warn!(%error, "could not reconcile the cached account");
+                    }
+                    service.publish(&app, &AuthState::Authorized { session });
+                }
                 Err(AppError::AuthRequired) => {
                     tracing::info!("stored token is no longer valid");
                     service.publish(&app, &AuthState::SignedOut);
@@ -119,6 +158,14 @@ impl AuthService {
     pub fn sign_out(&self, app: &AppHandle) -> Result<(), AppError> {
         self.cancel_in_flight();
         self.tokens.sign_out()?;
+
+        // The cache was fetched with the token that just went away, and the next
+        // sign-in may be a different account: those repositories are not this
+        // account's to show.
+        if let Err(error) = self.db.with_connection_blocking(cache::purge_account_data) {
+            tracing::warn!(%error, "could not purge the account cache on sign-out");
+        }
+
         self.publish(app, &AuthState::SignedOut);
         Ok(())
     }
@@ -126,7 +173,12 @@ impl AuthService {
     /// Confirms the session on demand (the UI's "retry" affordance).
     pub async fn refresh_session(&self, app: &AppHandle) -> AuthState {
         match self.tokens.validate().await {
-            Ok(session) => AuthState::Authorized { session },
+            Ok(session) => {
+                if let Err(error) = self.claim_account(&session.login).await {
+                    tracing::warn!(%error, "could not reconcile the cached account");
+                }
+                AuthState::Authorized { session }
+            }
             Err(error) => {
                 if matches!(error, AppError::AuthRequired) {
                     self.tokens.sign_out().ok();
@@ -158,6 +210,12 @@ impl AuthService {
 
         let viewer = self.oauth.fetch_viewer(&tokens.access_token).await?;
         let session = self.tokens.adopt(&tokens, &viewer)?;
+
+        // A different account signing in must not inherit the previous
+        // account's cached repositories.
+        if let Err(error) = self.claim_account(&session.login).await {
+            tracing::warn!(%error, "could not reconcile the cached account");
+        }
 
         self.publish(app, &AuthState::Authorized { session });
 

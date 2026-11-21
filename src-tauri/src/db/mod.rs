@@ -24,6 +24,7 @@ use rusqlite::Connection;
 
 use crate::error::AppError;
 
+pub mod cache;
 pub mod deliveries;
 pub mod deployments;
 pub mod diff;
@@ -143,6 +144,20 @@ impl Db {
         })
         .await
         .map_err(|error| AppError::Internal(format!("database worker failed: {error}")))?
+    }
+
+    /// Runs a closure on the calling thread.
+    ///
+    /// For the two paths that cannot await: startup (before the async runtime
+    /// owns the connection) and sign-out (a user action that must finish before
+    /// the signed-out state is published). Each is one short query, and neither
+    /// races the poller.
+    pub fn with_connection_blocking<T, F>(&self, operation: F) -> Result<T, AppError>
+    where
+        F: FnOnce(&Connection) -> Result<T, AppError>,
+    {
+        let connection = lock(&self.inner.connection)?;
+        operation(&connection)
     }
 }
 

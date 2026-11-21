@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { listen } from "@tauri-apps/api/event";
 import type { AuthState } from "@/lib/bindings/AuthState";
 import { call } from "@/lib/ipc";
@@ -17,12 +18,26 @@ export const AUTH_STATE_EVENT = "auth://state";
  * signed-out state instead of breaking the tree.
  */
 export function useAuthBridge(): void {
+  const queryClient = useQueryClient();
   const setState = useAuthStore((store) => store.setState);
   const setReady = useAuthStore((store) => store.setReady);
 
   useEffect(() => {
     let active = true;
     let unlisten: (() => void) | undefined;
+
+    /**
+     * Signing out discards the account's cache on the Rust side. The in-memory
+     * copy has to go with it: a card fetched with the previous account's token
+     * would otherwise render for another frame, and since the next sign-in may
+     * be a different account, that would be another account's repository.
+     */
+    const apply = (state: AuthState): void => {
+      if (state.phase === "signedOut") {
+        queryClient.clear();
+      }
+      setState(state);
+    };
 
     const connect = async (): Promise<void> => {
       if (!isTauriRuntime()) {
@@ -32,7 +47,7 @@ export function useAuthBridge(): void {
 
       try {
         const stop = await listen<AuthState>(AUTH_STATE_EVENT, (event) => {
-          if (active) setState(event.payload);
+          if (active) apply(event.payload);
         });
 
         if (active) {
@@ -47,7 +62,7 @@ export function useAuthBridge(): void {
 
       try {
         const initial = await call<AuthState>("auth_get_state");
-        if (active) setState(initial);
+        if (active) apply(initial);
       } catch (error) {
         // Reading the state failing is not fatal: render the signed-out screen
         // and let the user try to sign in.
@@ -63,5 +78,5 @@ export function useAuthBridge(): void {
       active = false;
       unlisten?.();
     };
-  }, [setState, setReady]);
+  }, [queryClient, setState, setReady]);
 }

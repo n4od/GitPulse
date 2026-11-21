@@ -17,6 +17,31 @@ _Nothing yet._
 
 ---
 
+## [0.5.3] — 2026-11-21
+
+Fixes an account-isolation bug: the local cache had no notion of which account
+owned it, so signing in as a different account still showed the previous one's
+repositories.
+
+### Fixed
+
+- **Signing out no longer leaves the previous account's repositories on screen.**
+  The cache now records which account owns it (`meta.account_login`) and is
+  discarded on sign-out. A token replaced without a clean sign-out is caught on
+  the next session, before the authorized state is published, so the window
+  cannot paint another account's repositories even for one frame. Repositories,
+  runs, jobs, deployments, pull requests and webhook deliveries are all
+  account-scoped; settings are untouched.
+- **A cache that predates the owner key is discarded on first launch.** Rows that
+  cannot be attributed to an account are not safe to display, so upgrading
+  clears the cached repository list once. It is re-populated in the picker, on
+  the account that is actually signed in.
+- **The in-memory query cache is cleared on sign-out too.** Previously only the
+  command-palette sign-out dropped the `repos` query; signing out from Settings
+  left it in React Query, which is how a card could survive the transition.
+
+---
+
 ## [0.5.2] — 2026-11-21
 
 One-click downloads on the README: the release pipeline now also uploads
