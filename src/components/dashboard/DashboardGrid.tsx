@@ -5,8 +5,8 @@ import { RepoCard } from "@/components/dashboard/RepoCard";
 
 /** Matches the CSS grid's `minmax(320px, 1fr)` so the columns line up. */
 const COLUMN_MIN_WIDTH = 320;
-const ROW_GAP = 12;
-const ROW_HEIGHT = 160;
+const ROW_GAP = 18;
+const ROW_HEIGHT = 176;
 
 export interface DashboardGridProps {
   cards: RepoCardData[];
@@ -41,7 +41,7 @@ export function DashboardGrid({
   });
 
   return (
-    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-4">
+    <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-8 pb-8">
       <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
         {virtualizer.getVirtualItems().map((row) => {
           const start = row.index * columns;
@@ -49,7 +49,7 @@ export function DashboardGrid({
           return (
             <div
               key={row.key}
-              className="absolute left-0 top-0 grid w-full gap-3"
+              className="absolute left-0 top-0 grid w-full gap-[18px]"
               style={{
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                 height: ROW_HEIGHT,

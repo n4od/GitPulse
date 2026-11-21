@@ -11,10 +11,11 @@
  */
 @theme {
   --color-surface: #0b0c0e;
-  --color-raised: #121417;
-  --color-overlay: #171a1e;
-  --color-line: #22262c;
-  --color-line-strong: #2e343c;
+  --color-raised: #171a21;
+  --color-overlay: #1c2029;
+  --color-line: #262a33;
+  --color-line-strong: #323845;
+  --color-chrome: #101217;
 
   --color-ink: #e8eaed;
   --color-ink-soft: #9ba3ae;
@@ -22,14 +23,14 @@
 
   --color-accent: #4c8dff;
 
-  --color-ok: #22c55e;
+  --color-ok: #34d399;
   --color-bad: #f05252;
   --color-warn: #f59e0b;
-  --color-live: #38bdf8;
+  --color-live: #f5b942;
   --color-idle: #64748b;
 
-  --radius-card: 10px;
-  --radius-control: 6px;
+  --radius-card: 14px;
+  --radius-control: 9px;
 
   /* Looping ring for transient statuses. Gated in JS by useMotionAllowed(). */
   --animate-pulse-ring: pulse-ring 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;

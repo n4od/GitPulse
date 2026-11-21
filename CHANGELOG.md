@@ -24,6 +24,13 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ### Changed
 
+- **The dashboard was restyled to match the design in `docs/`.** One header row
+  now carries the title, watch count, state filters, search and Refresh all;
+  repository cards are larger, with a **line sparkline** instead of bars, an
+  uppercase status pill, and the run count beside the age and duration; a status
+  bar reports what the poller is doing and what the cache holds. The palette
+  moved to the emerald / amber / red values the banner and screenshots use, and
+  the `live` tone (running) is amber to match.
 - **The overnight soak is deliberately out of scope.** It was never run and it is
   no longer tracked as an open gap. `scripts/soak.ps1` stays available for anyone
   who wants the number, but the 250-repository / 24-hour claim is not being

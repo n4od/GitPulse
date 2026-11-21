@@ -55,7 +55,7 @@ export const RepoCard = memo(function RepoCard({
 
   return (
     <Card className="group flex h-full flex-col transition-colors hover:border-line-strong">
-      <CardBody className="flex flex-1 flex-col gap-3">
+      <CardBody className="flex flex-1 flex-col px-4 pb-3 pt-4">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
@@ -64,7 +64,7 @@ export const RepoCard = memo(function RepoCard({
                 onClick={() => {
                   onOpen(repo.id);
                 }}
-                className="truncate text-[13px] font-medium text-ink hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className="truncate text-[14px] font-semibold tracking-tight text-ink hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 title={`Inspect ${repo.fullName}`}
               >
                 {repo.fullName}
@@ -81,50 +81,77 @@ export const RepoCard = memo(function RepoCard({
           </div>
 
           {run ? (
-            <StatusBadge status={run.status} conclusion={run.conclusion} />
+            <StatusBadge
+              status={run.status}
+              conclusion={run.conclusion}
+              indicator={false}
+              className="mt-0.5 border-transparent px-2.5 py-[3px] text-[9.5px] font-bold uppercase tracking-[0.06em]"
+            />
           ) : (
-            <Badge tone="muted">No runs</Badge>
+            <Badge tone="muted" className="text-[10px]">
+              No runs
+            </Badge>
           )}
         </div>
 
         {run ? (
-          <div className="flex items-center gap-2 text-xs text-ink-soft">
-            <span className="truncate" title={run.workflowName ?? ""}>
+          <div className="mt-1 truncate text-[11.5px] text-ink-muted">
+            <span className="font-medium text-ink-soft">
               {run.workflowName ?? "workflow"}
             </span>
-            <span className="text-ink-muted">·</span>
-            <span className="truncate font-mono text-[11px]">{run.branch ?? "—"}</span>
+            <span> · {run.branch ?? "—"}</span>
             {run.headSha ? (
-              <span className="font-mono text-[11px] text-ink-muted">
-                {shortSha(run.headSha)}
-              </span>
+              <span className="font-mono"> · {shortSha(run.headSha)}</span>
             ) : null}
           </div>
         ) : (
-          <p className="text-xs text-ink-muted">
+          <p className="mt-1 text-[11.5px] text-ink-muted">
             GitPulse has not seen a run for this repository yet.
           </p>
         )}
 
         {card.failingRuns > 0 ? (
-          <div className="text-[11px] text-bad">
-            {card.failingRuns} failing {card.failingRuns === 1 ? "run" : "runs"} in the
-            cache
+          <div className="mt-1 text-[11px] text-bad">
+            {card.failingRuns} failing {card.failingRuns === 1 ? "run" : "runs"}
           </div>
         ) : null}
 
-        {card.recentRuns.length > 1 ? <RunSparkline runs={card.recentRuns} /> : null}
+        {card.recentRuns.length > 1 ? (
+          <RunSparkline runs={card.recentRuns} className="mt-2" />
+        ) : (
+          <div className="flex-1" />
+        )}
 
-        {/* Pushes the actions to the bottom so cards of differing height line up. */}
-        <div className="mt-auto flex items-center gap-2 pt-1">
-          <span className="text-[11px] text-ink-muted tabular-nums">
-            {run ? `${relativeTime(run.updatedAt)} · ${runDuration(run)}` : "never"}
+        <div className="mt-auto flex items-center gap-2 pt-2 text-[11px] text-ink-muted">
+          <span className="tabular-nums">
+            {run ? relativeTime(run.updatedAt) : "never"}
           </span>
+          {run ? (
+            <>
+              <span
+                className="size-[3px] rounded-full bg-line-strong"
+                aria-hidden="true"
+              />
+              <span className="tabular-nums">{runDuration(run)}</span>
+            </>
+          ) : null}
+          {run ? (
+            <>
+              <span
+                className="size-[3px] rounded-full bg-line-strong"
+                aria-hidden="true"
+              />
+              <span className="tabular-nums">
+                {card.recentRuns.length} {card.recentRuns.length === 1 ? "run" : "runs"}
+              </span>
+            </>
+          ) : null}
 
-          <div className="ml-auto flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          <div className="ml-auto flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
             <Button
               size="sm"
               variant="ghost"
+              className="size-7 px-0"
               aria-label={`Refresh ${repo.fullName}`}
               onClick={() => {
                 onRefresh(repo.id);
@@ -135,6 +162,7 @@ export const RepoCard = memo(function RepoCard({
             <Button
               size="sm"
               variant="ghost"
+              className="size-7 px-0"
               aria-label={`Copy the run URL for ${repo.fullName}`}
               onClick={() => {
                 void copyRunUrl();
@@ -145,6 +173,7 @@ export const RepoCard = memo(function RepoCard({
             <Button
               size="sm"
               variant="ghost"
+              className="size-7 px-0"
               aria-label={`Mute ${repo.fullName}`}
               onClick={() => {
                 onToggleMonitored(repo.id, !repo.monitored);
@@ -155,6 +184,7 @@ export const RepoCard = memo(function RepoCard({
             <Button
               size="sm"
               variant="ghost"
+              className="size-7 px-0"
               aria-label={`Open ${repo.fullName} on GitHub`}
               onClick={openOnGitHub}
             >

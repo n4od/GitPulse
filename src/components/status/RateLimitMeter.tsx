@@ -1,5 +1,5 @@
-import { Gauge } from "lucide-react";
 import { Tooltip } from "@/components/primitives/Tooltip";
+import { cn } from "@/lib/cn";
 import { useLiveStore } from "@/stores/live";
 
 /**
@@ -21,16 +21,9 @@ export function RateLimitMeter() {
   const fraction =
     remaining !== null && limit !== null && limit > 0
       ? Math.max(0, Math.min(1, remaining / limit))
-      : null;
+      : 0;
 
-  const tone =
-    fraction === null
-      ? "text-ink-muted"
-      : fraction > 0.5
-        ? "text-ok"
-        : fraction > 0.15
-          ? "text-warn"
-          : "text-bad";
+  const barTone = fraction > 0.5 ? "bg-ok" : fraction > 0.15 ? "bg-warn" : "bg-bad";
 
   return (
     <Tooltip
@@ -41,10 +34,18 @@ export function RateLimitMeter() {
           : "Waiting for the first poll"
       }
     >
-      <div className="flex items-center gap-1.5 rounded-control border border-line px-2 py-1">
-        <Gauge className={`size-3.5 ${tone}`} aria-hidden="true" />
+      <div className="flex items-center gap-2">
+        <span className="whitespace-nowrap text-[11px] text-ink-muted">GitHub API</span>
+        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-overlay">
+          <div
+            className={cn("h-full rounded-full transition-[width] duration-500", barTone)}
+            style={{ width: `${Math.round(fraction * 100)}%` }}
+          />
+        </div>
         <span className="font-mono text-[11px] tabular-nums text-ink-soft">
-          {remaining === null ? "—" : `${remaining}/${limit ?? "?"}`}
+          {remaining === null
+            ? "—"
+            : `${remaining.toLocaleString()} / ${(limit ?? 0).toLocaleString()}`}
         </span>
         {paused ? (
           <span

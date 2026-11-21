@@ -7,6 +7,7 @@ import { Toaster } from "@/components/primitives/Toast";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { RateLimitMeter } from "@/components/status/RateLimitMeter";
+import { StatusBar } from "@/components/shell/StatusBar";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WebhookPanel } from "@/components/webhook/WebhookPanel";
 import { useAuthBridge } from "@/hooks/useAuthBridge";
@@ -167,6 +168,8 @@ function Shell() {
           <Home />
         )}
       </main>
+
+      {session ? <StatusBar /> : null}
 
       <Toaster />
 

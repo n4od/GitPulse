@@ -77,7 +77,7 @@ export function Dashboard() {
 
   if (repos.isPending) {
     return (
-      <div className="p-4">
+      <div className="px-8 py-6">
         <RepoCardSkeletonGrid />
       </div>
     );
@@ -131,6 +131,7 @@ export function Dashboard() {
         <FilterBar
           query={query}
           filter={filter}
+          monitoredCount={(repos.data ?? []).length}
           onQueryChange={setQuery}
           onFilterChange={setFilter}
           onRefreshAll={() => {
