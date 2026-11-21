@@ -577,8 +577,7 @@ Delete any heading that has no entries. Keep entries user-facing.
 | `0.2.0` | 2026-11-20 | Actions & insight   | M7         |
 | `0.3.0` | 2026-11-20 | Live & native       | M8–M9      |
 | `0.4.0` | 2026-11-20 | Polish & hardening  | M10–M11    |
-| `0.3.0` | planned    | Live & native       | M8–M9      |
-| `0.4.0` | planned    | Polish & hardening  | M10–M11    |
+| `0.5.0` | 2026-11-21 | Buildable release   | M12        |
 | `1.0.0` | planned    | Release-ready       | M12        |
 
 ---
@@ -605,4 +604,4 @@ Delete any heading that has no entries. Keep entries user-facing.
 
 ---
 
-[Unreleased]: https://github.com/OWNER/pulse/commits/main
+[Unreleased]: https://github.com/n4od/GitPulse/compare/v0.5.0...HEAD
