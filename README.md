@@ -4,12 +4,44 @@
 
 # GitPulse
 
+<p align="center">
+  <a href="https://github.com/n4od/GitPulse/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/n4od/GitPulse?style=flat-square&amp;color=34D399&amp;label=release"></a>
+  <a href="https://github.com/n4od/GitPulse/releases"><img alt="Total downloads" src="https://img.shields.io/github/downloads/n4od/GitPulse/total?style=flat-square&amp;color=4C8DFF"></a>
+  <img alt="Platforms: Windows, macOS, Linux" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-262A33?style=flat-square">
+  <a href="https://tauri.app"><img alt="Built with Tauri 2" src="https://img.shields.io/badge/built%20with-Tauri%202-24C8DB?style=flat-square"></a>
+</p>
+
 A local-first desktop monitor for GitHub Actions workflows, deployments and
 pull requests. Tauri 2 + Rust core, React 19 frontend, everything cached on
 your machine.
 
-> **Status:** M0 (foundation) complete — the window, toolchain and CI exist.
-> Authentication lands in M2. See [ROADMAP.md](./ROADMAP.md).
+<p align="center">
+  <a href="https://github.com/n4od/GitPulse/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Download%20for-Windows-4C8DFF?style=for-the-badge&amp;logo=windows11&amp;logoColor=white"></a>
+  <a href="https://github.com/n4od/GitPulse/releases/latest"><img alt="Download for macOS" src="https://img.shields.io/badge/Download%20for-macOS-262A33?style=for-the-badge&amp;logo=apple&amp;logoColor=white"></a>
+  <a href="https://github.com/n4od/GitPulse/releases/latest"><img alt="Download for Linux" src="https://img.shields.io/badge/Download%20for-Linux-F5B942?style=for-the-badge&amp;logo=linux&amp;logoColor=0B0C0E"></a>
+</p>
+
+> **v0.5.1** — installable builds for Windows, macOS and Linux. They are
+> unsigned, so the OS asks for confirmation on first launch. What is measured and
+> what is not lives in [`VERIFICATION.md`](./VERIFICATION.md).
+
+## Download
+
+Every build is on the **[latest release](https://github.com/n4od/GitPulse/releases/latest)**.
+Pick the installer if you want it registered with your OS, or the portable file if
+you would rather just run it.
+
+| Platform                  | Installer             | Portable    |
+| :------------------------ | :-------------------- | :---------- |
+| **Windows 10/11** (x64)   | `.exe` (NSIS), `.msi` | `.zip`      |
+| **macOS** (Apple Silicon) | `.dmg`                | `.tar.gz`   |
+| **macOS** (Intel)         | `.dmg`                | `.tar.gz`   |
+| **Linux** (x64)           | `.deb`                | `.AppImage` |
+
+> **Unsigned builds.** Windows SmartScreen shows _More info → Run anyway_;
+> macOS Gatekeeper needs right-click → **Open** the first time. There is no
+> code-signing certificate behind these releases — [`RELEASING.md`](./RELEASING.md)
+> explains why and what signing would take.
 
 ## Screenshot
 
