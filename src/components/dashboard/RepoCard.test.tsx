@@ -136,4 +136,24 @@ describe("RepoCard", () => {
 
     expect(screen.getByText(/3 failing runs/)).toBeInTheDocument();
   });
+
+  it("renders the same card at the compact density", () => {
+    const { container } = render(
+      <RepoCard
+        card={makeCard({
+          repo: makeRepo({ fullName: "acme/api" }),
+          recentRuns: [makeRun(), makeRun({ id: 2 })],
+        })}
+        density="compact"
+        onRefresh={vi.fn()}
+        onToggleMonitored={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("acme/api")).toBeInTheDocument();
+    // The compact card tightens the padding rather than dropping content.
+    expect(container.querySelector(".pt-2\\.5")).not.toBeNull();
+    expect(container.querySelector("svg.h-6")).not.toBeNull();
+  });
 });

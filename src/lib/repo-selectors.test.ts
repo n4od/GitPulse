@@ -3,6 +3,7 @@ import { makeCard, makeRepo, makeRun } from "@/test/fixtures";
 import {
   applyCardUpdate,
   filterCards,
+  isOwnedBy,
   latestRun,
   relativeTime,
   runDuration,
@@ -48,6 +49,73 @@ describe("filterCards", () => {
 
   it("combines the filter and the search term", () => {
     expect(filterCards([failing, running], "failing", "worker")).toHaveLength(0);
+  });
+});
+
+describe("filterCards ownership", () => {
+  const mine = makeCard({
+    repo: makeRepo({ id: 1, fullName: "n4od/api", owner: "n4od" }),
+  });
+  const theirs = makeCard({
+    repo: makeRepo({ id: 2, fullName: "acme/web", owner: "acme" }),
+  });
+
+  it("keeps only the repositories the signed-in account owns", () => {
+    expect(
+      filterCards([mine, theirs], "all", "", { mineOnly: true, login: "n4od" }).map(
+        (card) => card.repo.id,
+      ),
+    ).toEqual([1]);
+  });
+
+  it("compares the owner case-insensitively", () => {
+    expect(
+      filterCards([mine, theirs], "all", "", { mineOnly: true, login: "N4OD" }).map(
+        (card) => card.repo.id,
+      ),
+    ).toEqual([1]);
+  });
+
+  it("keeps nothing when mine is asked for without a login", () => {
+    expect(
+      filterCards([mine, theirs], "all", "", { mineOnly: true, login: null }),
+    ).toHaveLength(0);
+  });
+
+  it("leaves ownership alone when mine is off", () => {
+    expect(
+      filterCards([mine, theirs], "all", "", { mineOnly: false, login: "n4od" }),
+    ).toHaveLength(2);
+  });
+
+  it("combines ownership with the state filter", () => {
+    const mineFailing = makeCard({
+      repo: makeRepo({ id: 3, fullName: "n4od/worker", owner: "n4od" }),
+      failingRuns: 1,
+    });
+
+    expect(
+      filterCards([mine, mineFailing, theirs], "failing", "", {
+        mineOnly: true,
+        login: "n4od",
+      }).map((card) => card.repo.id),
+    ).toEqual([3]);
+  });
+});
+
+describe("isOwnedBy", () => {
+  const card = makeCard({ repo: makeRepo({ owner: "n4od" }) });
+
+  it("matches the owner regardless of case", () => {
+    expect(isOwnedBy(card, "N4OD")).toBe(true);
+  });
+
+  it("does not match another account", () => {
+    expect(isOwnedBy(card, "someone")).toBe(false);
+  });
+
+  it("does not match when nobody is signed in", () => {
+    expect(isOwnedBy(card, null)).toBe(false);
   });
 });
 

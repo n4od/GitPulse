@@ -6,6 +6,7 @@ import { FilterBar } from "@/components/dashboard/FilterBar";
 import { RepoCardSkeletonGrid } from "@/components/dashboard/RepoCardSkeleton";
 import { RepoPicker } from "@/components/dashboard/RepoPicker";
 import { useUiStore } from "@/stores/ui";
+import { useSession } from "@/stores/auth";
 import { RunDetail } from "@/components/runs/RunDetail";
 import { EmptyState } from "@/components/shell/EmptyState";
 import { Button } from "@/components/primitives/Button";
@@ -28,13 +29,17 @@ export function Dashboard() {
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<RepoFilter>("all");
+  const [mineOnly, setMineOnly] = useState(false);
   const [picking, setPicking] = useState(false);
   const openRepoId = useUiStore((store) => store.inspectedRepoId);
   const setOpenRepoId = useUiStore((store) => store.inspect);
+  const density = useUiStore((store) => store.density);
+  const toggleDensity = useUiStore((store) => store.toggleDensity);
+  const login = useSession()?.login ?? null;
 
   const cards = useMemo(
-    () => sortCards(filterCards(repos.data ?? [], filter, query)),
-    [repos.data, filter, query],
+    () => sortCards(filterCards(repos.data ?? [], filter, query, { mineOnly, login })),
+    [repos.data, filter, query, mineOnly, login],
   );
 
   const openCard = (repos.data ?? []).find((card) => card.repo.id === openRepoId) ?? null;
@@ -132,8 +137,13 @@ export function Dashboard() {
           query={query}
           filter={filter}
           monitoredCount={(repos.data ?? []).length}
+          mineOnly={mineOnly}
+          canFilterMine={login !== null}
+          density={density}
           onQueryChange={setQuery}
           onFilterChange={setFilter}
+          onMineChange={setMineOnly}
+          onToggleDensity={toggleDensity}
           onRefreshAll={() => {
             void refreshAll();
           }}
@@ -148,6 +158,7 @@ export function Dashboard() {
         ) : (
           <DashboardGrid
             cards={cards}
+            density={density}
             onRefresh={queueRefresh}
             onToggleMonitored={(repoId, monitored) => {
               void toggleMonitored(repoId, monitored);

@@ -1,7 +1,9 @@
-import { RefreshCw, Search } from "lucide-react";
+import { LayoutGrid, RefreshCw, Rows4, Search, User } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { RepoFilter } from "@/lib/repo-selectors";
+import type { Density } from "@/stores/ui";
 import { Button } from "@/components/primitives/Button";
+import { Tooltip } from "@/components/primitives/Tooltip";
 
 const FILTERS: Array<{ id: RepoFilter; label: string; dot?: string }> = [
   { id: "all", label: "All" },
@@ -14,14 +16,22 @@ export interface FilterBarProps {
   filter: RepoFilter;
   /** How many repositories are watched, shown next to the title. */
   monitoredCount: number;
+  /** Show only repositories owned by the signed-in account. */
+  mineOnly: boolean;
+  /** False when nobody is signed in, because then "mine" means nothing. */
+  canFilterMine: boolean;
+  density: Density;
   onQueryChange: (query: string) => void;
   onFilterChange: (filter: RepoFilter) => void;
+  onMineChange: (mineOnly: boolean) => void;
+  onToggleDensity: () => void;
   onRefreshAll: () => void;
   refreshing: boolean;
 }
 
 /**
- * The dashboard header: title, watch count, state filters, search, refresh.
+ * The dashboard header: title, watch count, state filters, ownership filter,
+ * search, card size and refresh.
  *
  * Everything a user reaches for while watching builds sits on one row, so the
  * grid below is never pushed down by a second toolbar.
@@ -30,11 +40,18 @@ export function FilterBar({
   query,
   filter,
   monitoredCount,
+  mineOnly,
+  canFilterMine,
+  density,
   onQueryChange,
   onFilterChange,
+  onMineChange,
+  onToggleDensity,
   onRefreshAll,
   refreshing,
 }: FilterBarProps) {
+  const compact = density === "compact";
+
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-3 px-8 pb-4 pt-6">
       <div className="flex items-center gap-3">
@@ -81,6 +98,26 @@ export function FilterBar({
           })}
         </div>
 
+        {canFilterMine ? (
+          <button
+            type="button"
+            aria-pressed={mineOnly}
+            onClick={() => {
+              onMineChange(!mineOnly);
+            }}
+            className={cn(
+              "flex h-9 items-center gap-1.5 rounded-[10px] border px-3 text-[12px] transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              mineOnly
+                ? "border-accent/40 bg-accent/10 font-semibold text-ink"
+                : "border-line bg-raised text-ink-soft hover:text-ink",
+            )}
+          >
+            <User className="size-3.5" aria-hidden="true" />
+            Mine
+          </button>
+        ) : null}
+
         <div className="relative w-52">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted"
@@ -101,6 +138,24 @@ export function FilterBar({
             )}
           />
         </div>
+
+        <Tooltip label={compact ? "Comfortable cards" : "Compact cards"}>
+          <button
+            type="button"
+            aria-label={
+              compact ? "Switch to comfortable cards" : "Switch to compact cards"
+            }
+            aria-pressed={compact}
+            onClick={onToggleDensity}
+            className={cn(
+              "flex size-9 items-center justify-center rounded-[10px] border border-line bg-raised",
+              "text-ink-soft transition-colors hover:text-ink",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+            )}
+          >
+            {compact ? <Rows4 className="size-4" /> : <LayoutGrid className="size-4" />}
+          </button>
+        </Tooltip>
 
         <Button
           variant="primary"

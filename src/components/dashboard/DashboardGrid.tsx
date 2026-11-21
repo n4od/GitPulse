@@ -2,14 +2,20 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { RepoCard as RepoCardData } from "@/lib/bindings/RepoCard";
 import { RepoCard } from "@/components/dashboard/RepoCard";
+import type { Density } from "@/stores/ui";
 
 /** Matches the CSS grid's `minmax(320px, 1fr)` so the columns line up. */
 const COLUMN_MIN_WIDTH = 320;
 const ROW_GAP = 18;
 const ROW_HEIGHT = 176;
+/** The compact card, plus a proportionally tighter gap. */
+const ROW_GAP_COMPACT = 12;
+const ROW_HEIGHT_COMPACT = 132;
 
 export interface DashboardGridProps {
   cards: RepoCardData[];
+  /** Card size. Defaults to the comfortable layout. */
+  density?: Density;
   onRefresh: (repoId: number) => void;
   onToggleMonitored: (repoId: number, monitored: boolean) => void;
   onOpen: (repoId: number) => void;
@@ -17,6 +23,7 @@ export interface DashboardGridProps {
 
 export function DashboardGrid({
   cards,
+  density = "comfortable",
   onRefresh,
   onToggleMonitored,
   onOpen,
@@ -24,6 +31,10 @@ export function DashboardGrid({
   const scrollRef = useRef<HTMLDivElement>(null);
   const columns = useColumnCount(scrollRef);
   const rows = Math.ceil(cards.length / columns);
+
+  const compact = density === "compact";
+  const rowHeight = compact ? ROW_HEIGHT_COMPACT : ROW_HEIGHT;
+  const rowGap = compact ? ROW_GAP_COMPACT : ROW_GAP;
 
   // One rendering path for every list size. An earlier version switched to a
   // plain grid below 120 cards, and *crossing* that boundary cost 272 ms in the
@@ -36,9 +47,16 @@ export function DashboardGrid({
   const virtualizer = useVirtualizer({
     count: Math.max(rows, 1),
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT + ROW_GAP,
+    estimateSize: () => rowHeight + rowGap,
     overscan: 4,
   });
+
+  // The rows change height with the density, and the virtualizer caches the
+  // offsets it measured. Without this the scrollbar and the rows disagree about
+  // how tall the list is.
+  useEffect(() => {
+    virtualizer.measure();
+  }, [density, virtualizer]);
 
   return (
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-8 pb-8">
@@ -49,10 +67,11 @@ export function DashboardGrid({
           return (
             <div
               key={row.key}
-              className="absolute left-0 top-0 grid w-full gap-[18px]"
+              className="absolute left-0 top-0 grid w-full"
               style={{
                 gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                height: ROW_HEIGHT,
+                gap: rowGap,
+                height: rowHeight,
                 transform: `translateY(${row.start}px)`,
               }}
             >
@@ -60,6 +79,7 @@ export function DashboardGrid({
                 <RepoCard
                   key={card.repo.id}
                   card={card}
+                  density={density}
                   onRefresh={onRefresh}
                   onToggleMonitored={onToggleMonitored}
                   onOpen={onOpen}

@@ -19,9 +19,9 @@ _Nothing yet._
 
 ## [0.5.4] — 2026-11-22
 
-Two things the dashboard was missing: a way to act on a card without hovering
-over it, and a per-repository error state instead of only one global failure —
-with enough detail on the failure to actually act on it.
+Four things the dashboard was missing: a way to act on a card without hovering
+over it, a per-repository error state instead of only one global failure, a
+compact card size, and a way to see just your own repositories.
 
 ### Added
 
@@ -39,6 +39,14 @@ with enough detail on the failure to actually act on it.
   stays minimal on purpose — a dashboard of hundreds of cards should not grow by
   six lines because three are unhappy — so the card says _something is wrong_ and
   the inspector says _what, and when_.
+- **Compact card size.** A density toggle in the header switches the grid to a
+  tightened card — smaller padding, a shorter sparkline — so roughly a third
+  more repositories fit on a screen. Nothing is dropped from the card, and the
+  preference is remembered across restarts.
+- **`Mine` filter.** Keeps only the repositories the signed-in account owns,
+  alongside the state filters, so a watch list of hundreds of org repositories
+  can be narrowed to your own. It is hidden when nobody is signed in, because
+  then it would have no meaning.
 
 ### Changed
 

@@ -10,11 +10,15 @@ import { StatusBadge } from "@/components/status/StatusBadge";
 import { RunSparkline } from "@/components/dashboard/RunSparkline";
 import { latestRun, relativeTime, runDuration, shortSha } from "@/lib/repo-selectors";
 import { describeRepoError } from "@/lib/repo-error";
+import { cn } from "@/lib/cn";
 import { call } from "@/lib/ipc";
+import type { Density } from "@/stores/ui";
 import { toast } from "@/stores/toasts";
 
 export interface RepoCardProps {
   card: RepoCardData;
+  /** Card size. Defaults to the comfortable layout. */
+  density?: Density;
   onRefresh: (repoId: number) => void;
   onToggleMonitored: (repoId: number, monitored: boolean) => void;
   onOpen: (repoId: number) => void;
@@ -28,6 +32,7 @@ export interface RepoCardProps {
  */
 export const RepoCard = memo(function RepoCard({
   card,
+  density = "comfortable",
   onRefresh,
   onToggleMonitored,
   onOpen,
@@ -35,6 +40,7 @@ export const RepoCard = memo(function RepoCard({
   const { repo } = card;
   const run = latestRun(card);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const compact = density === "compact";
 
   // The card shows one truncated sentence; the tooltip and the inspector carry
   // the title and the time, which are what make a failure actionable.
@@ -78,7 +84,12 @@ export const RepoCard = memo(function RepoCard({
         setMenu({ x: event.clientX, y: event.clientY });
       }}
     >
-      <CardBody className="flex flex-1 flex-col px-4 pb-3 pt-4">
+      <CardBody
+        className={cn(
+          "flex flex-1 flex-col",
+          compact ? "px-3 pb-2 pt-2.5" : "px-4 pb-3 pt-4",
+        )}
+      >
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
@@ -87,7 +98,10 @@ export const RepoCard = memo(function RepoCard({
                 onClick={() => {
                   onOpen(repo.id);
                 }}
-                className="truncate text-[14px] font-semibold tracking-tight text-ink hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                className={cn(
+                  "truncate font-semibold tracking-tight text-ink hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  compact ? "text-[13px]" : "text-[14px]",
+                )}
                 title={`Inspect ${repo.fullName}`}
               >
                 {repo.fullName}
@@ -118,7 +132,12 @@ export const RepoCard = memo(function RepoCard({
         </div>
 
         {repo.lastError ? (
-          <div className="mt-1.5 flex items-center gap-2 rounded-control border border-bad/30 bg-bad/10 px-2 py-1.5">
+          <div
+            className={cn(
+              "flex items-center gap-2 rounded-control border border-bad/30 bg-bad/10 px-2",
+              compact ? "mt-1 py-1" : "mt-1.5 py-1.5",
+            )}
+          >
             <span className="size-1.5 shrink-0 rounded-full bg-bad" aria-hidden="true" />
             <Tooltip wrap side="top" className="min-w-0 flex-1" label={failureDetail}>
               <span className="block w-full truncate text-[11px] text-bad">
@@ -138,7 +157,12 @@ export const RepoCard = memo(function RepoCard({
         ) : null}
 
         {run ? (
-          <div className="mt-1 truncate text-[11.5px] text-ink-muted">
+          <div
+            className={cn(
+              "mt-1 truncate text-ink-muted",
+              compact ? "text-[11px]" : "text-[11.5px]",
+            )}
+          >
             <span className="font-medium text-ink-soft">
               {run.workflowName ?? "workflow"}
             </span>
@@ -148,24 +172,38 @@ export const RepoCard = memo(function RepoCard({
             ) : null}
           </div>
         ) : (
-          <p className="mt-1 text-[11.5px] text-ink-muted">
+          <p
+            className={cn(
+              "mt-1 text-ink-muted",
+              compact ? "text-[11px]" : "text-[11.5px]",
+            )}
+          >
             GitPulse has not seen a run for this repository yet.
           </p>
         )}
 
         {card.failingRuns > 0 ? (
-          <div className="mt-1 text-[11px] text-bad">
+          <div className={cn("mt-1 text-bad", compact ? "text-[10.5px]" : "text-[11px]")}>
             {card.failingRuns} failing {card.failingRuns === 1 ? "run" : "runs"}
           </div>
         ) : null}
 
         {card.recentRuns.length > 1 ? (
-          <RunSparkline runs={card.recentRuns} className="mt-2" />
+          <RunSparkline
+            runs={card.recentRuns}
+            compact={compact}
+            className={compact ? "mt-1.5" : "mt-2"}
+          />
         ) : (
           <div className="flex-1" />
         )}
 
-        <div className="mt-auto flex items-center gap-2 pt-2 text-[11px] text-ink-muted">
+        <div
+          className={cn(
+            "mt-auto flex items-center gap-2 text-ink-muted",
+            compact ? "pt-1.5 text-[10.5px]" : "pt-2 text-[11px]",
+          )}
+        >
           <span className="tabular-nums">
             {run ? relativeTime(run.updatedAt) : "never"}
           </span>

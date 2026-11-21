@@ -8,16 +8,34 @@ export function latestRun(card: RepoCard): WorkflowRun | null {
   return card.recentRuns[0] ?? null;
 }
 
+export interface CardFilterOptions {
+  /** Keep only repositories owned by the signed-in account. */
+  mineOnly?: boolean;
+  /**
+   * The signed-in login. Without it `mineOnly` cannot match anything, so an
+   * unknown login yields an empty list rather than silently showing everything.
+   */
+  login?: string | null;
+}
+
+/** Whether the signed-in account owns this repository. */
+export function isOwnedBy(card: RepoCard, login: string | null | undefined): boolean {
+  if (!login) return false;
+  return card.repo.owner.toLowerCase() === login.toLowerCase();
+}
+
 export function filterCards(
   cards: readonly RepoCard[],
   filter: RepoFilter,
   query: string,
+  options: CardFilterOptions = {},
 ): RepoCard[] {
   const needle = query.trim().toLowerCase();
 
   return cards.filter((card) => {
     if (filter === "failing" && card.failingRuns === 0) return false;
     if (filter === "running" && !card.hasActiveRun) return false;
+    if (options.mineOnly && !isOwnedBy(card, options.login)) return false;
     if (needle !== "" && !card.repo.fullName.toLowerCase().includes(needle)) return false;
     return true;
   });

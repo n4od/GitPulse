@@ -30,9 +30,12 @@ const PADDING = 5;
 export function RunSparkline({
   runs,
   className,
+  compact = false,
 }: {
   runs: WorkflowRun[];
   className?: string;
+  /** Shorter chart, for the compact card size. */
+  compact?: boolean;
 }) {
   if (runs.length === 0) return null;
 
@@ -65,7 +68,7 @@ export function RunSparkline({
     <svg
       viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
       preserveAspectRatio="none"
-      className={cn("h-10 w-full", className)}
+      className={cn(compact ? "h-6" : "h-10", "w-full", className)}
       role="img"
       aria-label={`Last ${ordered.length} runs, oldest to newest`}
     >

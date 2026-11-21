@@ -241,9 +241,9 @@ Depends on M1, M5.
 - [x] `M6-03` `RepoCard`: worst-status badge, latest run, sparkline of the last 10 runs, hover actions (refresh, copy run URL, mute, open on GitHub)
 - [ ] `M6-03b` Right-click context menu — **not done**; the hover actions cover the same operations
 - [x] `M6-04` `RepoCardSkeleton`, empty state, dashboard-level error state with retry
-- [ ] `M6-04b` Per-card error state with retry — **not done**; a failed poll is reported on the card's status, and the dashboard-level retry covers a failed load
+- [x] `M6-04b` Per-card error state with retry — done in `0.5.4`: the poller records `repos.last_error` (with its code and time) and the card shows it with a Retry that re-queues that one repository
 - [x] `M6-05` `FilterBar`: search, `All / Failing / Running`, Refresh all
-- [ ] `M6-05b` Density toggle and the `Mine` filter — **not done**
+- [x] `M6-05b` Density toggle and the `Mine` filter — done in `0.5.4`: `density` is persisted in the UI store, and `Mine` keeps only repositories owned by the signed-in login
 - [x] `M6-06` `RateLimitMeter` + poller status, from GitHub's own headers
 - [x] `M6-07` Surgical `setQueryData` per card; `invalidateQueries` only for structural change (track, mute)
 - [x] `M6-08` React Profiler bench at `#/bench`, 250 repositories
