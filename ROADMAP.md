@@ -26,6 +26,7 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 | `0.3.0` | Live & native       | M8 → M9    | Webhooks, tray, notifications, autostart                                 |
 | `0.4.0` | Polish & hardening  | M10 → M11  | Perf budgets measured, a11y audited, e2e green                           |
 | `0.5.0` | Buildable release   | M12        | Installers and portable builds on three OSes, with no secrets configured |
+| `0.6.0` | Multi-account       | M13        | Signed in to more than one account, switching without re-authenticating  |
 | `1.0.0` | Release-ready       | M12        | Signed installers on three OSes, auto-update                             |
 
 **Critical path:** M0 → M1 → M2 → M3 → M4 → M5 → M6. Everything after M6 is parallelisable
@@ -454,12 +455,44 @@ release that _does_ work is documented in [`RELEASING.md`](./RELEASING.md).
 
 ---
 
+## M13 — Multiple accounts · L → **v0.6.0** — **planned, not started**
+
+**Goal:** stay signed in to more than one GitHub account and move between them
+without re-authenticating.
+
+**Four design decisions to settle in an ADR before any code:**
+
+| Question                            | Decision                                                                                           | Why                                                                                                                                                                    |
+| :---------------------------------- | :------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One active account, or all at once? | **One active.**                                                                                    | Polling every account simultaneously is a different product: a merged dashboard, notification attribution, and a webhook listener whose signing secret is per account. |
+| Cache storage                       | **One database file per account** (`gitpulse-<login>.db`), not an `account` column on every table. | Isolation becomes structural instead of a filter someone can forget — which is precisely the bug fixed in `0.5.3`. The schema does not change.                         |
+| Keychain layout                     | Per-account keys, plus an index of known logins and an active pointer.                             | The three keys are fixed strings today (`github-access-token`, …), so there is one session by construction.                                                            |
+| Signing out of one account          | Removes only that account's tokens and data.                                                       | Otherwise "sign out" is ambiguous and the other account breaks.                                                                                                        |
+
+- [ ] `M13-01` ADR: the four decisions above, written down before implementation
+- [ ] `M13-02` `TokenStore` keyed per account, with an index of known logins and an active pointer
+- [ ] `M13-03` `Db` opened per account; `meta.account_login` and `purge_account_data` (added in `0.5.3`) are the seam this extends
+- [ ] `M13-04` `TokenManager`: many sessions, one active; refresh only the active one
+- [ ] `M13-05` Switching UI: the account list in Settings and the command palette, with the active account always visible
+- [ ] `M13-06` Tray and notifications name the account they refer to
+- [ ] `M13-07` Signing out of one account leaves the others intact
+- [ ] `M13-08` Tests: isolation between two accounts, with the manual half run against a second real account
+
+**Deliberately excluded:** polling several accounts at once, a merged dashboard,
+and per-account webhook secrets on one listener. Those are a different product,
+and they make "which account failed?" unanswerable in a notification.
+
+**Prerequisite already in place:** `0.5.3` made the cache account-aware
+(`meta.account_login`, `purge_account_data`). This milestone extends that seam
+rather than working around it.
+
+---
+
 ## Post-1.0 backlog
 
 Unscheduled. Promote into a milestone when it becomes a real user complaint.
 
 - Light theme (tokens are structured for it)
-- Multi-account / multiple GitHub identities
 - Organization and team filters
 - GraphQL batching to cut request count
 - Saved filter presets and pinned ordering
