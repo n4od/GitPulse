@@ -22,6 +22,13 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 - **The idle-CPU output claimed "% of one core" while computing a percentage of
   total CPU.** The label now matches the arithmetic.
 
+### Changed
+
+- **The overnight soak is deliberately out of scope.** It was never run and it is
+  no longer tracked as an open gap. `scripts/soak.ps1` stays available for anyone
+  who wants the number, but the 250-repository / 24-hour claim is not being
+  pursued and remains unproven.
+
 ---
 
 ## [0.5.0] — 2026-11-21

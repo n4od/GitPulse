@@ -221,9 +221,11 @@ flight, the plan alone could overshoot, and the bucket caps it.
 the sweep instead of retrying against every remaining repository, and one that
 an identical response publishes nothing.
 
-**Not verified:** no live poll has run against GitHub — that needs a real token.
-The 24-hour/250-repository soak in the exit criterion remains untested; the
-arithmetic that underpins it is unit-tested, but arithmetic is not a soak.
+**Verified since:** a live poll has now run against GitHub on a real session.
+**Not planned:** the 24-hour/250-repository soak is deliberately out of scope —
+it was never run and it is not scheduled. The arithmetic that underpins the
+budget is unit-tested, and a live session polling 2 real repositories stayed
+inside the local ceiling.
 
 ---
 
@@ -393,8 +395,8 @@ launch does not spawn a process" is configured but untested.
 
 ## M11 — Hardening · M → **v0.4.0** — **partially complete**
 
-- [x] `M11-01` `scripts/soak.ps1`: samples resident memory, reports growth per hour, fails above 2 MB/h. **Written, not executed** — it needs a signed-in profile.
-- [x] `M11-02` `scripts/idle-cpu.ps1`: samples processor time over a window and fails above 1%. **Written, not executed** — same reason.
+- [x] `M11-01` `scripts/soak.ps1`: samples resident memory, reports growth per hour, and refuses to give a verdict below a 30-minute window. **Deliberately out of scope** — the overnight soak is not planned; the script was exercised for five minutes against a live session and RSS held at ~33 MB.
+- [x] `M11-02` `scripts/idle-cpu.ps1`: samples processor time over a window and fails above 1%. **Executed** against the release build with a live session: 0.04% average, 0.26% peak, against a 1% budget.
 - [ ] `M11-03` Perf bench in CI — **not done.** The bench needs a real browser; automating it means Playwright plus a display, which is a larger change than this milestone had room for. It remains a manual `#/bench` run.
 - [ ] `M11-04` Playwright e2e — **not done.** Driving a Tauri binary needs `tauri-driver` per platform, and the browser download alone would not fit in the disk headroom.
 - [x] `M11-05` Coverage gate met: 91.5% lines and 84.3% branches on the gated scope, against 80/75.
