@@ -47,6 +47,7 @@ function Shell() {
   const session = useSession();
   const queryClient = useQueryClient();
   const inspect = useUiStore((store) => store.inspect);
+  const setPicking = useUiStore((store) => store.setPicking);
 
   const [overlay, setOverlay] = useState<Overlay>(null);
 
@@ -90,6 +91,11 @@ function Shell() {
 
   function runPaletteAction(id: string): void {
     switch (id) {
+      case "track-repos":
+        // The picker lives on the dashboard, so make sure that is what shows.
+        navigate("/");
+        setPicking(true);
+        break;
       case "settings":
         setOverlay("settings");
         break;

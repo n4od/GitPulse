@@ -17,6 +17,20 @@ _Nothing yet._
 
 ---
 
+## [0.5.5] — 2026-11-22
+
+The repository picker could only be reached from the empty state, so once
+anything was tracked there was no way to add another repository.
+
+### Added
+
+- **A way back into the repository picker.** An `Add repositories` button in the
+  dashboard header and a `Track repositories` command in the palette both open
+  it. Its open/closed state moved into the UI store, which is what lets the
+  palette reach it — the palette is not a child of the dashboard.
+
+---
+
 ## [0.5.4] — 2026-11-22
 
 Four things the dashboard was missing: a way to act on a card without hovering

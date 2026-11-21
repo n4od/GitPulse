@@ -30,9 +30,10 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<RepoFilter>("all");
   const [mineOnly, setMineOnly] = useState(false);
-  const [picking, setPicking] = useState(false);
   const openRepoId = useUiStore((store) => store.inspectedRepoId);
   const setOpenRepoId = useUiStore((store) => store.inspect);
+  const picking = useUiStore((store) => store.picking);
+  const setPicking = useUiStore((store) => store.setPicking);
   const density = useUiStore((store) => store.density);
   const toggleDensity = useUiStore((store) => store.toggleDensity);
   const login = useSession()?.login ?? null;
@@ -148,6 +149,9 @@ export function Dashboard() {
             void refreshAll();
           }}
           refreshing={repos.isFetching}
+          onAddRepositories={() => {
+            setPicking(true);
+          }}
         />
 
         {cards.length === 0 ? (

@@ -15,6 +15,7 @@ function setup(overrides: Partial<FilterBarProps> = {}) {
     onFilterChange: vi.fn(),
     onMineChange: vi.fn(),
     onToggleDensity: vi.fn(),
+    onAddRepositories: vi.fn(),
     onRefreshAll: vi.fn(),
     refreshing: false,
     ...overrides,
@@ -74,5 +75,14 @@ describe("FilterBar", () => {
     });
 
     expect(props.onQueryChange).toHaveBeenCalledWith("api");
+  });
+
+  it("offers a way back into the repository picker", async () => {
+    const user = userEvent.setup();
+    const props = setup();
+
+    await user.click(screen.getByRole("button", { name: "Add repositories" }));
+
+    expect(props.onAddRepositories).toHaveBeenCalledTimes(1);
   });
 });

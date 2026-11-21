@@ -61,6 +61,7 @@ export function filterEntries<T extends PaletteEntry>(
 
 /** The static half of the palette. */
 export const PALETTE_ACTIONS: PaletteEntry[] = [
+  { id: "track-repos", label: "Track repositories", detail: "Action" },
   { id: "settings", label: "Open settings", detail: "Settings" },
   { id: "refresh-all", label: "Refresh every repository", detail: "Action" },
   { id: "webhooks", label: "Configure webhooks", detail: "Settings" },

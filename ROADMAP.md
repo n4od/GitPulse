@@ -239,7 +239,7 @@ Depends on M1, M5.
 - [x] `M6-01` Commands: `repos_list`, `repos_available`, `repos_track`, `repos_set_monitored`, `repos_refresh`. **Deviation:** no `repos_search` — filtering 250 cards in the webview is instant, and a round trip per keystroke would make search feel worse.
 - [x] `M6-02` `DashboardGrid`: `repeat(auto-fill, minmax(320px, 1fr))`, row-virtualized
 - [x] `M6-03` `RepoCard`: worst-status badge, latest run, sparkline of the last 10 runs, hover actions (refresh, copy run URL, mute, open on GitHub)
-- [ ] `M6-03b` Right-click context menu — **not done**; the hover actions cover the same operations
+- [x] `M6-03b` Right-click context menu — done in `0.5.4`: the card actions are reachable from the context menu as well as on hover
 - [x] `M6-04` `RepoCardSkeleton`, empty state, dashboard-level error state with retry
 - [x] `M6-04b` Per-card error state with retry — done in `0.5.4`: the poller records `repos.last_error` (with its code and time) and the card shows it with a Retry that re-queues that one repository
 - [x] `M6-05` `FilterBar`: search, `All / Failing / Running`, Refresh all
@@ -249,6 +249,7 @@ Depends on M1, M5.
 - [x] `M6-08` React Profiler bench at `#/bench`, 250 repositories
 - [x] `M6-09` Bundle budget check in CI (< 300 KB gzipped initial)
 - [x] `M6-10` Tag `v0.1.0`, move `[Unreleased]` in CHANGELOG
+- [x] `M6-11` A way back into the repository picker — done in `0.5.4`: the picker was only reachable from the empty state, so it also opens from an `Add repositories` button in the header and from the palette, whose state it now shares through the UI store
 
 **Measured, in a real browser (Vite dev build, React StrictMode on, which
 double-renders):**

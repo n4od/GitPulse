@@ -1,4 +1,4 @@
-import { LayoutGrid, RefreshCw, Rows4, Search, User } from "lucide-react";
+import { LayoutGrid, Plus, RefreshCw, Rows4, Search, User } from "lucide-react";
 import { cn } from "@/lib/cn";
 import type { RepoFilter } from "@/lib/repo-selectors";
 import type { Density } from "@/stores/ui";
@@ -25,6 +25,7 @@ export interface FilterBarProps {
   onFilterChange: (filter: RepoFilter) => void;
   onMineChange: (mineOnly: boolean) => void;
   onToggleDensity: () => void;
+  onAddRepositories: () => void;
   onRefreshAll: () => void;
   refreshing: boolean;
 }
@@ -47,6 +48,7 @@ export function FilterBar({
   onFilterChange,
   onMineChange,
   onToggleDensity,
+  onAddRepositories,
   onRefreshAll,
   refreshing,
 }: FilterBarProps) {
@@ -59,6 +61,14 @@ export function FilterBar({
         <span className="rounded-full border border-line bg-raised px-2.5 py-0.5 text-[11px] text-ink-muted">
           {monitoredCount} monitored
         </span>
+        <Button
+          variant="secondary"
+          size="sm"
+          leadingIcon={<Plus className="size-3.5" />}
+          onClick={onAddRepositories}
+        >
+          Add repositories
+        </Button>
       </div>
 
       <div className="ml-auto flex flex-wrap items-center gap-2">
