@@ -5,6 +5,14 @@ interface TooltipProps {
   label: string;
   side?: "top" | "bottom";
   className?: string;
+  /**
+   * Allow the label to wrap instead of staying on one line.
+   *
+   * For short labels nowrap is right — a wrapped tooltip jitters as it grows.
+   * For a long message such as a poll failure it is the difference between
+   * reading the error and reading the first forty characters of it.
+   */
+  wrap?: boolean;
   children: ReactNode;
 }
 
@@ -16,7 +24,13 @@ interface TooltipProps {
  * accessible name, and announcing it twice is worse than not announcing it.
  * Use `aria-label` on the trigger for the authoritative text.
  */
-export function Tooltip({ label, side = "top", className, children }: TooltipProps) {
+export function Tooltip({
+  label,
+  side = "top",
+  className,
+  wrap = false,
+  children,
+}: TooltipProps) {
   return (
     <span className={cn("group relative inline-flex", className)}>
       {children}
@@ -24,7 +38,8 @@ export function Tooltip({ label, side = "top", className, children }: TooltipPro
         role="tooltip"
         aria-hidden="true"
         className={cn(
-          "pointer-events-none absolute left-1/2 z-40 -translate-x-1/2 whitespace-nowrap",
+          "pointer-events-none absolute left-1/2 z-40 -translate-x-1/2",
+          wrap ? "w-64 whitespace-normal text-left leading-snug" : "whitespace-nowrap",
           "rounded-control border border-line-strong bg-overlay px-2 py-1",
           "text-[11px] font-medium text-ink shadow-lg",
           "opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100",

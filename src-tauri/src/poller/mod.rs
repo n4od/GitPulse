@@ -247,8 +247,19 @@ impl Poller {
                 break;
             }
 
+            let repo_id = repo.id;
+            let had_error = repo.last_error.is_some();
+
             match self.poll_repo(&repo).await {
-                Ok(()) => polled += 1,
+                Ok(()) => {
+                    polled += 1;
+                    // Clear the card's error state, but only when there is one
+                    // to clear: a healthy poll should not cost a write and an
+                    // event every time.
+                    if had_error {
+                        self.clear_repo_error(repo_id).await;
+                    }
+                }
                 Err(error) if is_stopping(&error) => {
                     if matches!(error, AppError::AuthRequired) {
                         tracing::debug!("not signed in; skipping this sweep");
@@ -256,11 +267,13 @@ impl Poller {
                         tracing::warn!(%error, "pausing the sweep");
                     }
                     self.record_error(&error);
+                    self.record_repo_error(repo_id, &error).await;
                     break;
                 }
                 Err(error) => {
                     tracing::warn!(repo = %repo.full_name, %error, "poll failed");
                     self.record_error(&error);
+                    self.record_repo_error(repo_id, &error).await;
                 }
             }
         }
@@ -324,6 +337,50 @@ impl Poller {
     fn record_error(&self, error: &AppError) {
         if let Ok(mut slot) = self.last_error.lock() {
             *slot = Some(error.to_string());
+        }
+    }
+
+    /// Persists this repository's failure and republishes its card, so the
+    /// dashboard shows the error rather than waiting for the next poll's diff.
+    async fn record_repo_error(&self, repo_id: i64, error: &AppError) {
+        // The code is the stable discriminator the UI branches on; the message
+        // is the detail it shows underneath.
+        let code = error.code();
+        let message = error.to_string();
+
+        if let Err(error) = self
+            .db
+            .with_connection(move |connection| {
+                db::repos::set_last_error(connection, repo_id, Some((code, &message)))
+            })
+            .await
+        {
+            tracing::warn!(%error, "could not record the repository's poll error");
+        }
+
+        self.publish_card(repo_id).await;
+    }
+
+    /// Clears a repository's error after a successful poll.
+    async fn clear_repo_error(&self, repo_id: i64) {
+        if let Err(error) = self
+            .db
+            .with_connection(move |connection| db::repos::set_last_error(connection, repo_id, None))
+            .await
+        {
+            tracing::warn!(%error, "could not clear the repository's poll error");
+        }
+
+        self.publish_card(repo_id).await;
+    }
+
+    async fn publish_card(&self, repo_id: i64) {
+        if let Ok(Some(card)) = self
+            .db
+            .with_connection(move |connection| db::repos::card(connection, repo_id))
+            .await
+        {
+            self.events.repo_updated(card);
         }
     }
 

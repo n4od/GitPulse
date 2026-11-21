@@ -11,6 +11,23 @@ export type Repo = {
   avatarUrl: string | null;
   monitored: boolean;
   lastPolledAt: string | null;
+  /**
+   * The most recent poll failure for this repository, cleared on success.
+   *
+   * Distinct from the poller's global error: this one belongs to a single
+   * repository, and it is what a card's own error state reads.
+   */
+  lastError: string | null;
+  /**
+   * Stable code for that failure (`AppError::code`), so the UI can show a
+   * human title instead of parsing a message.
+   */
+  lastErrorCode: string | null;
+  /**
+   * When it happened. An error with no time cannot be acted on: a minute ago
+   * and a week ago call for different responses.
+   */
+  lastErrorAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

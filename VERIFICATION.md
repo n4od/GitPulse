@@ -24,7 +24,7 @@ Last updated: 2026-11-20, after M10.
 | Rust compiles clean                                                | `cargo clippy --all-targets -- -D warnings`, `cargo fmt --check`                                                                       |
 | TypeScript compiles clean                                          | `tsc --noEmit` on two projects                                                                                                         |
 | Linting clean                                                      | `eslint --max-warnings 0`                                                                                                              |
-| 168 backend tests pass                                             | `cargo test --all-targets`                                                                                                             |
+| 175 backend tests pass                                             | `cargo test --all-targets`                                                                                                             |
 | 156 frontend tests pass                                            | `vitest run`                                                                                                                           |
 | Coverage on logic-bearing code                                     | 91.5% lines, 84.3% branches (gate: 80/75)                                                                                              |
 | Bundle under budget                                                | 115 KB gzipped shipped, against a 300 KB gate                                                                                          |
@@ -49,15 +49,18 @@ Last updated: 2026-11-20, after M10.
 | **An unknown client id produces a usable error**                   | Live: GitHub answers `404`, and GitPulse now reports "GitHub does not recognise this client id" instead of "resource not found"        |
 | **A rejected device code produces a usable error**                 | Live: `incorrect_device_code` is reported as "the sign-in has to be restarted"                                                         |
 | **A transient network failure no longer aborts sign-in**           | Found live — a real blip aborted a real sign-in — then fixed with a bounded retry budget and unit tests                                |
+| **A new migration applies to a live database**                     | `0004_repo_error_detail` applied on launch to the real `gitpulse.db`; `last_error_code` and `last_error_at` are queryable afterwards   |
+| **The right-click menu opens at the pointer**                      | Confirmed in the running app at several scroll positions, after the virtualised-row transform was ruled out as the containing block    |
 
 ## Verified only against a mock
 
-| Claim                               | Why the mock is a limitation                                                        |
-| ----------------------------------- | ----------------------------------------------------------------------------------- |
-| Re-run / cancel / dispatch          | Request shapes are asserted; GitHub's acceptance is not                             |
-| Job logs are readable               | The ZIP-vs-text discovery was made from documentation, not a live response          |
-| Rate-limit handling                 | `403`/`429` are simulated. Secondary-limit behaviour in practice is unobserved      |
-| Notifications fire once per failure | The dedupe key is unit-tested; no notification has ever been shown for a real build |
+| Claim                               | Why the mock is a limitation                                                                                                                                                                   |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Re-run / cancel / dispatch          | Request shapes are asserted; GitHub's acceptance is not                                                                                                                                        |
+| Job logs are readable               | The ZIP-vs-text discovery was made from documentation, not a live response                                                                                                                     |
+| Rate-limit handling                 | `403`/`429` are simulated. Secondary-limit behaviour in practice is unobserved                                                                                                                 |
+| Notifications fire once per failure | The dedupe key is unit-tested; no notification has ever been shown for a real build                                                                                                            |
+| The per-repository error state      | Rendered from a failure written straight into the database. A real API failure has not yet been observed end to end, so the wording and the clearing behaviour are unexercised by real traffic |
 
 ## Not verified at all
 

@@ -25,6 +25,17 @@ pub struct Repo {
     pub avatar_url: Option<String>,
     pub monitored: bool,
     pub last_polled_at: Option<DateTime<Utc>>,
+    /// The most recent poll failure for this repository, cleared on success.
+    ///
+    /// Distinct from the poller's global error: this one belongs to a single
+    /// repository, and it is what a card's own error state reads.
+    pub last_error: Option<String>,
+    /// Stable code for that failure (`AppError::code`), so the UI can show a
+    /// human title instead of parsing a message.
+    pub last_error_code: Option<String>,
+    /// When it happened. An error with no time cannot be acted on: a minute ago
+    /// and a week ago call for different responses.
+    pub last_error_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

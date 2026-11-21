@@ -17,6 +17,43 @@ _Nothing yet._
 
 ---
 
+## [0.5.4] — 2026-11-22
+
+Two things the dashboard was missing: a way to act on a card without hovering
+over it, and a per-repository error state instead of only one global failure —
+with enough detail on the failure to actually act on it.
+
+### Added
+
+- **Right-click menu on a repository card.** The actions that were visible only
+  on hover — refresh, copy the run URL, mute, open on GitHub — are now also a
+  context menu, which is where people look for them. It closes on Escape, on a
+  click outside and on scroll, and repositions itself to stay inside the window.
+- **Per-repository error state, with its own retry.** A repository that cannot be
+  read gets a message on its own card and a Retry that re-queues just that
+  repository rather than all of them. The message clears on the next successful
+  poll, so it never outlives the problem.
+- **Failure detail in the run inspector.** Opening a failed repository shows the
+  full message, a human title for what kind of failure it was (`No access`,
+  `Rate limited`, `Repository not found`, ...) and when it happened. The card
+  stays minimal on purpose — a dashboard of hundreds of cards should not grow by
+  six lines because three are unhappy — so the card says _something is wrong_ and
+  the inspector says _what, and when_.
+
+### Changed
+
+- **`repos.last_error` is new** (migration `0003_repo_last_error`). It holds the
+  _current_ problem only — written on failure, cleared on success — and is
+  distinct from the poller's global error, which still means "the sweep is
+  paused" rather than "this repository is broken".
+- **`repos.last_error_code` and `repos.last_error_at` are new**
+  (migration `0004_repo_error_detail`). The code is `AppError::code`, the stable
+  discriminator the frontend already branches on, and the timestamp is what makes
+  a message actionable. All three columns are written and cleared together, so a
+  success cannot leave a stale code or time behind.
+
+---
+
 ## [0.5.3] — 2026-11-21
 
 Fixes an account-isolation bug: the local cache had no notion of which account

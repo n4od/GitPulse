@@ -1,12 +1,15 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Copy, ExternalLink, BellOff, RefreshCw } from "lucide-react";
 import type { RepoCard as RepoCardData } from "@/lib/bindings/RepoCard";
 import { Badge } from "@/components/primitives/Badge";
 import { Button } from "@/components/primitives/Button";
 import { Card, CardBody } from "@/components/primitives/Card";
+import { ContextMenu } from "@/components/primitives/ContextMenu";
+import { Tooltip } from "@/components/primitives/Tooltip";
 import { StatusBadge } from "@/components/status/StatusBadge";
 import { RunSparkline } from "@/components/dashboard/RunSparkline";
 import { latestRun, relativeTime, runDuration, shortSha } from "@/lib/repo-selectors";
+import { describeRepoError } from "@/lib/repo-error";
 import { call } from "@/lib/ipc";
 import { toast } from "@/stores/toasts";
 
@@ -31,6 +34,20 @@ export const RepoCard = memo(function RepoCard({
 }: RepoCardProps) {
   const { repo } = card;
   const run = latestRun(card);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+
+  // The card shows one truncated sentence; the tooltip and the inspector carry
+  // the title and the time, which are what make a failure actionable.
+  const failure = describeRepoError(repo.lastErrorCode);
+  const failureDetail = repo.lastError
+    ? [
+        failure.title,
+        repo.lastError,
+        repo.lastErrorAt ? `failed ${relativeTime(repo.lastErrorAt)}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
 
   function openOnGitHub(): void {
     const target = run?.htmlUrl ?? `https://github.com/${repo.fullName}/actions`;
@@ -54,7 +71,13 @@ export const RepoCard = memo(function RepoCard({
   }
 
   return (
-    <Card className="group flex h-full flex-col transition-colors hover:border-line-strong">
+    <Card
+      className="group flex h-full flex-col transition-colors hover:border-line-strong"
+      onContextMenu={(event) => {
+        event.preventDefault();
+        setMenu({ x: event.clientX, y: event.clientY });
+      }}
+    >
       <CardBody className="flex flex-1 flex-col px-4 pb-3 pt-4">
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
@@ -93,6 +116,26 @@ export const RepoCard = memo(function RepoCard({
             </Badge>
           )}
         </div>
+
+        {repo.lastError ? (
+          <div className="mt-1.5 flex items-center gap-2 rounded-control border border-bad/30 bg-bad/10 px-2 py-1.5">
+            <span className="size-1.5 shrink-0 rounded-full bg-bad" aria-hidden="true" />
+            <Tooltip wrap side="top" className="min-w-0 flex-1" label={failureDetail}>
+              <span className="block w-full truncate text-[11px] text-bad">
+                {repo.lastError}
+              </span>
+            </Tooltip>
+            <button
+              type="button"
+              onClick={() => {
+                onRefresh(repo.id);
+              }}
+              className="shrink-0 text-[11px] font-semibold text-bad underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad"
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
 
         {run ? (
           <div className="mt-1 truncate text-[11.5px] text-ink-muted">
@@ -193,6 +236,49 @@ export const RepoCard = memo(function RepoCard({
           </div>
         </div>
       </CardBody>
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => {
+            setMenu(null);
+          }}
+          label={`Actions for ${repo.fullName}`}
+          items={[
+            {
+              id: "refresh",
+              label: "Refresh",
+              icon: <RefreshCw className="size-3.5" />,
+              onSelect: () => {
+                onRefresh(repo.id);
+              },
+            },
+            {
+              id: "copy",
+              label: "Copy run URL",
+              icon: <Copy className="size-3.5" />,
+              onSelect: () => {
+                void copyRunUrl();
+              },
+            },
+            {
+              id: "mute",
+              label: repo.monitored ? "Mute notifications" : "Unmute notifications",
+              icon: <BellOff className="size-3.5" />,
+              onSelect: () => {
+                onToggleMonitored(repo.id, !repo.monitored);
+              },
+            },
+            {
+              id: "open",
+              label: "Open on GitHub",
+              icon: <ExternalLink className="size-3.5" />,
+              onSelect: openOnGitHub,
+            },
+          ]}
+        />
+      ) : null}
     </Card>
   );
 });

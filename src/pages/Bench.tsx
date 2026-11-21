@@ -274,6 +274,11 @@ function sampleCards(count: number): RepoCardData[] {
         avatarUrl: null,
         monitored: true,
         lastPolledAt: new Date(now - index * 1000).toISOString(),
+        // A few cards carry a failure, so the bench renders the error state too.
+        lastError: index % 7 === 0 ? "403 forbidden: API rate limit exceeded" : null,
+        lastErrorCode: index % 7 === 0 ? "rate_limited" : null,
+        lastErrorAt:
+          index % 7 === 0 ? new Date(now - index * 60_000).toISOString() : null,
         createdAt: new Date(now - 86_400_000).toISOString(),
         updatedAt: new Date(now).toISOString(),
       },

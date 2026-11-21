@@ -17,6 +17,9 @@ pub fn make_repo() -> Repo {
         avatar_url: None,
         monitored: true,
         last_polled_at: None,
+        last_error: None,
+        last_error_code: None,
+        last_error_at: None,
         created_at: Utc::now(),
         updated_at: Utc::now(),
     }

@@ -17,6 +17,7 @@ import { DispatchDialog } from "@/components/runs/DispatchDialog";
 import { call } from "@/lib/ipc";
 import { toPulseError } from "@/lib/errors";
 import { latestRun, relativeTime, shortSha } from "@/lib/repo-selectors";
+import { describeRepoError } from "@/lib/repo-error";
 import { REPOS_QUERY_KEY } from "@/hooks/useRepos";
 import { optimisticallySetRunStatus } from "@/lib/run-selectors";
 import { toast } from "@/stores/toasts";
@@ -30,7 +31,15 @@ type Tab = "runs" | "deployments" | "pulls";
  * nothing until you pick a run; jobs and logs are fetched on demand because
  * they are only interesting while someone is looking.
  */
-export function RunDetail({ card, onClose }: { card: RepoCard; onClose: () => void }) {
+export function RunDetail({
+  card,
+  onClose,
+  onRetry,
+}: {
+  card: RepoCard;
+  onClose: () => void;
+  onRetry?: (repoId: number) => void;
+}) {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("runs");
   const [runId, setRunId] = useState<number | null>(null);
@@ -122,6 +131,7 @@ export function RunDetail({ card, onClose }: { card: RepoCard; onClose: () => vo
   }
 
   const newest = latestRun(card);
+  const failure = describeRepoError(card.repo.lastErrorCode);
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col border-l border-line bg-surface">
@@ -140,6 +150,35 @@ export function RunDetail({ card, onClose }: { card: RepoCard; onClose: () => vo
           <X className="size-3.5" />
         </Button>
       </header>
+
+      {card.repo.lastError ? (
+        <div className="shrink-0 border-b border-bad/30 bg-bad/10 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <span className="size-1.5 shrink-0 rounded-full bg-bad" aria-hidden="true" />
+            <span className="text-[12px] font-semibold text-bad">{failure.title}</span>
+            {card.repo.lastErrorAt ? (
+              <span className="text-[11px] text-ink-muted">
+                · failed {relativeTime(card.repo.lastErrorAt)}
+              </span>
+            ) : null}
+            {onRetry ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onRetry(card.repo.id);
+                }}
+                className="ml-auto shrink-0 text-[11px] font-semibold text-bad underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad"
+              >
+                Retry
+              </button>
+            ) : null}
+          </div>
+          <p className="mt-1 text-[11.5px] leading-snug text-ink-soft">{failure.hint}</p>
+          <p className="mt-1 break-words font-mono text-[11px] leading-snug text-ink-muted">
+            {card.repo.lastError}
+          </p>
+        </div>
+      ) : null}
 
       <nav className="flex shrink-0 gap-1 border-b border-line px-2 py-1">
         {(["runs", "deployments", "pulls"] as const).map((entry) => (

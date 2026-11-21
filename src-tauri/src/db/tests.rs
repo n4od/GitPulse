@@ -59,7 +59,7 @@ fn migrations_apply_once_and_are_recorded() {
 
     assert_eq!(
         migrate::current_version(&connection).expect("version"),
-        Some("0002_webhook_deliveries".to_owned())
+        Some("0004_repo_error_detail".to_owned())
     );
 
     // Re-running must be a no-op rather than an error about existing tables.
@@ -70,7 +70,35 @@ fn migrations_apply_once_and_are_recorded() {
             row.get(0)
         })
         .expect("count");
-    assert_eq!(applied, 2);
+    assert_eq!(applied, 4);
+}
+
+#[test]
+fn a_poll_error_is_recorded_and_cleared_per_repository() {
+    let connection = connection();
+    let id = repos::upsert(&connection, &repo_upsert(1, "acme/api")).expect("insert repo");
+
+    repos::set_last_error(&connection, id, Some(("forbidden", "403 forbidden"))).expect("record");
+
+    let recorded = repos::by_id(&connection, id)
+        .expect("read")
+        .expect("present");
+    assert_eq!(recorded.last_error.as_deref(), Some("403 forbidden"));
+    assert_eq!(recorded.last_error_code.as_deref(), Some("forbidden"));
+    assert!(
+        recorded.last_error_at.is_some(),
+        "a failure with no time cannot be acted on"
+    );
+
+    // A later success clears all three, so nothing stale survives the fix.
+    repos::set_last_error(&connection, id, None).expect("clear");
+
+    let cleared = repos::by_id(&connection, id)
+        .expect("read")
+        .expect("present");
+    assert_eq!(cleared.last_error, None);
+    assert_eq!(cleared.last_error_code, None);
+    assert_eq!(cleared.last_error_at, None);
 }
 
 #[test]

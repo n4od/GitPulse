@@ -161,6 +161,7 @@ export function Dashboard() {
         <div className="relative w-[34rem] shrink-0">
           <RunDetail
             card={openCard}
+            onRetry={queueRefresh}
             onClose={() => {
               setOpenRepoId(null);
             }}

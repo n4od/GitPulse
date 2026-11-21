@@ -9,7 +9,8 @@ use super::models::{Repo, RepoCard, RepoUpsert};
 use super::runs;
 
 const COLUMNS: &str = "id, github_id, owner, name, full_name, is_private, default_branch, \
-                       avatar_url, monitored, last_polled_at, created_at, updated_at";
+                       avatar_url, monitored, last_polled_at, created_at, updated_at, \
+                       last_error, last_error_code, last_error_at";
 
 fn from_row(row: &Row<'_>) -> rusqlite::Result<Repo> {
     Ok(Repo {
@@ -25,6 +26,9 @@ fn from_row(row: &Row<'_>) -> rusqlite::Result<Repo> {
         last_polled_at: row.get(9)?,
         created_at: row.get(10)?,
         updated_at: row.get(11)?,
+        last_error: row.get(12)?,
+        last_error_code: row.get(13)?,
+        last_error_at: row.get(14)?,
     })
 }
 
@@ -131,6 +135,32 @@ pub fn touch_polled(connection: &Connection, id: i64) -> Result<(), AppError> {
         .execute(
             "UPDATE repos SET last_polled_at = ?2 WHERE id = ?1",
             params![id, Utc::now()],
+        )
+        .map_err(AppError::db)?;
+
+    Ok(())
+}
+
+/// Records the current poll failure for one repository, or clears it.
+///
+/// Taking `None` clears all three columns together, so a success cannot leave a
+/// stale code or timestamp behind. Written on failure and cleared on success:
+/// the columns are only ever the *current* problem, never a history.
+pub fn set_last_error(
+    connection: &Connection,
+    id: i64,
+    error: Option<(&str, &str)>,
+) -> Result<(), AppError> {
+    let (code, message, at) = match error {
+        Some((code, message)) => (Some(code), Some(message), Some(Utc::now())),
+        None => (None, None, None),
+    };
+
+    connection
+        .execute(
+            "UPDATE repos SET last_error = ?2, last_error_code = ?3, last_error_at = ?4
+             WHERE id = ?1",
+            params![id, message, code, at],
         )
         .map_err(AppError::db)?;
 
