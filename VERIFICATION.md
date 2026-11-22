@@ -74,12 +74,16 @@ Last updated: 2026-11-20, after M10.
 | **Windows taskbar overlay icon**                    | Implemented with Tauri's `set_overlay_icon`; nobody has seen it on a real taskbar                                                                                                                          |
 | **Settings panel and palette accessibility**        | Lighthouse has not been run against them                                                                                                                                                                   |
 
-**No longer on this list:** the release pipeline. It has now run. The `v0.5.0`
-tag built installers and portable archives on `ubuntu-22.04`, `windows-latest`
-and `macos-latest`, and the `verify` job confirmed every expected artifact was
-present. The resulting release is a **draft**, and its bundles are **unsigned** -
-no certificate exists - so this is "the pipeline works", not "the app is
-release-ready".
+**No longer on this list:** the release pipeline. It has now run four times. Each
+`v0.5.x` tag built installers and portable archives on `ubuntu-22.04`,
+`windows-latest` and `macos-latest`, and the `verify` job confirmed every
+expected artifact was present before anything was published.
+
+The bundles are still **unsigned** - no certificate exists - so this is "the
+pipeline works", not "the app is release-ready". The releases are **published**,
+not drafts, and each one's download links were followed through GitHub's
+redirect to the CDN and confirmed to return bytes rather than merely being
+listed in the API.
 
 ## How to close the largest gaps
 

@@ -466,13 +466,13 @@ without re-authenticating.
 | Question                            | Decision                                                                                           | Why                                                                                                                                                                    |
 | :---------------------------------- | :------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | One active account, or all at once? | **One active.**                                                                                    | Polling every account simultaneously is a different product: a merged dashboard, notification attribution, and a webhook listener whose signing secret is per account. |
-| Cache storage                       | **One database file per account** (`gitpulse-<login>.db`), not an `account` column on every table. | Isolation becomes structural instead of a filter someone can forget — which is precisely the bug fixed in `0.5.3`. The schema does not change.                         |
+| Cache storage                       | **One database file per account** (`gitpulse-<login>.db`), not an `account` column on every table. | Isolation becomes structural instead of a filter someone can forget — which is precisely the bug fixed in `0.5.5`. The schema does not change.                         |
 | Keychain layout                     | Per-account keys, plus an index of known logins and an active pointer.                             | The three keys are fixed strings today (`github-access-token`, …), so there is one session by construction.                                                            |
 | Signing out of one account          | Removes only that account's tokens and data.                                                       | Otherwise "sign out" is ambiguous and the other account breaks.                                                                                                        |
 
 - [ ] `M13-01` ADR: the four decisions above, written down before implementation
 - [ ] `M13-02` `TokenStore` keyed per account, with an index of known logins and an active pointer
-- [ ] `M13-03` `Db` opened per account; `meta.account_login` and `purge_account_data` (added in `0.5.3`) are the seam this extends
+- [ ] `M13-03` `Db` opened per account; `meta.account_login` and `purge_account_data` (added for `0.5.5`) are the seam this extends
 - [ ] `M13-04` `TokenManager`: many sessions, one active; refresh only the active one
 - [ ] `M13-05` Switching UI: the account list in Settings and the command palette, with the active account always visible
 - [ ] `M13-06` Tray and notifications name the account they refer to
@@ -483,9 +483,11 @@ without re-authenticating.
 and per-account webhook secrets on one listener. Those are a different product,
 and they make "which account failed?" unanswerable in a notification.
 
-**Prerequisite already in place:** `0.5.3` made the cache account-aware
+**Prerequisite already in place:** `0.5.5` made the cache account-aware
 (`meta.account_login`, `purge_account_data`). This milestone extends that seam
-rather than working around it.
+rather than working around it. The work first landed under a `0.5.3` heading;
+that tag was never released and has been withdrawn, so `0.5.5` is the version
+that carries it.
 
 ---
 
