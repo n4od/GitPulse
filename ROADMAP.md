@@ -472,7 +472,7 @@ without re-authenticating.
 | Signing out of one account          | Removes only that account's tokens and data.                                                       | Otherwise "sign out" is ambiguous and the other account breaks.                                                                                                        |
 
 - [x] `M13-01` ADR: the four decisions above, written down before implementation — **done**, as [ADR-020](./ARCHITECTURE.md#adr-020--one-active-account-and-one-database-file-per-account). It adds the consequences the table has no room for: `meta.account_login` becomes a cross-check rather than the record of ownership, the login in the filename is lowercased, and the database can no longer be opened before the session is known — so anything holding a `Db` has to be re-initialised on a switch.
-- [ ] `M13-02` `TokenStore` keyed per account, with an index of known logins and an active pointer
+- [x] `M13-02` `TokenStore` keyed per account, with an index of known logins and an active pointer — **done**: the keys are `github-<kind>:<login>`, alongside `github-accounts` and `github-active-account`. A keychain written before accounts existed is adopted on the first read rather than making anyone sign in again, and the naming, the write ordering and the bookkeeping live once, over a `Vault` the keychain and the test double both implement.
 - [ ] `M13-03` `Db` opened per account; `meta.account_login` and `purge_account_data` (added for `0.5.5`) are the seam this extends
 - [ ] `M13-04` `TokenManager`: many sessions, one active; refresh only the active one
 - [ ] `M13-05` Switching UI: the account list in Settings and the command palette, with the active account always visible

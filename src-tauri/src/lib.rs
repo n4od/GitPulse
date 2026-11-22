@@ -340,10 +340,10 @@ impl poller::PollEvents for TauriPollEvents {
 
 /// Picks where tokens live.
 fn token_store() -> Arc<dyn TokenStore> {
-    let keyring = auth::KeyringStore;
+    let keyring = auth::KeyringStore::new();
 
-    match keyring.load() {
-        Ok(_) => Arc::new(keyring),
+    match keyring.probe() {
+        Ok(()) => Arc::new(keyring),
         Err(error) => {
             tracing::warn!(
                 %error,

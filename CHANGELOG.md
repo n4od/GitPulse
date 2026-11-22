@@ -13,7 +13,16 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Tokens are stored per account, not once per machine.** The keychain keys
+  were fixed strings — `github-access-token` and two more — so a second account
+  had nowhere to keep its tokens without overwriting the first. They are now
+  `github-access-token:<login>`, with three new entries recording the accounts
+  this machine knows about and which of them is active. A keychain written by
+  `0.5.6` or earlier is adopted on the first read, so an existing sign-in
+  survives the upgrade rather than costing another round of device flow.
+  (`M13-02`.)
 
 ---
 

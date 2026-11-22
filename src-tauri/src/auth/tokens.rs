@@ -51,9 +51,17 @@ impl TokenManager {
         }
     }
 
-    /// Loads a previously stored session into memory. Called once at startup.
+    /// Loads the active account's stored session into memory. Called once at
+    /// startup.
+    ///
+    /// The active pointer is what makes this unambiguous now that more than one
+    /// account's tokens can be on the machine.
     pub fn hydrate(&self) -> Result<Option<AuthSession>, AppError> {
-        let Some(stored) = self.store.load()? else {
+        let Some(login) = self.store.active()? else {
+            return Ok(None);
+        };
+
+        let Some(stored) = self.store.load(&login)? else {
             return Ok(None);
         };
 
@@ -76,6 +84,15 @@ impl TokenManager {
         self.lock()
             .ok()
             .and_then(|guard| guard.as_ref().map(|state| state.session.clone()))
+    }
+
+    /// The account the in-memory session belongs to, if there is one.
+    fn login(&self) -> Option<String> {
+        self.lock().ok().and_then(|guard| {
+            guard
+                .as_ref()
+                .and_then(|state| state.metadata.login.clone())
+        })
     }
 
     /// Returns a usable access token, refreshing first if it is expired or
@@ -127,8 +144,20 @@ impl TokenManager {
         }
     }
 
+    /// Signs out of the active account, and only that one.
+    ///
+    /// Other accounts' tokens stay where they are: with one entry per account,
+    /// "sign out" is a decision about an account rather than about the machine.
     pub fn sign_out(&self) -> Result<(), AppError> {
-        self.store.clear()?;
+        let login = match self.login() {
+            Some(login) => Some(login),
+            None => self.store.active()?,
+        };
+
+        if let Some(login) = login {
+            self.store.remove(&login)?;
+        }
+
         let mut guard = self.lock()?;
         *guard = None;
         Ok(())
@@ -185,12 +214,24 @@ impl TokenManager {
             .as_ref()
             .map(|rotated| secret(rotated.clone()));
 
+        // The account name is part of the key the tokens are stored under, so it
+        // cannot be missing here: `adopt` learns it from GitHub and `refresh`
+        // carries it forward. Reaching this without one is a programming error,
+        // not a state a user can be in.
+        let login = metadata
+            .login
+            .clone()
+            .filter(|login| !login.is_empty())
+            .ok_or_else(|| {
+                AppError::Internal("refusing to store tokens without an account name".to_owned())
+            })?;
+
         let stored = StoredTokens {
             access_token: secret(tokens.access_token.clone()),
             refresh_token: refresh_token.clone(),
             metadata: metadata.clone(),
         };
-        self.store.save(&stored)?;
+        self.store.save(&login, &stored)?;
 
         let effective_metadata = TokenMetadata {
             expires_at: tokens.expires_at,
@@ -217,9 +258,10 @@ impl TokenManager {
     }
 
     fn update_identity(&self, viewer: &Viewer) -> Result<AuthSession, AppError> {
-        let (session, metadata) = {
+        let (session, metadata, previous) = {
             let mut guard = self.lock()?;
             let state = guard.as_mut().ok_or(AppError::AuthRequired)?;
+            let previous = state.metadata.login.clone();
 
             state.session.login.clone_from(&viewer.login);
             state.session.avatar_url.clone_from(&viewer.avatar_url);
@@ -229,13 +271,28 @@ impl TokenManager {
             state.metadata.avatar_url.clone_from(&viewer.avatar_url);
             state.metadata.display_name.clone_from(&viewer.display_name);
 
-            (state.session.clone(), state.metadata.clone())
+            (state.session.clone(), state.metadata.clone(), previous)
         };
 
+        // A rename on GitHub changes the account's name, and the name is part of
+        // the key the tokens live under, so they have to move with it. Leaving
+        // them under the old name would strand a working token where nothing
+        // looks for it.
+        let renamed = previous.filter(|previous| !previous.eq_ignore_ascii_case(&viewer.login));
+
+        if let Some(previous) = renamed {
+            if let Some(mut stored) = self.store.load(&previous)? {
+                stored.metadata = metadata;
+                self.store.remove(&previous)?;
+                self.store.save(&viewer.login, &stored)?;
+                return Ok(session);
+            }
+        }
+
         // Persist so a restart shows the current login rather than a stale one.
-        if let Some(mut stored) = self.store.load()? {
+        if let Some(mut stored) = self.store.load(&viewer.login)? {
             stored.metadata = metadata;
-            self.store.save(&stored)?;
+            self.store.save(&viewer.login, &stored)?;
         }
 
         Ok(session)

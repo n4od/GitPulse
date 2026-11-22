@@ -344,7 +344,7 @@ async fn validate_clears_a_revoked_token_and_asks_for_sign_in() {
     let error = manager.validate().await.expect_err("revoked");
     assert_eq!(error.code(), "auth_required");
     assert!(
-        store.load().expect("load").is_none(),
+        store.load("octocat").expect("load").is_none(),
         "a revoked token must not be left in the store"
     );
     assert!(manager.session().is_none());
@@ -408,7 +408,10 @@ async fn twenty_concurrent_callers_cause_one_refresh() {
     );
 
     // The rotated token must have replaced the spent one.
-    let stored = store.load().expect("load").expect("still signed in");
+    let stored = store
+        .load("octocat")
+        .expect("load")
+        .expect("still signed in");
     let rotated = stored.refresh_token.expect("refresh token");
     assert_eq!(rotated.expose_secret(), "refresh-2");
 }
@@ -504,38 +507,48 @@ fn signing_out_clears_the_store() {
     manager
         .adopt(&expired_grant(), &viewer("octocat"))
         .expect("adopt");
-    assert!(store.load().expect("load").is_some());
+    assert!(store.load("octocat").expect("load").is_some());
+    assert_eq!(store.active().expect("active").as_deref(), Some("octocat"));
 
     manager.sign_out().expect("sign out");
 
-    assert!(store.load().expect("load").is_none());
+    assert!(store.load("octocat").expect("load").is_none());
+    assert!(store.active().expect("active").is_none());
+    assert!(store.known_logins().expect("logins").is_empty());
     assert!(manager.session().is_none());
 }
 
 #[test]
 fn tokens_are_persisted_refresh_first() {
-    // The write order is the crash-safety property: GitHub invalidates the old
-    // refresh token as soon as it issues a new one, so the refresh token must
-    // land before the access token.
+    // The write order is the crash-safety property, in two directions. GitHub
+    // invalidates the old refresh token the moment it issues a new one, so the
+    // refresh token must land before the access token. The index and the active
+    // pointer come last, because an index entry is a promise that the tokens are
+    // there.
     let store = MemoryStore::new();
 
     store
-        .save(&StoredTokens {
-            access_token: secret("access"),
-            refresh_token: Some(secret("refresh")),
-            metadata: TokenMetadata {
-                login: Some("octocat".to_owned()),
-                ..TokenMetadata::default()
+        .save(
+            "octocat",
+            &StoredTokens {
+                access_token: secret("access"),
+                refresh_token: Some(secret("refresh")),
+                metadata: TokenMetadata {
+                    login: Some("octocat".to_owned()),
+                    ..TokenMetadata::default()
+                },
             },
-        })
+        )
         .expect("save");
 
     assert_eq!(
         store.write_log(),
         vec![
-            "github-refresh-token",
-            "github-token-metadata",
-            "github-access-token",
+            "github-refresh-token:octocat",
+            "github-token-metadata:octocat",
+            "github-access-token:octocat",
+            "github-accounts",
+            "github-active-account",
         ]
     );
 }
@@ -545,20 +558,28 @@ fn a_long_lived_grant_stores_no_refresh_token() {
     let store = MemoryStore::new();
 
     store
-        .save(&StoredTokens {
-            access_token: secret("access"),
-            refresh_token: None,
-            metadata: TokenMetadata::default(),
-        })
+        .save(
+            "octocat",
+            &StoredTokens {
+                access_token: secret("access"),
+                refresh_token: None,
+                metadata: TokenMetadata::default(),
+            },
+        )
         .expect("save");
 
     assert_eq!(
         store.write_log(),
-        vec!["github-token-metadata", "github-access-token"],
+        vec![
+            "github-token-metadata:octocat",
+            "github-access-token:octocat",
+            "github-accounts",
+            "github-active-account",
+        ],
         "with nothing to rotate, there is no refresh write to make"
     );
 
-    let loaded = store.load().expect("load").expect("present");
+    let loaded = store.load("octocat").expect("load").expect("present");
     assert!(loaded.refresh_token.is_none());
 }
 
@@ -566,14 +587,181 @@ fn a_long_lived_grant_stores_no_refresh_token() {
 fn unreadable_metadata_does_not_lock_the_user_out() {
     let store = MemoryStore::new();
     store
-        .seed(Some("access"), None, Some("{ this is not json"))
+        .seed("octocat", Some("access"), None, Some("{ this is not json"))
         .expect("seed");
 
     let loaded = store
-        .load()
+        .load("octocat")
         .expect("load")
         .expect("the tokens are still usable");
 
     assert_eq!(loaded.access_token.expose_secret(), "access");
     assert!(loaded.metadata.login.is_none());
+}
+
+#[test]
+fn accounts_do_not_share_keys() {
+    let store = MemoryStore::new();
+
+    for login in ["octocat", "n4od"] {
+        store
+            .save(
+                login,
+                &StoredTokens {
+                    access_token: secret(format!("{login}-access")),
+                    refresh_token: None,
+                    metadata: TokenMetadata {
+                        login: Some(login.to_owned()),
+                        ..TokenMetadata::default()
+                    },
+                },
+            )
+            .expect("save");
+    }
+
+    assert_eq!(
+        store.known_logins().expect("logins"),
+        vec!["n4od".to_owned(), "octocat".to_owned()]
+    );
+    assert_eq!(
+        store.active().expect("active").as_deref(),
+        Some("n4od"),
+        "the account signed into last is the active one"
+    );
+
+    // Removing one leaves the other's tokens exactly where they were.
+    store.remove("n4od").expect("remove");
+
+    assert!(store.load("n4od").expect("load").is_none());
+    assert_eq!(
+        store
+            .load("octocat")
+            .expect("load")
+            .expect("the other account survives")
+            .access_token
+            .expose_secret(),
+        "octocat-access"
+    );
+    assert_eq!(
+        store.known_logins().expect("logins"),
+        vec!["octocat".to_owned()]
+    );
+    assert!(
+        store.active().expect("active").is_none(),
+        "the pointer is cleared rather than moved to another account"
+    );
+}
+
+#[test]
+fn one_account_is_one_name_whatever_its_case() {
+    let store = MemoryStore::new();
+
+    store
+        .save(
+            "N4OD",
+            &StoredTokens {
+                access_token: secret("access"),
+                refresh_token: None,
+                metadata: TokenMetadata::default(),
+            },
+        )
+        .expect("save");
+
+    assert_eq!(
+        store.known_logins().expect("logins"),
+        vec!["n4od".to_owned()],
+        "GitHub logins are case-insensitive, and so are the stores this runs on"
+    );
+    assert!(store.load("n4od").expect("load").is_some());
+}
+
+#[test]
+fn signing_in_again_does_not_duplicate_the_index() {
+    let store = MemoryStore::new();
+
+    for _ in 0..2 {
+        store
+            .save(
+                "octocat",
+                &StoredTokens {
+                    access_token: secret("access"),
+                    refresh_token: None,
+                    metadata: TokenMetadata::default(),
+                },
+            )
+            .expect("save");
+    }
+
+    assert_eq!(
+        store.known_logins().expect("logins"),
+        vec!["octocat".to_owned()]
+    );
+}
+
+#[test]
+fn a_sign_in_that_predates_accounts_is_adopted() {
+    let store = MemoryStore::new();
+    store
+        .seed_legacy(
+            "old-access",
+            Some("old-refresh"),
+            Some(r#"{"login":"octocat","scopes":["repo"]}"#),
+        )
+        .expect("seed");
+
+    // The first read is what adopts it, so an existing sign-in survives the
+    // upgrade instead of costing the user another round of device flow.
+    assert_eq!(store.active().expect("active").as_deref(), Some("octocat"));
+    assert_eq!(
+        store.known_logins().expect("logins"),
+        vec!["octocat".to_owned()]
+    );
+
+    let adopted = store.load("octocat").expect("load").expect("adopted");
+    assert_eq!(adopted.access_token.expose_secret(), "old-access");
+    assert_eq!(
+        adopted.refresh_token.expect("refresh").expose_secret(),
+        "old-refresh"
+    );
+    assert_eq!(adopted.metadata.scopes, vec!["repo".to_owned()]);
+
+    assert!(
+        store.peek("github-access-token").expect("peek").is_none(),
+        "the unprefixed keys are gone once adopted"
+    );
+    assert!(store
+        .peek("github-access-token:octocat")
+        .expect("peek")
+        .is_some());
+}
+
+#[test]
+fn an_adopted_sign_in_is_signed_out_normally() {
+    let store = MemoryStore::new();
+    store
+        .seed_legacy("old-access", None, Some(r#"{"login":"octocat"}"#))
+        .expect("seed");
+    assert!(store.active().expect("active").is_some());
+
+    store.remove("octocat").expect("remove");
+
+    assert!(
+        store.active().expect("active").is_none(),
+        "the legacy keys must not resurrect a signed-out account"
+    );
+}
+
+#[test]
+fn tokens_with_no_recorded_account_are_discarded() {
+    let store = MemoryStore::new();
+    store
+        .seed_legacy("orphan-access", None, Some("{}"))
+        .expect("seed");
+
+    assert!(store.active().expect("active").is_none());
+    assert!(store.known_logins().expect("logins").is_empty());
+    assert!(
+        store.peek("github-access-token").expect("peek").is_none(),
+        "tokens that cannot be attributed to an account are dropped, not filed under a guessed name"
+    );
 }
