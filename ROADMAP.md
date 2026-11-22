@@ -39,7 +39,7 @@ except M8, which depends on M4 (client) and M3 (persistence).
 **Goal:** a Tauri window opens on Windows, macOS, and Linux, and CI proves it.
 
 - [x] `M0-01` `git init`, `.gitignore` (Rust + Node + Tauri), `.editorconfig`, `.gitattributes`
-- [ ] `M0-01b` `LICENSE` — **BLOCKED** on choosing a licence (see D5)
+- [x] `M0-01b` `LICENSE` — done in `0.5.5`: **MIT**, recorded as ADR-019. The decision it was blocked on was never in the table; the `see D5` that stood here pointed at the product name, not a licence.
 - [x] `M0-02` `src-tauri` crate, `#![forbid(unsafe_code)]`, release profile (`lto`, `codegen-units=1`, `strip`)
 - [x] `M0-03` `package.json`, Vite 8, React 19, TypeScript 6 strict (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)
 - [x] `M0-04` Tailwind CSS 4 wired to `src/styles/tokens.css`

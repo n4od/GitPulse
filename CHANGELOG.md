@@ -29,6 +29,14 @@ anything was tracked there was no way to add another repository.
   it. Its open/closed state moved into the UI store, which is what lets the
   palette reach it — the palette is not a child of the dashboard.
 
+### Changed
+
+- **The project is MIT.** It had no `LICENSE` at all, which is not a neutral
+  state: the default is _all rights reserved_, while the README hands out
+  installers. `Cargo.toml` and `package.json` now declare the same licence, so
+  they agree with the file rather than merely pointing at it. Recorded as
+  ADR-019.
+
 ---
 
 ## [0.5.4] — 2026-11-22

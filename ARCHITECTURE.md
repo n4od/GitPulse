@@ -519,6 +519,16 @@ Chasing 80% across pure presentational wrappers would produce tests that assert
 class names rather than behaviour. The correct instrument for those is the
 component gallery (visual) and the e2e sweep (M11-04).
 
+### ADR-019 — MIT
+
+The repository had no `LICENSE` for the whole of M0–M12, which is not a neutral
+state: without one, the default is _all rights reserved_, while the README hands
+out installers. MIT is chosen over Apache-2.0 because the difference that
+matters here is the patent grant, and a desktop workflow monitor with no patents
+to assert does not need the extra ceremony. It is also what the ecosystem around
+Tauri and React expects, so `Cargo.toml` and `package.json` agree with the file
+rather than merely pointing at it.
+
 ## 4. Threat model
 
 ### Assets

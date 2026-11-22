@@ -256,4 +256,4 @@ Missing `WEBKIT_DISABLE_COMPOSITING_MODE=1` on some drivers:
 
 ## License
 
-Not yet chosen — see `ROADMAP.md` M0-01.
+MIT — see [`LICENSE`](./LICENSE).
