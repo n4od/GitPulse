@@ -85,15 +85,21 @@ not drafts, and each one's download links were followed through GitHub's
 redirect to the CDN and confirmed to return bytes rather than merely being
 listed in the API.
 
-**`0.5.6` reshapes a release, and that shape has not run yet.** Each artifact is
-now published once, under a stable name with no version in it
+**`0.5.6` reshaped a release, and that shape has now run once.** Each artifact is
+published once, under a stable name with no version in it
 (`GitPulse-windows-x64-setup.exe`), and the _workflow_ names and uploads them
 rather than `tauri-action` — because the action attaches a macOS `.app.tar.gz`
 that nothing reads and no input disables. `verify` asserts the exact set of nine
 instead of pattern-matching, checks that the README links to all nine, and
-publishes a `SHA256SUMS.txt` built from a re-download of every asset. The next tag
-is that pipeline's first run; until it happens, the paragraphs above describe the
-pipeline as it was up to `v0.5.5`.
+publishes a `SHA256SUMS.txt` built from a re-download of every asset.
+
+The `v0.5.6` run was its first exercise and passed: six jobs green, a draft of
+exactly ten assets and no phantom tarballs, and the published release's Windows
+installer was downloaded through `releases/latest/download/` and its SHA-256
+compared against the published manifest — a match. The version resource in that
+same installer reads `0.5.6`, which is what makes dropping the version from the
+filename safe: the name stays stable for the link, the version travels inside the
+package.
 
 The first attempt at `0.5.6` failed, informatively: `verify` refused to publish —
 twelve assets instead of nine. The cause was the workflow pinning `tauri-action@v0`
