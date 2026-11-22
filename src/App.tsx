@@ -5,6 +5,7 @@ import { Button } from "@/components/primitives/Button";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/primitives/Toast";
 import { CommandPalette } from "@/components/shell/CommandPalette";
+import { AccountMenu } from "@/components/shell/AccountMenu";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { RateLimitMeter } from "@/components/status/RateLimitMeter";
 import { StatusBar } from "@/components/shell/StatusBar";
@@ -14,7 +15,7 @@ import { useAuthBridge } from "@/hooks/useAuthBridge";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useLiveUpdates } from "@/hooks/useLiveUpdates";
 import { useRepos } from "@/hooks/useRepos";
-import { signOut, switchAccount } from "@/lib/auth-commands";
+import { signOut, startSignIn, switchAccount } from "@/lib/auth-commands";
 import { call } from "@/lib/ipc";
 import { createQueryClient } from "@/lib/queryClient";
 import { navigate, useRoute } from "@/lib/router";
@@ -91,6 +92,12 @@ function Shell() {
     toast("info", `Queued ${ids.length} ${ids.length === 1 ? "refresh" : "refreshes"}`);
   }
 
+  // Signs out and drops the cache the UI is holding for that account.
+  function signOutNow(): void {
+    void signOut();
+    queryClient.removeQueries({ queryKey: ["repos"] });
+  }
+
   function runPaletteAction(id: string): void {
     switch (id) {
       case "track-repos":
@@ -108,8 +115,7 @@ function Shell() {
         void refreshAll();
         break;
       case "sign-out":
-        void signOut();
-        queryClient.removeQueries({ queryKey: ["repos"] });
+        signOutNow();
         break;
       default:
         break;
@@ -149,18 +155,17 @@ function Shell() {
                   <Settings className="size-3.5" />
                 </Button>
 
-                <div className="flex items-center gap-2">
-                  {session.avatarUrl ? (
-                    <img
-                      src={session.avatarUrl}
-                      alt=""
-                      width={20}
-                      height={20}
-                      className="size-5 rounded-full border border-line"
-                    />
-                  ) : null}
-                  <span className="text-xs text-ink-soft">{session.login}</span>
-                </div>
+                <AccountMenu
+                  session={session}
+                  accounts={accounts.data ?? []}
+                  onSwitch={(login) => {
+                    void switchAccount(login);
+                  }}
+                  onAddAccount={() => {
+                    void startSignIn();
+                  }}
+                  onSignOut={signOutNow}
+                />
               </>
             ) : null}
           </>

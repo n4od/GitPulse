@@ -1,6 +1,6 @@
 [package]
 name = "gitpulse"
-version = "0.6.1"
+version = "0.6.2"
 description = "Local-first GitHub workflow monitor"
 license = "MIT"
 edition = "2021"

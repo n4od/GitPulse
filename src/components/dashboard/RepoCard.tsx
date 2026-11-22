@@ -287,7 +287,7 @@ export const RepoCard = memo(function RepoCard({
             {
               id: "refresh",
               label: "Refresh",
-              icon: <RefreshCw className="size-3.5" />,
+              leading: <RefreshCw className="size-3.5" />,
               onSelect: () => {
                 onRefresh(repo.id);
               },
@@ -295,7 +295,7 @@ export const RepoCard = memo(function RepoCard({
             {
               id: "copy",
               label: "Copy run URL",
-              icon: <Copy className="size-3.5" />,
+              leading: <Copy className="size-3.5" />,
               onSelect: () => {
                 void copyRunUrl();
               },
@@ -303,7 +303,7 @@ export const RepoCard = memo(function RepoCard({
             {
               id: "mute",
               label: repo.monitored ? "Mute notifications" : "Unmute notifications",
-              icon: <BellOff className="size-3.5" />,
+              leading: <BellOff className="size-3.5" />,
               onSelect: () => {
                 onToggleMonitored(repo.id, !repo.monitored);
               },
@@ -311,7 +311,7 @@ export const RepoCard = memo(function RepoCard({
             {
               id: "open",
               label: "Open on GitHub",
-              icon: <ExternalLink className="size-3.5" />,
+              leading: <ExternalLink className="size-3.5" />,
               onSelect: openOnGitHub,
             },
           ]}

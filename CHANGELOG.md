@@ -17,6 +17,46 @@ _Nothing yet._
 
 ---
 
+## [0.6.2] — 2026-11-22
+
+The account switcher moved to where the account is. Nothing else about the
+application changed.
+
+### Changed
+
+- **The account list moved out of Settings, onto the avatar in the header.** It
+  was a section beside notifications and polling, which made "which account am I
+  on?" read as a behaviour preference — and it split the three account actions
+  across two places. Clicking the avatar now opens a menu listing every account,
+  each with its own circular picture and the active one ticked, with
+  `Add another account...` and `Sign out of <login>` below a divider. Settings is
+  back to behaviour — notifications, quiet hours, window, polling, diagnostics,
+  webhooks — and the command palette still offers each account by name.
+- **The menu primitive gained checked rows, separators and arrow-key navigation.**
+  It can now carry state rather than only actions. A checked row is a
+  `menuitemcheckbox`, so a state is not announced as an action; a separator is a
+  separate shape, so a "separator that does something when clicked" cannot be
+  written. The repository cards' right-click menu gets the keyboard handling for
+  free, and focus returns to whatever opened the menu.
+- **`ContextMenuItem.icon` became `leading`**, because it now carries an account's
+  picture as often as a glyph.
+
+### Added
+
+- **`Avatar`** — a circular picture with the account's initial as a fallback when
+  the URL is absent or fails to load. The header trigger and every menu row use
+  it, so the two cannot disagree about what an account looks like, and a trigger
+  cannot collapse to nothing when an image 404s.
+
+### Fixed
+
+- **The menu could not be dismissed by the button that opened it.** Its
+  outside-click handler runs in the capture phase, so pressing the trigger closed
+  the menu and then reopened it. The menu now takes its trigger as an argument and
+  treats clicks on it as a toggle.
+
+---
+
 ## [0.6.1] — 2026-11-22
 
 The application is unchanged from `0.6.0`. This release exists so that the
