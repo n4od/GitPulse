@@ -500,6 +500,20 @@ Unscheduled. Promote into a milestone when it becomes a real user complaint.
 - Organization and team filters
 - GraphQL batching to cut request count
 - Saved filter presets and pinned ordering
+- **A stable local listener port.** It binds an OS-chosen port and records `0`,
+  so the URL GitHub was given stops working at the next launch — which makes the
+  tunnel transport a per-session setup rather than a configuration. Either a fixed
+  default or persisting the port actually bound. Found while verifying a real
+  webhook delivery, where the payload URL had to be re-pasted into GitHub after
+  every restart.
+- **Say what the relay cannot do, or drop it.** `smee.io` re-encodes the body, so
+  a signature can never verify through it and every delivery is refused. The
+  transport is still offered and its hint reads "needs only a URL" — which makes
+  it look like the easy option when it is the one that cannot work.
+- **The webhook panel's URL shapes.** It asks for a public URL for the health
+  probe, but the URL to paste into GitHub is that base plus the path segment plus
+  `/webhook`. Two shapes for one concept, and the difference is invisible unless
+  you read the source.
 - Webhook-only mode (disable polling entirely)
 - Full-text search index over cached logs
 - Windows toast action buttons ("Re-run", "Open")

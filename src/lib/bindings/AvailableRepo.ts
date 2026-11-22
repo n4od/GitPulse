@@ -3,4 +3,10 @@
 /**
  * A repository GitHub offers that `GitPulse` may or may not already watch.
  */
-export type AvailableRepo = { githubId: number, fullName: string, isPrivate: boolean, avatarUrl: string | null, tracked: boolean, };
+export type AvailableRepo = {
+  githubId: number;
+  fullName: string;
+  isPrivate: boolean;
+  avatarUrl: string | null;
+  tracked: boolean;
+};
