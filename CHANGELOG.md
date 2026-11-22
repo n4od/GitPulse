@@ -17,6 +17,35 @@ _Nothing yet._
 
 ---
 
+## [0.6.1] — 2026-11-22
+
+The application is unchanged from `0.6.0`. This release exists so that the
+binaries carry a dependency the advisory database is content with.
+
+### Security
+
+- **`url` is now 2.5.9**, which patches
+  [RUSTSEC-2026-0592](https://github.com/servo/rust-url/pull/1186): a stack
+  overflow in `Url::origin()` on nested `blob:` URLs. The advisory was published
+  on 2026-11-20 and turned CI red the next day against a repository that had not
+  changed, because `cargo-audit` reads the advisory database on every run — worth
+  knowing, because a red audit does not mean someone edited a dependency.
+- **The affected function was never reachable from GitPulse.** It calls
+  `Url::parse` twice — once to validate a URL before handing it to the OS opener,
+  once for a base URL in the log viewer — and `Url::origin()` nowhere. So
+  `0.6.0`'s binaries shipped the flaw without being able to reach it; this release
+  is for whoever scans them next and should not have to reconstruct that.
+
+### Changed
+
+- **The dependency audit now says what it found.** It emitted only `::error`
+  annotations, which the runner consumes into the UI, so the job log read
+  `1 vulnerabilities` and nothing else — the crate, the advisory and the fix
+  were visible only through the checks API. It now prints the finding as plain
+  text as well, and ends by naming the remedy.
+
+---
+
 ## [0.6.0] — 2026-11-22
 
 More than one GitHub account, switchable without signing in again.

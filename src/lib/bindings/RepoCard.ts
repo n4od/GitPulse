@@ -9,9 +9,13 @@ import type { WorkflowRun } from "./WorkflowRun";
  * are derived from the runs we hold, and shipping them together means the UI
  * never has to fetch twice to render one card — or to update one.
  */
-export type RepoCard = { repo: Repo, 
-/**
- * Newest first, capped. The card shows a sparkline and the dashboard's run
- * list reads from here, so shipping them together avoids a second fetch.
- */
-recentRuns: Array<WorkflowRun>, failingRuns: number, hasActiveRun: boolean, };
+export type RepoCard = {
+  repo: Repo;
+  /**
+   * Newest first, capped. The card shows a sparkline and the dashboard's run
+   * list reads from here, so shipping them together avoids a second fetch.
+   */
+  recentRuns: Array<WorkflowRun>;
+  failingRuns: number;
+  hasActiveRun: boolean;
+};
