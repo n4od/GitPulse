@@ -16,11 +16,11 @@ signing out at the bottom of Settings.
 Clicking the **avatar in the header** now opens a menu:
 
 ```
-  (you) n4od          ✓
-  (you) birukboss
+  (you) octocat        ✓
+  (you) hubot
   ─────────────────────
   +     Add another account...
-  ⇥     Sign out of n4od
+  ⇥     Sign out of octocat
 ```
 
 Every account shows **its own circular picture**, and the active one is ticked.

@@ -755,12 +755,12 @@ fn a_different_account_discards_the_previous_cache() {
     let connection = connection();
 
     // Claiming an empty cache records the owner and deletes nothing.
-    assert!(!cache::claim_for_account(&connection, "birukboss").expect("claim"));
+    assert!(!cache::claim_for_account(&connection, "hubot").expect("claim"));
 
     repos::upsert(&connection, &repo_upsert(1, "acme/api")).expect("insert repo");
 
     // The same account keeps its cache.
-    assert!(!cache::claim_for_account(&connection, "birukboss").expect("claim"));
+    assert!(!cache::claim_for_account(&connection, "hubot").expect("claim"));
     assert_eq!(repos::count(&connection).expect("count"), 1);
 
     // A different account inherits nothing from the first one.
@@ -783,15 +783,15 @@ fn an_unowned_cache_is_not_trusted() {
     let connection = connection();
     repos::upsert(&connection, &repo_upsert(1, "someones-else/api")).expect("insert repo");
 
-    assert!(cache::claim_for_account(&connection, "birukboss").expect("claim"));
+    assert!(cache::claim_for_account(&connection, "hubot").expect("claim"));
     assert_eq!(repos::count(&connection).expect("count"), 0);
     assert_eq!(
         super::meta::get(&connection, cache::ACCOUNT_KEY)
             .expect("read owner")
             .as_deref(),
-        Some("birukboss")
+        Some("hubot")
     );
 
     // And it is a one-time cost: the next launch sees a matching owner.
-    assert!(!cache::claim_for_account(&connection, "birukboss").expect("claim"));
+    assert!(!cache::claim_for_account(&connection, "hubot").expect("claim"));
 }

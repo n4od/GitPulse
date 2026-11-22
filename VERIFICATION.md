@@ -13,7 +13,7 @@ Last updated: 2026-11-20, after M10.
 ## Verified, with real evidence
 
 | **A real device flow completed** | A human authorised the app in a browser; the access token, refresh token and metadata landed in Windows Credential Manager |
-| **The stored token works** | `GET /user` with the keychain token returned `birukboss` |
+| **The stored token works** | `GET /user` with the keychain token returned the account that authorised the app |
 | **The endpoint layer works live** | `GET /user/repos` returned 2 real repositories; `GET /actions/runs` returned 2 real runs with statuses and conclusions |
 | **Polling writes real data** | The running app polled both repos; SQLite holds 2 repos, 2 runs and fresh `last_polled_at` timestamps |
 | **Transient network blips are survivable** | Earlier live polling failed repeatedly; after the retry fix, 75 seconds of live polling produced zero failures |
