@@ -27,15 +27,26 @@ export function useAuthBridge(): void {
     let unlisten: (() => void) | undefined;
 
     /**
-     * Signing out discards the account's cache on the Rust side. The in-memory
-     * copy has to go with it: a card fetched with the previous account's token
-     * would otherwise render for another frame, and since the next sign-in may
-     * be a different account, that would be another account's repository.
+     * Which account the in-memory cache belongs to, so that a change can be told
+     * apart from a repeat of the same state.
+     */
+    let cachedFor: string | null = null;
+
+    /**
+     * Signing out discards the account's cache on the Rust side, and switching
+     * accounts swaps the database under it. Either way the in-memory copy has to
+     * go with it: a card fetched with the previous account's token would
+     * otherwise render as though it were this account's — the same mistake
+     * whether the account changed by signing out or by switching.
      */
     const apply = (state: AuthState): void => {
-      if (state.phase === "signedOut") {
+      const login = state.phase === "authorized" ? state.session.login : null;
+
+      if (login !== cachedFor) {
         queryClient.clear();
+        cachedFor = login;
       }
+
       setState(state);
     };
 

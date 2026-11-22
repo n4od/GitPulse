@@ -48,6 +48,25 @@ export async function retrySignIn(): Promise<void> {
   }
 }
 
+/** The accounts already signed in on this machine, so they can be switched to. */
+export async function listAccounts(): Promise<string[]> {
+  return call<string[]>("auth_accounts");
+}
+
+/**
+ * Moves to an account that is already signed in.
+ *
+ * No browser, no device code: its tokens are already in the keychain. The new
+ * state arrives over `auth://state`, so nothing is returned here.
+ */
+export async function switchAccount(login: string): Promise<void> {
+  try {
+    await call("auth_switch_account", { login });
+  } catch (cause) {
+    toast("error", "Could not switch account", toPulseError(cause).message);
+  }
+}
+
 export function openVerificationUri(uri: string): void {
   void call("system_open_url", { url: uri }).catch((cause: unknown) => {
     toast("error", "Could not open the browser", toPulseError(cause).message);

@@ -82,6 +82,8 @@ pub fn run() {
             commands::auth::auth_cancel_device_flow,
             commands::auth::auth_sign_out,
             commands::auth::auth_refresh_session,
+            commands::auth::auth_accounts,
+            commands::auth::auth_switch_account,
             commands::shell::native_get_settings,
             commands::shell::native_set_settings,
             commands::diagnostics::system_clear_cache,

@@ -39,6 +39,8 @@ function seed(state: AuthState): void {
     switch (command) {
       case "repos_list":
         return Promise.resolve([]);
+      case "auth_accounts":
+        return Promise.resolve(["octocat"]);
       case "native_get_settings":
         return Promise.resolve({
           notificationsEnabled: true,

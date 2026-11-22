@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Database, LogOut, Webhook } from "lucide-react";
+import { Database, LogOut, Plus, Webhook } from "lucide-react";
 import type { NativeSettings } from "@/lib/bindings/NativeSettings";
 import type { SystemMetrics } from "@/lib/bindings/SystemMetrics";
 import { Button } from "@/components/primitives/Button";
@@ -8,9 +8,11 @@ import { Card, CardBody, CardHeader } from "@/components/primitives/Card";
 import { Spinner } from "@/components/primitives/Spinner";
 import { useLiveStore } from "@/stores/live";
 import { useSettingsStore } from "@/stores/settings";
+import { useSession } from "@/stores/auth";
+import { useAccounts } from "@/hooks/useAccounts";
 import { call } from "@/lib/ipc";
 import { toPulseError } from "@/lib/errors";
-import { signOut } from "@/lib/auth-commands";
+import { signOut, startSignIn, switchAccount } from "@/lib/auth-commands";
 import { toast } from "@/stores/toasts";
 
 interface SettingsPanelProps {
@@ -24,6 +26,8 @@ export function SettingsPanel({ onClose, onOpenWebhooks }: SettingsPanelProps) {
   const load = useSettingsStore((store) => store.load);
   const update = useSettingsStore((store) => store.update);
   const poller = useLiveStore((store) => store.poller);
+  const session = useSession();
+  const accounts = useAccounts(session !== null);
 
   // A draft, not state mirrored from props: mirroring needs an effect, and an
   // effect that sets state on every settings change is a render loop waiting
@@ -74,6 +78,79 @@ export function SettingsPanel({ onClose, onOpenWebhooks }: SettingsPanelProps) {
           ) : (
             <>
               <fieldset className="space-y-2">
+                <legend className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
+                  Accounts
+                </legend>
+
+                {accounts.isPending ? (
+                  <Spinner className="size-3.5 text-ink-muted" />
+                ) : accounts.isError ? (
+                  <p className="text-[11px] text-bad">
+                    {toPulseError(accounts.error).message}
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {(accounts.data ?? []).map((login) => {
+                      // The list is stored lowercased; the session's login is
+                      // GitHub's spelling of it.
+                      const active = login === session?.login.toLowerCase();
+
+                      return (
+                        <li key={login} className="flex items-center gap-2 text-xs">
+                          <span
+                            className={active ? "font-medium text-ink" : "text-ink-soft"}
+                          >
+                            {login}
+                          </span>
+                          {active ? (
+                            <span className="rounded-full border border-line bg-raised px-1.5 text-[10px] text-ink-muted">
+                              active
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="ml-auto"
+                              aria-label={`Switch to ${login}`}
+                              onClick={() => {
+                                void switchAccount(login);
+                              }}
+                            >
+                              Switch
+                            </Button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <p className="text-[11px] leading-4 text-ink-muted">
+                  Each account keeps its own cache and its own keychain entry, so
+                  switching is immediate — there is no sign-in round trip, and the other
+                  account's data is never on screen.
+                </p>
+
+                <div className="pt-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    leadingIcon={<Plus className="size-3.5" />}
+                    onClick={() => {
+                      // Signing in again is how an account is added: the flow
+                      // adopts the new one and switches to it, and the account
+                      // signed in now keeps its tokens and its cache. Closing the
+                      // panel lets the browser code be seen.
+                      void startSignIn();
+                      onClose();
+                    }}
+                  >
+                    Add another account
+                  </Button>
+                </div>
+              </fieldset>
+
+              <fieldset className="space-y-2 border-t border-line pt-3">
                 <legend className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
                   Notifications
                 </legend>
@@ -221,7 +298,7 @@ export function SettingsPanel({ onClose, onOpenWebhooks }: SettingsPanelProps) {
                     onClose();
                   }}
                 >
-                  Sign out
+                  Sign out{session ? ` of ${session.login}` : ""}
                 </Button>
               </div>
             </>

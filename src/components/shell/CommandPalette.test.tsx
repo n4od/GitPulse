@@ -8,6 +8,7 @@ function setup(overrides: Partial<Parameters<typeof CommandPalette>[0]> = {}) {
   const handlers = {
     onClose: vi.fn(),
     onOpenRepo: vi.fn(),
+    onSwitchAccount: vi.fn(),
     onAction: vi.fn(),
   };
 
@@ -52,6 +53,20 @@ describe("CommandPalette", () => {
     );
 
     expect(screen.getByText("acme/api")).toBeInTheDocument();
+  });
+
+  it("offers the other accounts signed in on this machine", async () => {
+    const handlers = setup({ accounts: ["n4od", "octocat"] });
+
+    await userEvent.type(
+      screen.getByLabelText(/search repositories and actions/i),
+      "n4od",
+    );
+    await userEvent.keyboard("{Enter}");
+
+    expect(handlers.onSwitchAccount).toHaveBeenCalledWith("n4od");
+    expect(handlers.onOpenRepo).not.toHaveBeenCalled();
+    expect(handlers.onAction).not.toHaveBeenCalled();
   });
 
   it("opens the highlighted repository on Enter", async () => {

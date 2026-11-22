@@ -8,8 +8,11 @@ const MAX_RESULTS = 8;
 
 interface CommandPaletteProps {
   cards: readonly RepoCard[];
+  /** Accounts already signed in, so switching is one keystroke away. */
+  accounts?: readonly string[];
   onClose: () => void;
   onOpenRepo: (repoId: number) => void;
+  onSwitchAccount?: (login: string) => void;
   onAction: (id: string) => void;
 }
 
@@ -21,8 +24,10 @@ interface CommandPaletteProps {
  */
 export function CommandPalette({
   cards,
+  accounts = [],
   onClose,
   onOpenRepo,
+  onSwitchAccount,
   onAction,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
@@ -30,9 +35,17 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const entries = useMemo<Array<PaletteEntry & { repoId?: number }>>(
+  const entries = useMemo<
+    Array<PaletteEntry & { repoId?: number; accountLogin?: string }>
+  >(
     () => [
       ...PALETTE_ACTIONS,
+      ...accounts.map((login) => ({
+        id: `account-${login}`,
+        label: login,
+        detail: "account",
+        accountLogin: login,
+      })),
       ...cards.map((card) => ({
         id: `repo-${card.repo.id}`,
         label: card.repo.fullName,
@@ -40,7 +53,7 @@ export function CommandPalette({
         repoId: card.repo.id,
       })),
     ],
-    [cards],
+    [accounts, cards],
   );
 
   const results = useMemo(
@@ -69,6 +82,8 @@ export function CommandPalette({
 
     if (entry.repoId !== undefined) {
       onOpenRepo(entry.repoId);
+    } else if (entry.accountLogin !== undefined) {
+      onSwitchAccount?.(entry.accountLogin);
     } else {
       onAction(entry.id);
     }

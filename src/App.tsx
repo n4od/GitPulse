@@ -11,9 +11,10 @@ import { StatusBar } from "@/components/shell/StatusBar";
 import { TitleBar } from "@/components/shell/TitleBar";
 import { WebhookPanel } from "@/components/webhook/WebhookPanel";
 import { useAuthBridge } from "@/hooks/useAuthBridge";
+import { useAccounts } from "@/hooks/useAccounts";
 import { useLiveUpdates } from "@/hooks/useLiveUpdates";
 import { useRepos } from "@/hooks/useRepos";
-import { signOut } from "@/lib/auth-commands";
+import { signOut, switchAccount } from "@/lib/auth-commands";
 import { call } from "@/lib/ipc";
 import { createQueryClient } from "@/lib/queryClient";
 import { navigate, useRoute } from "@/lib/router";
@@ -56,6 +57,7 @@ function Shell() {
   useLiveUpdates();
 
   const repos = useRepos(Boolean(session));
+  const accounts = useAccounts(Boolean(session));
   const cards = repos.data ?? [];
 
   // Ctrl/Cmd+K opens the palette; Escape closes whatever is open. Registered
@@ -201,10 +203,14 @@ function Shell() {
       {overlay === "palette" ? (
         <CommandPalette
           cards={cards}
+          accounts={accounts.data ?? []}
           onClose={() => {
             setOverlay(null);
           }}
           onOpenRepo={inspect}
+          onSwitchAccount={(login) => {
+            void switchAccount(login);
+          }}
           onAction={runPaletteAction}
         />
       ) : null}

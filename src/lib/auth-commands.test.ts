@@ -6,10 +6,12 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 import {
   cancelSignIn,
+  listAccounts,
   openVerificationUri,
   retrySignIn,
   signOut,
   startSignIn,
+  switchAccount,
 } from "@/lib/auth-commands";
 import type { AuthState } from "@/lib/bindings/AuthState";
 import { useToastStore } from "@/stores/toasts";
@@ -115,5 +117,38 @@ describe("auth commands", () => {
     expect(invoke).toHaveBeenCalledWith("system_open_url", {
       url: "https://github.com/login/device",
     });
+  });
+
+  it("lists the accounts already signed in on this machine", async () => {
+    invoke.mockResolvedValue(["n4od", "octocat"]);
+
+    await expect(listAccounts()).resolves.toEqual(["n4od", "octocat"]);
+    expect(invoke).toHaveBeenCalledWith("auth_accounts", undefined);
+  });
+
+  it("switches account without starting a device flow", async () => {
+    invoke.mockResolvedValue(undefined);
+
+    await switchAccount("n4od");
+
+    expect(invoke).toHaveBeenCalledWith("auth_switch_account", { login: "n4od" });
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(toasts()).toHaveLength(0);
+  });
+
+  it("reports a failed switch as an error toast", async () => {
+    invoke.mockRejectedValue({
+      code: "auth_required",
+      message: "that account is not signed in on this machine",
+      retryable: false,
+    });
+
+    await switchAccount("nobody");
+
+    expect(toasts()).toHaveLength(1);
+    expect(toasts()[0]?.tone).toBe("error");
+    expect(toasts()[0]?.description).toBe(
+      "that account is not signed in on this machine",
+    );
   });
 });

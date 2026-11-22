@@ -35,6 +35,13 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
   on demand, refreshing only the account being activated — so switching costs a
   keychain read rather than a round of device flow. What is not built yet is the
   UI that asks it to switch. (`M13-04`.)
+- **Accounts can be added and switched without signing in again.** Settings lists
+  every account signed in on this machine with the active one marked, the command
+  palette offers each by name, signing out names the account it applies to, and
+  `Add another account` runs the device flow without disturbing the account
+  already signed in. Switching activates that account's tokens, opens its
+  database, and only then publishes the new state — and the in-memory query cache
+  is cleared whenever the account changes, not only when it signs out. (`M13-05`.)
 
 ---
 

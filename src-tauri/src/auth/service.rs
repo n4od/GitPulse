@@ -16,7 +16,7 @@ use crate::error::AppError;
 use super::device_flow;
 use super::oauth::OAuthClient;
 use super::tokens::TokenManager;
-use super::types::AuthState;
+use super::types::{AuthSession, AuthState};
 
 /// Event name the frontend subscribes to.
 pub const AUTH_STATE_EVENT: &str = "auth://state";
@@ -57,6 +57,40 @@ impl AuthService {
 
     pub fn tokens(&self) -> &Arc<TokenManager> {
         &self.tokens
+    }
+
+    /// The accounts this machine has tokens for, so the UI can offer them.
+    pub fn known_logins(&self) -> Result<Vec<String>, AppError> {
+        self.tokens.known_logins()
+    }
+
+    /// Switches to an account that is already signed in on this machine.
+    ///
+    /// No device flow: its tokens are in the keychain. The order is the point —
+    /// the tokens are activated first, then *that* account's database is opened,
+    /// and only then is the new state published — so the window cannot paint a
+    /// session whose data is still the previous account's.
+    pub async fn switch_account(
+        &self,
+        app: &AppHandle,
+        login: &str,
+    ) -> Result<AuthSession, AppError> {
+        // Anything half-finished for the account being left is not for this one.
+        self.cancel_in_flight();
+
+        let session = self.tokens.activate(login).await?;
+
+        self.ensure_database(&session.login).await?;
+
+        self.publish(
+            app,
+            &AuthState::Authorized {
+                session: session.clone(),
+            },
+        );
+
+        tracing::info!(login = %session.login, "switched account");
+        Ok(session)
     }
 
     /// Opens the account's database.
@@ -243,14 +277,7 @@ impl AuthService {
     }
 
     fn publish_failure(&self, app: &AppHandle, error: &AppError) {
-        let state = match error {
-            // Cancelling is a user action, not a failure to report.
-            AppError::AuthCancelled => AuthState::SignedOut,
-            AppError::AuthDenied => AuthState::Denied,
-            AppError::AuthExpired => AuthState::Expired,
-            other => AuthState::failed(other),
-        };
-
+        let state = failure_state(error, self.tokens.session().as_ref());
         self.publish(app, &state);
     }
 
@@ -288,4 +315,100 @@ fn open_in_browser(app: &AppHandle, url: &str) -> Result<(), AppError> {
     app.opener()
         .open_url(url.to_owned(), None::<&str>)
         .map_err(|error| AppError::Internal(format!("cannot open the browser: {error}")))
+}
+
+/// What to publish when a sign-in attempt ends without a new session.
+///
+/// Signing in *again* is how a second account is added, so a flow that is
+/// cancelled, refused or expires must return to the session that is already
+/// there rather than signing someone out of it. Anything else is a real failure
+/// and is reported as one even though the existing session survives — hiding it
+/// would leave the user wondering why the attempt did nothing.
+fn failure_state(error: &AppError, existing: Option<&AuthSession>) -> AuthState {
+    let ended_early = matches!(
+        error,
+        AppError::AuthCancelled | AppError::AuthDenied | AppError::AuthExpired
+    );
+
+    if ended_early {
+        if let Some(session) = existing {
+            return AuthState::Authorized {
+                session: session.clone(),
+            };
+        }
+    }
+
+    match error {
+        // Cancelling is a user action, not a failure to report.
+        AppError::AuthCancelled => AuthState::SignedOut,
+        AppError::AuthDenied => AuthState::Denied,
+        AppError::AuthExpired => AuthState::Expired,
+        other => AuthState::failed(other),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::failure_state;
+    use crate::auth::types::{AuthSession, AuthState};
+    use crate::error::AppError;
+
+    fn session(login: &str) -> AuthSession {
+        AuthSession {
+            login: login.to_owned(),
+            avatar_url: None,
+            display_name: None,
+            expires_at: None,
+            scopes: Vec::new(),
+            can_refresh: true,
+        }
+    }
+
+    #[test]
+    fn a_cancelled_flow_returns_to_the_account_that_is_still_signed_in() {
+        // Adding a second account means signing in again. Cancelling that must
+        // not sign out of the first one.
+        let existing = session("n4od");
+
+        let state = failure_state(&AppError::AuthCancelled, Some(&existing));
+
+        assert!(
+            matches!(&state, AuthState::Authorized { session } if session.login == "n4od"),
+            "got {state:?}"
+        );
+    }
+
+    #[test]
+    fn a_cancelled_first_sign_in_is_still_signed_out() {
+        let state = failure_state(&AppError::AuthCancelled, None);
+
+        assert!(matches!(state, AuthState::SignedOut), "got {state:?}");
+    }
+
+    #[test]
+    fn a_refused_or_expired_flow_also_returns_to_the_existing_session() {
+        let existing = session("n4od");
+
+        for error in [AppError::AuthDenied, AppError::AuthExpired] {
+            let state = failure_state(&error, Some(&existing));
+
+            assert!(
+                matches!(state, AuthState::Authorized { .. }),
+                "{error:?} gave {state:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_real_failure_is_reported_even_though_the_session_survives() {
+        let existing = session("n4od");
+        let error = AppError::network(std::io::Error::other("timed out"), true);
+
+        let state = failure_state(&error, Some(&existing));
+
+        assert!(
+            matches!(state, AuthState::Failed { .. }),
+            "a network failure is not something to swallow, got {state:?}"
+        );
+    }
 }

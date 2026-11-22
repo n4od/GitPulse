@@ -52,6 +52,34 @@ pub fn auth_sign_out(app: AppHandle, auth: State<'_, Arc<AuthService>>) -> Resul
     auth.sign_out(&app)
 }
 
+/// The accounts this machine can switch between without signing in again.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri injects command arguments by value"
+)]
+pub fn auth_accounts(auth: State<'_, Arc<AuthService>>) -> Result<Vec<String>, AppError> {
+    auth.known_logins()
+}
+
+/// Switches to an account that is already signed in on this machine.
+///
+/// The UI follows `auth://state` for the result, as it does for every other
+/// auth transition.
+#[tauri::command]
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "Tauri injects command arguments by value"
+)]
+pub async fn auth_switch_account(
+    app: AppHandle,
+    auth: State<'_, Arc<AuthService>>,
+    login: String,
+) -> Result<(), AppError> {
+    auth.switch_account(&app, &login).await?;
+    Ok(())
+}
+
 /// Re-checks the session and refreshes the token if it is close to expiry.
 #[tauri::command]
 #[allow(
