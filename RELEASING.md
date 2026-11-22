@@ -18,7 +18,7 @@ draft release.
 # 2. Tag it.
 git tag v0.5.6
 git push origin v0.5.6            # this starts the release workflow
-# 3. Wait for CI. It produces a *draft* release with fourteen artifacts attached.
+# 3. Wait for CI. It produces a *draft* release with thirteen artifacts attached.
 # 4. Read the notes, check the artifacts, then publish the draft by hand.
 ```
 
@@ -55,8 +55,8 @@ release nobody reviewed.
 
 Every release ships two ways to run GitPulse: an **installer**, and a
 **portable** build that unpacks and runs with nothing installed and no admin
-rights. That is **nine files a human downloads**, and four more that only the
-app reads — three update artifacts and `latest.json`. **Fourteen in all**,
+rights. That is **nine files a human downloads**, and three more that only the
+app reads — two update artifacts and `latest.json`. **Thirteen in all**,
 counting `SHA256SUMS.txt`.
 
 | Platform            | Installer(s)          | Portable                                        |
@@ -81,27 +81,31 @@ GitPulse-linux-x64.deb
 GitPulse-linux-x64.AppImage
 GitPulse-macos-arm64-updater.tar.gz
 GitPulse-macos-x64-updater.tar.gz
-GitPulse-linux-x64-updater.tar.gz
 latest.json
 SHA256SUMS.txt
 ```
 
 #### The update artifacts
 
-The last four exist so the app can update itself, and nobody should download them
+Those three exist so the app can update itself, and nobody should download them
 by hand. `latest.json` maps each platform to a URL and a **signature**; the app
-fetches it, and fetches the artifact only if the user presses Install.
+fetches the manifest, and fetches the payload only if the user presses Install.
 
-The shape differs by platform, which is worth knowing before editing the workflow:
+The shape differs per platform, and getting it wrong is a failed release rather
+than a subtle bug — so it is worth knowing before editing the workflow:
 
-- **Windows has no update artifact.** The NSIS installer _is_ the update payload:
-  Tauri signs the `.exe` itself rather than wrapping it in a second archive, so
-  `GitPulse-windows-x64-setup.exe` appears in `latest.json` and the file is the
-  one a human downloads too.
-- **macOS and Linux** get a Tauri-built tarball, named `-updater.tar.gz` here so it
-  is not confused with the portable build. They are not interchangeable: the
-  updater verifies the bytes it fetches against the signature, so it must be the
-  tarball Tauri signed, not the one `scripts/package-portable.sh` produced.
+- **Windows and Linux have no update artifact of their own.** Tauri signs the
+  installer itself, so `GitPulse-windows-x64-setup.exe` and
+  `GitPulse-linux-x64.AppImage` are each both the install download _and_ the
+  update payload. There is no `.nsis.zip` and no `.AppImage.tar.gz`. That is not
+  an assumption: `tauri-action` prints its own _"Looking for artifacts"_ next to
+  _"Found artifacts"_, and the tarballs appear only in the first list.
+- **macOS is the exception**, because an `.app` cannot be replaced in place. Tauri
+  tars it, signs the tarball, and that is what the updater downloads. It is named
+  `-updater.tar.gz` here so it is not confused with the portable build — and the
+  two are **not** interchangeable: the updater verifies the bytes against the
+  signature, so it must be the tarball Tauri signed, not the one
+  `scripts/package-portable.sh` produced.
 
 The manifest is **assembled in the `verify` job** from one fragment per platform,
 because no single build job knows about the other three. A missing fragment fails
@@ -136,7 +140,7 @@ package, `x64` on Windows and `x86_64` in a Rust target triple.
 
 #### What `verify` enforces
 
-Not "an artifact matching this pattern exists" but **exactly these thirteen names,
+Not "an artifact matching this pattern exists" but **exactly these twelve names,
 and nothing else**. An asset nobody asked for is a signal that the pipeline
 changed underneath us — which is precisely how those two tarballs went unnoticed
 for four releases — and a missing one fails the run rather than being discovered

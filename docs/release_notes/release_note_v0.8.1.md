@@ -30,7 +30,7 @@ happen, the updater is broken and this file will say so in a later release.
 
 ## What was verified before publishing
 
-- The eleven other artifacts are the same code as `0.8.0`, so nothing can regress
+- The other artifacts are the same code as `0.8.0`, so nothing can regress
   that was not already shipped.
 - `latest.json` names four platforms, each with a signature, and points at
   tag-pinned URLs.

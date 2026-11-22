@@ -62,8 +62,9 @@ release's job.
   version would have failed to parse the blob on disk and silently reset
   everything — notifications, quiet hours, autostart, close-to-tray.
 - **The release workflow signs every updater artifact and publishes
-  `latest.json`.** Fourteen files per release now: the nine you download, three
-  update artifacts, `latest.json`, and the checksums.
+  `latest.json`.** Thirteen files per release now: the nine you download, two
+  update artifacts, `latest.json`, and the checksums. Only macOS needs an update
+  artifact of its own — Windows and Linux update from the same file you download.
 
 ## ⚠️ What did not change
 

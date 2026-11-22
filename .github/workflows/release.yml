@@ -201,18 +201,19 @@ jobs:
           slug="${{ matrix.slug }}"
           FOUND=""
 
-          # Expand globs rather than shelling out to `find`, so a pattern that
-          # matches nothing cannot become an empty argument.
+          # Expand globs in the shell rather than shelling out to `find`, so a
+          # pattern that matches nothing cannot become an empty argument.
           #
-          # The previous version was `cp "$(find ...)"`. A miss reached `cp` as
-          # `cp: cannot stat ''` - no pattern named, no directory contents, and
-          # twenty-five minutes to find that out. A failure here has to say what
-          # it wanted and what was there instead.
+          # The first version was `cp "$(find ...)"`, which reported a miss as
+          # `cp: cannot stat ''` - no pattern, no listing, twenty-five minutes for
+          # nothing. A failure here has to say what it wanted and what was there.
           #
-          # `globstar` lets the updater artifacts be found recursively, because
-          # Tauri places them by its own rules; the installers keep their
-          # documented directories.
-          shopt -s nullglob globstar
+          # `nullglob` only. NOT `globstar`: the macOS runner's /bin/bash is 3.2,
+          # where `shopt -s globstar` is an *error*, and under `set -e` that killed
+          # the step before it looked at a single file. Every path below is a
+          # directory Tauri has been observed to write to, so nothing needs
+          # recursive matching.
+          shopt -s nullglob
 
           find_one() {
             local label="$1"
@@ -230,12 +231,14 @@ jobs:
               echo "::error::could not find ${label}"
               echo "--- patterns tried ---"
               for pattern in "$@"; do echo "  ${pattern}"; done
-              echo "--- actually on disk ---"
-              if [ -d src-tauri/target ]; then
-                find src-tauri/target -maxdepth 6 -print | sort | head -80
-              else
-                echo "  (src-tauri/target does not exist)"
-              fi
+              echo "--- bundle directories ---"
+              # Targeted on purpose. Listing all of src-tauri/target fills the
+              # first lines with debug/ fingerprints and shows nothing useful.
+              for dir in src-tauri/target/*/release/bundle src-tauri/target/release/bundle; do
+                [ -d "$dir" ] || continue
+                echo "  ${dir}"
+                find "$dir" -maxdepth 2 -print | sort | sed 's|^|    |'
+              done
             } >&2
             exit 1
           }
@@ -256,7 +259,7 @@ jobs:
               cp "portable/GitPulse-${slug}-portable.zip" release-assets/
 
               find_one 'the installer signature' \
-                'src-tauri/target/release/bundle/**/*.exe.sig'
+                'src-tauri/target/release/bundle/nsis/*.exe.sig'
               sig="$FOUND"
               payload="GitPulse-${slug}-setup.exe"
               ;;
@@ -269,14 +272,14 @@ jobs:
                 'src-tauri/target/release/bundle/appimage/*.AppImage'
               cp "$FOUND" "release-assets/GitPulse-${slug}.AppImage"
 
-              find_one 'the AppImage update payload' \
-                'src-tauri/target/release/bundle/**/*.AppImage.tar.gz'
-              cp "$FOUND" "release-assets/GitPulse-${slug}-updater.tar.gz"
-
-              find_one 'the AppImage update signature' \
-                'src-tauri/target/release/bundle/**/*.AppImage.tar.gz.sig'
+              # Linux needs no payload of its own either: Tauri signs the AppImage
+              # itself. There is no .AppImage.tar.gz - that is what the first two
+              # runs of this step went looking for, and the bundler's own "Found
+              # artifacts" report is what settled it.
+              find_one 'the AppImage signature' \
+                'src-tauri/target/release/bundle/appimage/*.AppImage.sig'
               sig="$FOUND"
-              payload="GitPulse-${slug}-updater.tar.gz"
+              payload="GitPulse-${slug}.AppImage"
               ;;
             macos-latest)
               target="${{ matrix.args }}"
@@ -288,12 +291,15 @@ jobs:
 
               cp "portable/GitPulse-${slug}-portable.tar.gz" release-assets/
 
+              # macOS is the only platform with a payload of its own: an .app
+              # cannot be replaced in place, so Tauri tars it and signs the
+              # tarball. The directory is the one the bundler's report names.
               find_one 'the .app update payload' \
-                "src-tauri/target/${target}/release/bundle/**/*.app.tar.gz"
+                "src-tauri/target/${target}/release/bundle/macos/*.app.tar.gz"
               cp "$FOUND" "release-assets/GitPulse-${slug}-updater.tar.gz"
 
               find_one 'the .app update signature' \
-                "src-tauri/target/${target}/release/bundle/**/*.app.tar.gz.sig"
+                "src-tauri/target/${target}/release/bundle/macos/*.app.tar.gz.sig"
               sig="$FOUND"
               payload="GitPulse-${slug}-updater.tar.gz"
               ;;
@@ -470,8 +476,12 @@ jobs:
           # The nine at the top are what a human downloads, and what the README
           # links to. The `-updater.tar.gz` files and `latest.json` below are
           # machinery: the updater fetches them, and nobody should be pointed at
-          # them by hand. Windows contributes no updater artifact because its NSIS
-          # installer doubles as one.
+          # them by hand.
+          #
+          # Only macOS has an update artifact of its own - an .app cannot be
+          # replaced in place, so Tauri tars it. On Windows and Linux the
+          # installer *is* the payload, so those platforms contribute no asset
+          # and `latest.json` points at the file a human downloads too.
           expected=(
             "GitPulse-windows-x64-setup.exe"
             "GitPulse-windows-x64.msi"
@@ -484,7 +494,6 @@ jobs:
             "GitPulse-linux-x64.AppImage"
             "GitPulse-macos-arm64-updater.tar.gz"
             "GitPulse-macos-x64-updater.tar.gz"
-            "GitPulse-linux-x64-updater.tar.gz"
             "latest.json"
           )
 
