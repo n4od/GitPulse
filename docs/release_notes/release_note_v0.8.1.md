@@ -28,6 +28,21 @@ On a machine running `0.8.0`:
 Steps 2 to 4 are the entire point of this release. If any of them does not
 happen, the updater is broken and this file will say so in a later release.
 
+## What happened
+
+It worked, on Windows, the first time it was tried.
+
+1. **Settings → Updates** in an installed `0.8.0` read _0.8.1 is available._
+2. **Install 0.8.1 and restart** downloaded the installer, checked it against
+   the signature compiled into the app, and installed it.
+3. Ten seconds later the app was running again as `0.8.1` - a new process, the
+   binary and the uninstall entry both reading `0.8.1`, and
+   `starting version="0.8.1"` in the log.
+4. Settings then read `0.8.1`, and offered no update.
+
+macOS and Linux are built and signed the same way, but no update has been
+watched installing on either. That claim is still open.
+
 ## What was verified before publishing
 
 - The other artifacts are the same code as `0.8.0`, so nothing can regress
