@@ -1,5 +1,17 @@
 //! Local `SQLite` cache.
 //!
+//! # One file per account
+//!
+//! The cache holds what *one account* could see, so it is stored as one database
+//! per account — `gitpulse-<login>.db`. Isolation is then structural rather than
+//! a filter on every read: another account's rows are not in the database to
+//! leak. `meta.account_login` is kept as a cross-check, because a file copied or
+//! renamed under someone else's name would otherwise be trusted.
+//!
+//! The handle is deliberately indirect. Callers hold a [`Db`] clone — the poller,
+//! the tray, the webhook sink, every command — and the connection behind it is
+//! swapped when the account changes, so none of them has to be rebuilt.
+//!
 //! # Why a single connection
 //!
 //! The plan called for a read pool of four plus one write connection. That was
@@ -22,6 +34,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use rusqlite::Connection;
 
+use crate::accounts;
 use crate::error::AppError;
 
 pub mod cache;
@@ -49,6 +62,9 @@ pub use models::{
 pub use retention::RetentionReport;
 pub use runs::RunContext;
 
+/// The database written before there was one per account.
+const LEGACY_FILE: &str = "gitpulse.db";
+
 /// Applied to every connection immediately after it is opened.
 ///
 /// `foreign_keys` is the important one: it is per-connection and defaults to
@@ -69,61 +85,136 @@ pub struct Db {
 }
 
 struct Inner {
-    connection: Mutex<Connection>,
-    path: PathBuf,
+    /// Where an account's database lives. Unused while the database in memory is
+    /// the one in use.
+    directory: PathBuf,
+    /// The database in use, swapped when the account changes.
+    ///
+    /// There is always one. It is an in-memory database until an account is
+    /// known, so a read while signed out returns nothing rather than an error —
+    /// which is what the screen behind it shows anyway. Nothing is lost by that,
+    /// because nothing is written before there is an account to write it for.
+    current: Mutex<Open>,
+}
+
+struct Open {
+    connection: Connection,
+    /// `None` when this is the in-memory database.
+    file: Option<PathBuf>,
 }
 
 impl Db {
-    /// Opens (or creates) the database, applies pragmas and migrates.
+    /// A handle to the databases in `directory`.
     ///
-    /// Safe to call on every launch: migrations are recorded and skipped.
-    pub fn open(path: impl AsRef<Path>) -> Result<Self, AppError> {
-        let path = path.as_ref().to_path_buf();
+    /// Nothing is read from disk yet: the database is named after the account,
+    /// and the account is not known until the stored session has been read. Use
+    /// [`Db::open_account`] once it is.
+    pub fn new(directory: impl Into<PathBuf>) -> Result<Self, AppError> {
+        Ok(Self {
+            inner: Arc::new(Inner {
+                directory: directory.into(),
+                current: Mutex::new(Open {
+                    connection: in_memory()?,
+                    file: None,
+                }),
+            }),
+        })
+    }
 
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                std::fs::create_dir_all(parent).map_err(|error| {
-                    AppError::Config(format!(
-                        "cannot create data directory {}: {error}",
-                        parent.display()
-                    ))
-                })?;
+    /// An in-memory database, for tests and for a session that never reaches the
+    /// disk.
+    pub fn open_in_memory() -> Result<Self, AppError> {
+        Self::new(PathBuf::new())
+    }
+
+    /// Opens `login`'s database and makes it the one this handle reads.
+    ///
+    /// Opening it is also what claims it: the file is named for the account, and
+    /// [`cache::claim_for_account`] cross-checks the name recorded inside it.
+    /// A file whose contents claim a different account has those contents
+    /// discarded rather than served under the wrong name — the same rule `0.5.5`
+    /// applies to an unowned cache.
+    ///
+    /// Returns early when that account is already open, so callers that run on
+    /// every validation cost nothing.
+    pub fn open_account(&self, login: &str) -> Result<(), AppError> {
+        let normalized = accounts::normalize(login);
+
+        if normalized.is_empty() {
+            return Err(AppError::Config(
+                "cannot open a database for an account with no name".to_owned(),
+            ));
+        }
+
+        let file = self
+            .inner
+            .directory
+            .join(format!("gitpulse-{normalized}.db"));
+
+        {
+            let current = lock(&self.inner.current)?;
+            if current.file.as_deref() == Some(file.as_path()) {
+                return Ok(());
             }
         }
 
-        let connection = Connection::open(&path).map_err(AppError::db)?;
-        let connection = Self::prepare(connection)?;
+        file_legacy_database(&self.inner.directory)?;
 
-        Ok(Self {
-            inner: Arc::new(Inner {
-                connection: Mutex::new(connection),
-                path,
-            }),
-        })
+        let connection = open_file(&file, &normalized)?;
+
+        let mut current = lock(&self.inner.current)?;
+        *current = Open {
+            connection,
+            file: Some(file),
+        };
+
+        tracing::info!(account = %normalized, "opened the account's database");
+        Ok(())
     }
 
-    /// In-memory database, for tests and for a "session only" mode.
-    pub fn open_in_memory() -> Result<Self, AppError> {
-        let connection = Connection::open_in_memory().map_err(AppError::db)?;
-        let connection = Self::prepare(connection)?;
-
-        Ok(Self {
-            inner: Arc::new(Inner {
-                connection: Mutex::new(connection),
-                path: PathBuf::from(":memory:"),
-            }),
-        })
+    /// Closes the account's database, leaving the file where it is.
+    pub fn close(&self) -> Result<(), AppError> {
+        self.read_from_memory()
     }
 
-    fn prepare(connection: Connection) -> Result<Connection, AppError> {
-        connection.execute_batch(PRAGMAS).map_err(AppError::db)?;
-        migrate::apply(&connection)?;
-        Ok(connection)
+    /// Closes the account's database and deletes its file.
+    ///
+    /// This is what signing out does. The cached repositories were fetched with
+    /// the token that just went away, so they are not this account's to keep —
+    /// and with one file per account the file *is* the account, so removing it is
+    /// the whole of the operation.
+    pub fn forget_current(&self) -> Result<(), AppError> {
+        let file = lock(&self.inner.current)?.file.clone();
+
+        let Some(file) = file else {
+            return Ok(());
+        };
+
+        // Drop the connection before deleting: Windows will not remove a file
+        // that is still open.
+        self.read_from_memory()?;
+        remove_file_and_siblings(&file)?;
+
+        tracing::info!(file = %file.display(), "deleted the account's cache on sign-out");
+        Ok(())
     }
 
+    /// The file backing the current database, or `None` while it is in memory.
     #[must_use]
-    pub fn path(&self) -> &Path {
-        &self.inner.path
+    pub fn path(&self) -> Option<PathBuf> {
+        lock(&self.inner.current)
+            .ok()
+            .and_then(|open| open.file.clone())
+    }
+
+    fn read_from_memory(&self) -> Result<(), AppError> {
+        let connection = in_memory()?;
+        let mut current = lock(&self.inner.current)?;
+        *current = Open {
+            connection,
+            file: None,
+        };
+        Ok(())
     }
 
     /// Runs a closure against the connection on a blocking thread.
@@ -139,8 +230,8 @@ impl Db {
         let inner = Arc::clone(&self.inner);
 
         tokio::task::spawn_blocking(move || {
-            let connection = lock(&inner.connection)?;
-            operation(&connection)
+            let current = lock(&inner.current)?;
+            operation(&current.connection)
         })
         .await
         .map_err(|error| AppError::Internal(format!("database worker failed: {error}")))?
@@ -156,13 +247,142 @@ impl Db {
     where
         F: FnOnce(&Connection) -> Result<T, AppError>,
     {
-        let connection = lock(&self.inner.connection)?;
-        operation(&connection)
+        let current = lock(&self.inner.current)?;
+        operation(&current.connection)
     }
 }
 
-fn lock(connection: &Mutex<Connection>) -> Result<MutexGuard<'_, Connection>, AppError> {
-    connection.lock().map_err(|_| {
+/// Opens one account's file: directory, pragmas, migrations, and the claim.
+fn open_file(file: &Path, login: &str) -> Result<Connection, AppError> {
+    if let Some(parent) = file.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent).map_err(|error| {
+                AppError::Config(format!(
+                    "cannot create data directory {}: {error}",
+                    parent.display()
+                ))
+            })?;
+        }
+    }
+
+    let connection = Connection::open(file).map_err(AppError::db)?;
+    let connection = prepare(connection)?;
+
+    if cache::claim_for_account(&connection, login)? {
+        tracing::warn!(
+            account = %login,
+            "the database held another account's data; it has been discarded"
+        );
+    }
+
+    Ok(connection)
+}
+
+/// Files the database written before there was one per account.
+///
+/// `gitpulse.db` recorded its owner in `meta.account_login` from `0.5.5`
+/// onwards, so it can be renamed under that account's name instead of being
+/// thrown away — a rename, not a migration, because the rows are already the
+/// right account's. A file with no recorded owner predates that bookkeeping and
+/// cannot be attributed to anyone, so it is discarded: the rule `0.5.5` already
+/// applies to an unowned cache.
+fn file_legacy_database(directory: &Path) -> Result<(), AppError> {
+    let legacy = directory.join(LEGACY_FILE);
+
+    if !legacy.is_file() {
+        return Ok(());
+    }
+
+    let owner = read_owner(&legacy)?;
+
+    let Some(owner) = owner else {
+        remove_file_and_siblings(&legacy)?;
+        tracing::info!("discarded a pre-accounts cache that recorded no owner");
+        return Ok(());
+    };
+
+    let target = directory.join(format!("gitpulse-{}.db", accounts::normalize(&owner)));
+
+    if target.exists() {
+        // An earlier run already filed this account's data, so the leftover copy
+        // has nothing to add.
+        remove_file_and_siblings(&legacy)?;
+        tracing::info!(account = %owner, "discarded a duplicate pre-accounts database");
+        return Ok(());
+    }
+
+    std::fs::rename(&legacy, &target).map_err(|error| {
+        AppError::Config(format!(
+            "cannot file the pre-accounts database under {owner}: {error}"
+        ))
+    })?;
+
+    tracing::info!(
+        account = %owner,
+        file = %target.display(),
+        "filed the pre-accounts database under its owner"
+    );
+
+    Ok(())
+}
+
+/// The account a database records, read through a connection that is dropped
+/// again immediately.
+fn read_owner(path: &Path) -> Result<Option<String>, AppError> {
+    let connection = Connection::open(path).map_err(AppError::db)?;
+    let owner = cache::account_owner(&connection)?;
+
+    // Move anything still in the write-ahead log into the file itself, so that
+    // renaming the file does not leave its most recent writes behind.
+    connection
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+        .map_err(AppError::db)?;
+
+    Ok(owner)
+}
+
+fn prepare(connection: Connection) -> Result<Connection, AppError> {
+    connection.execute_batch(PRAGMAS).map_err(AppError::db)?;
+    migrate::apply(&connection)?;
+    Ok(connection)
+}
+
+fn in_memory() -> Result<Connection, AppError> {
+    let connection = Connection::open_in_memory().map_err(AppError::db)?;
+    prepare(connection)
+}
+
+/// Deletes a database along with the write-ahead log and shared-memory file
+/// beside it, which is where the most recent writes live until a checkpoint.
+fn remove_file_and_siblings(file: &Path) -> Result<(), AppError> {
+    for candidate in [
+        file.to_path_buf(),
+        sibling(file, "-wal"),
+        sibling(file, "-shm"),
+    ] {
+        match std::fs::remove_file(&candidate) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(AppError::Config(format!(
+                    "cannot delete {}: {error}",
+                    candidate.display()
+                )))
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn sibling(file: &Path, suffix: &str) -> PathBuf {
+    let mut name = file.as_os_str().to_os_string();
+    name.push(suffix);
+    PathBuf::from(name)
+}
+
+fn lock(current: &Mutex<Open>) -> Result<MutexGuard<'_, Open>, AppError> {
+    current.lock().map_err(|_| {
         AppError::Internal("the database connection was poisoned by an earlier panic".to_owned())
     })
 }

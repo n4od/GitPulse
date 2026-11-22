@@ -566,8 +566,13 @@ Consequences worth having written down:
   `Db::open(data_directory.join("gitpulse.db"))` runs during `setup`, before
   auth. With one file per account the path depends on the active login, so the
   open moves _after_ the keychain read, and switching accounts means closing and
-  reopening. Anything holding a `Db` — the poller, the tray, the webhook sink —
-  has to be re-initialised on a switch rather than keep a stale handle.
+  reopening.
+
+  That second half turned out to be free, and it is worth recording why: the
+  handle is an indirection — callers hold a `Db` clone and the connection behind
+  it is swapped — so the poller, the tray, the webhook sink and the commands keep
+  working across a switch without being rebuilt. The price is one mutex per
+  query, which the single-connection design already pays.
 
 **Keychain: per-account keys, an index, and an active pointer.** The three keys
 are fixed strings today — `github-access-token`, `github-refresh-token`,

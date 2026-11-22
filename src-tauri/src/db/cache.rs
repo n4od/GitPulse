@@ -17,6 +17,14 @@ use super::{meta, repos};
 /// `meta` key holding the login that owns the cached data.
 pub const ACCOUNT_KEY: &str = "account_login";
 
+/// The account this database claims to hold data for, if it records one.
+///
+/// With one file per account the file name is the record; this is the
+/// cross-check that catches a file copied or renamed under someone else's name.
+pub fn account_owner(connection: &Connection) -> Result<Option<String>, AppError> {
+    meta::get(connection, ACCOUNT_KEY)
+}
+
 /// Deletes every row that belongs to the signed-in account.
 ///
 /// Repositories go too, unlike [`super::deliveries::clear_cache`], which keeps

@@ -38,10 +38,9 @@ const ACTIVE_KEY: &str = "github-active-account";
 
 /// GitHub logins are case-insensitive, and so are the filesystems and credential
 /// stores this runs on, so the account part of a key is lowercased: `n4od` and
-/// `N4OD` must not become two accounts.
-fn normalize(login: &str) -> String {
-    login.trim().to_ascii_lowercase()
-}
+/// `N4OD` must not become two accounts. The database file is named by the same
+/// rule — see [`crate::accounts`].
+use crate::accounts::normalize;
 
 fn account_key(base: &str, login: &str) -> String {
     format!("{base}:{}", normalize(login))

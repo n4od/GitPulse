@@ -7,6 +7,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod accounts;
 pub mod auth;
 pub mod commands;
 pub mod db;
@@ -126,7 +127,10 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .path()
         .app_data_dir()
         .map_err(|error| error.to_string())?;
-    let database = db::Db::open(data_directory.join("gitpulse.db"))?;
+    // A handle, not an open file: the database is named after the account, and
+    // the account is not known until the stored session has been read. It starts
+    // in memory and `AuthService::bootstrap` opens the right file.
+    let database = db::Db::new(data_directory.clone())?;
 
     let http = github::client::build_client()?;
     let endpoints = github::client::Endpoints::github();
@@ -156,7 +160,7 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!(
         version = env!("CARGO_PKG_VERSION"),
         target_os = std::env::consts::OS,
-        database = %database.path().display(),
+        data_directory = %data_directory.display(),
         client_id_configured = auth::configured_client_id().is_some(),
         "gitpulse starting"
     );

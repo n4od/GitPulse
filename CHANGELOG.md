@@ -23,6 +23,13 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
   `0.5.6` or earlier is adopted on the first read, so an existing sign-in
   survives the upgrade rather than costing another round of device flow.
   (`M13-02`.)
+- **The cache is one database per account.** `gitpulse-<login>.db`, rather than
+  one `gitpulse.db` with an `account` column on every table: another account's
+  rows are then not in the database to leak, so isolation is structural instead
+  of a filter somebody has to remember. A database written by `0.5.6` or earlier
+  is filed under the account recorded inside it — a rename, not a migration —
+  and one with no recorded owner is discarded. Signing out deletes that account's
+  file and leaves the others where they are. (`M13-03`.)
 
 ---
 

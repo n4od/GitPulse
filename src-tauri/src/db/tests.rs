@@ -4,7 +4,7 @@ use chrono::{Duration, Utc};
 use rusqlite::Connection;
 
 use super::models::{DeploymentUpsert, JobUpsert, PullRequestUpsert, RepoUpsert, RunUpsert};
-use super::{cache, deliveries, diff, migrate, pulls, repos, retention, runs, Db};
+use super::{cache, deliveries, diff, meta, migrate, pulls, repos, retention, runs, Db};
 use crate::error::AppError;
 
 fn connection() -> Connection {
@@ -510,7 +510,15 @@ fn dashboard_queries_scale_to_250_repositories() {
 #[tokio::test]
 async fn db_wrapper_opens_a_file_and_uses_wal() {
     let directory = tempfile::tempdir().expect("temp dir");
-    let db = Db::open(directory.path().join("nested").join("gitpulse.db")).expect("open");
+    let db = Db::new(directory.path().join("nested")).expect("handle");
+
+    // Before an account is known the handle reads from memory, so a query returns
+    // nothing rather than failing and making every caller handle a state the
+    // window behind it does not show.
+    assert!(db.path().is_none());
+    assert_eq!(db.with_connection(repos::count).await.expect("read"), 0);
+
+    db.open_account("octocat").expect("open");
 
     let journal_mode: String = db
         .with_connection(|connection| {
@@ -523,8 +531,11 @@ async fn db_wrapper_opens_a_file_and_uses_wal() {
 
     assert_eq!(journal_mode.to_lowercase(), "wal");
 
-    // Proves the generated directory was created rather than assumed.
-    assert!(db.path().exists());
+    // The file is named after the account, and the generated directory was
+    // created rather than assumed.
+    let path = db.path().expect("open");
+    assert!(path.ends_with("gitpulse-octocat.db"), "{}", path.display());
+    assert!(path.exists());
 
     let full_name = "acme/api".to_owned();
     db.with_connection(move |connection| {
@@ -537,6 +548,174 @@ async fn db_wrapper_opens_a_file_and_uses_wal() {
     let count = db.with_connection(repos::count).await.expect("read");
 
     assert_eq!(count, 1);
+}
+
+#[test]
+fn one_account_is_one_file() {
+    let directory = tempfile::tempdir().expect("temp dir");
+    let db = Db::new(directory.path()).expect("handle");
+
+    for (login, expected) in [
+        ("octocat", "gitpulse-octocat.db"),
+        // Lowercased, or a case-insensitive filesystem would hold two accounts.
+        ("N4OD", "gitpulse-n4od.db"),
+    ] {
+        db.open_account(login).expect("open");
+
+        let path = db.path().expect("open");
+        assert_eq!(path.file_name().expect("name").to_string_lossy(), expected);
+    }
+}
+
+#[test]
+fn switching_accounts_switches_files() {
+    let directory = tempfile::tempdir().expect("temp dir");
+    let db = Db::new(directory.path()).expect("handle");
+
+    db.open_account("octocat").expect("open");
+    let first = db.path().expect("open");
+
+    db.with_connection_blocking(|connection| {
+        repos::upsert(connection, &repo_upsert(1, "acme/api"))?;
+        Ok(())
+    })
+    .expect("write");
+
+    db.open_account("n4od").expect("open");
+
+    assert_ne!(db.path().expect("open"), first);
+    assert_eq!(
+        db.with_connection_blocking(repos::count).expect("read"),
+        0,
+        "the second account must not see the first account's rows"
+    );
+
+    // And going back finds them exactly where they were left.
+    db.open_account("octocat").expect("open");
+    assert_eq!(db.with_connection_blocking(repos::count).expect("read"), 1);
+}
+
+#[test]
+fn signing_out_deletes_only_that_accounts_file() {
+    let directory = tempfile::tempdir().expect("temp dir");
+    let db = Db::new(directory.path()).expect("handle");
+
+    db.open_account("octocat").expect("open");
+    let kept = db.path().expect("open");
+
+    db.open_account("n4od").expect("open");
+    let removed = db.path().expect("open");
+
+    db.forget_current().expect("forget");
+
+    assert!(!removed.exists(), "the signed-out account's file is gone");
+    assert!(kept.exists(), "the other account's file is untouched");
+    assert!(
+        db.path().is_none(),
+        "and the handle reads from memory again"
+    );
+
+    // Closing a file is not the same as deleting it.
+    db.open_account("octocat").expect("open");
+    assert_eq!(db.path().expect("open"), kept);
+    db.close().expect("close");
+    assert!(kept.exists());
+}
+
+#[test]
+fn a_database_claiming_another_account_is_discarded() {
+    let directory = tempfile::tempdir().expect("temp dir");
+    let db = Db::new(directory.path()).expect("handle");
+
+    db.open_account("octocat").expect("open");
+    db.with_connection_blocking(|connection| {
+        repos::upsert(connection, &repo_upsert(1, "acme/api"))?;
+        // The file is octocat's by name; make its contents claim someone else, as
+        // a copied or renamed file would.
+        cache::claim_for_account(connection, "someone-else")?;
+        repos::upsert(connection, &repo_upsert(2, "acme/web"))?;
+        Ok(())
+    })
+    .expect("write");
+
+    // Opening it again is the cross-check: the contents claim another account, so
+    // they are discarded rather than served under the wrong name.
+    db.close().expect("close");
+    db.open_account("octocat").expect("open");
+
+    assert_eq!(db.with_connection_blocking(repos::count).expect("read"), 0);
+    assert_eq!(
+        db.with_connection_blocking(cache::account_owner)
+            .expect("owner")
+            .as_deref(),
+        Some("octocat")
+    );
+}
+
+#[test]
+fn the_pre_accounts_database_is_filed_under_its_owner() {
+    let directory = tempfile::tempdir().expect("temp dir");
+    let db = Db::new(directory.path()).expect("handle");
+
+    // The shape of a database written before there was one file per account: a
+    // single `gitpulse.db` with its owner recorded inside it.
+    db.open_account("octocat").expect("open");
+    let per_account = db.path().expect("open");
+    db.with_connection_blocking(|connection| {
+        repos::upsert(connection, &repo_upsert(1, "acme/api"))?;
+        Ok(())
+    })
+    .expect("write");
+    db.close().expect("close");
+
+    let legacy = directory.path().join("gitpulse.db");
+    std::fs::rename(&per_account, &legacy).expect("rename to the pre-accounts name");
+
+    db.open_account("octocat").expect("open");
+
+    assert!(!legacy.exists(), "the old file is moved, not duplicated");
+    assert!(per_account.exists());
+    assert_eq!(
+        db.with_connection_blocking(repos::count).expect("read"),
+        1,
+        "filing it under its owner keeps the rows"
+    );
+}
+
+#[test]
+fn a_pre_accounts_database_with_no_owner_is_discarded() {
+    let directory = tempfile::tempdir().expect("temp dir");
+    let db = Db::new(directory.path()).expect("handle");
+
+    db.open_account("octocat").expect("open");
+    let per_account = db.path().expect("open");
+    db.with_connection_blocking(|connection| {
+        repos::upsert(connection, &repo_upsert(1, "acme/api"))?;
+        // Rows with no recorded owner: the shape a cache written before 0.5.5
+        // has, which cannot be attributed to whoever is signing in now.
+        meta::remove(connection, cache::ACCOUNT_KEY)?;
+        Ok(())
+    })
+    .expect("write");
+    db.close().expect("close");
+
+    let legacy = directory.path().join("gitpulse.db");
+    std::fs::rename(&per_account, &legacy).expect("rename");
+
+    db.open_account("octocat").expect("open");
+
+    assert!(!legacy.exists(), "an unattributable cache is not adopted");
+    assert_eq!(
+        db.with_connection_blocking(repos::count).expect("read"),
+        0,
+        "its rows are dropped rather than shown to whoever signed in"
+    );
+    assert_eq!(
+        db.with_connection_blocking(cache::account_owner)
+            .expect("owner")
+            .as_deref(),
+        Some("octocat")
+    );
 }
 
 #[test]

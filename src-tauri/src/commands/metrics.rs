@@ -46,7 +46,7 @@ pub async fn collect(
         })
         .await?;
 
-    let db_size_mb = spanned_size_mb(db.path());
+    let db_size_mb = db.path().map_or(0.0, |path| spanned_size_mb(&path));
 
     let uptime_secs = (chrono::Utc::now() - started_at)
         .to_std()

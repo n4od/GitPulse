@@ -10,7 +10,7 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_opener::OpenerExt;
 use tokio_util::sync::CancellationToken;
 
-use crate::db::{cache, Db};
+use crate::db::Db;
 use crate::error::AppError;
 
 use super::device_flow;
@@ -59,35 +59,46 @@ impl AuthService {
         &self.tokens
     }
 
-    /// Makes the cache belong to `login`, discarding another account's data.
+    /// Opens the account's database.
     ///
-    /// The synchronous form is for startup, where there is no async context to
-    /// hand the connection to.
-    fn claim_account_blocking(&self, login: &str) {
-        if let Err(error) = self
-            .db
-            .with_connection_blocking(|connection| cache::claim_for_account(connection, login))
-        {
-            tracing::warn!(%error, "could not reconcile the cached account");
-        }
+    /// Opening it is also what claims it: the file is named for the account, and
+    /// the name recorded inside it is cross-checked before any of it is served.
+    /// Synchronous for startup, where there is no async context to hand the file
+    /// open and the migrations to.
+    fn open_database(&self, login: &str) -> Result<(), AppError> {
+        self.db.open_account(login)
     }
 
-    async fn claim_account(&self, login: &str) -> Result<(), AppError> {
+    /// Opens the account's database from a context that must not block.
+    ///
+    /// Cheap to call repeatedly — `open_account` returns immediately when that
+    /// account is the one already open — which is why the paths that run on every
+    /// validation can call it without thinking about it.
+    async fn ensure_database(&self, login: &str) -> Result<(), AppError> {
+        let db = self.db.clone();
         let login = login.to_owned();
-        self.db
-            .with_connection(move |connection| cache::claim_for_account(connection, &login))
-            .await?;
-        Ok(())
+
+        tokio::task::spawn_blocking(move || db.open_account(&login))
+            .await
+            .map_err(|error| AppError::Internal(format!("database worker failed: {error}")))?
     }
 
     /// Loads a stored session and publishes it, without hitting the network.
     pub fn bootstrap(&self, app: &AppHandle) -> Result<(), AppError> {
         let state = match self.tokens.hydrate()? {
             Some(session) => {
-                // Reconciled before the Authorized state is published, so the
-                // window can never paint the previous account's repositories.
-                self.claim_account_blocking(&session.login);
-                AuthState::Authorized { session }
+                // Opened — and claimed — before the Authorized state is
+                // published, so the window can never paint another account's
+                // repositories, and never reads from the wrong file.
+                match self.open_database(&session.login) {
+                    Ok(()) => AuthState::Authorized { session },
+                    Err(error) => {
+                        // Better to ask for a sign-in than to present a session
+                        // whose data cannot be read.
+                        tracing::error!(%error, "could not open the account's database");
+                        AuthState::SignedOut
+                    }
+                }
             }
             None => AuthState::SignedOut,
         };
@@ -108,7 +119,7 @@ impl AuthService {
         tauri::async_runtime::spawn(async move {
             match service.tokens.validate().await {
                 Ok(session) => {
-                    if let Err(error) = service.claim_account(&session.login).await {
+                    if let Err(error) = service.ensure_database(&session.login).await {
                         tracing::warn!(%error, "could not reconcile the cached account");
                     }
                     service.publish(&app, &AuthState::Authorized { session });
@@ -160,10 +171,10 @@ impl AuthService {
         self.tokens.sign_out()?;
 
         // The cache was fetched with the token that just went away, and the next
-        // sign-in may be a different account: those repositories are not this
-        // account's to show.
-        if let Err(error) = self.db.with_connection_blocking(cache::purge_account_data) {
-            tracing::warn!(%error, "could not purge the account cache on sign-out");
+        // sign-in may be a different account. With one file per account, signing
+        // out deletes this account's file and leaves the others where they are.
+        if let Err(error) = self.db.forget_current() {
+            tracing::warn!(%error, "could not delete the account's cache on sign-out");
         }
 
         self.publish(app, &AuthState::SignedOut);
@@ -174,7 +185,7 @@ impl AuthService {
     pub async fn refresh_session(&self, app: &AppHandle) -> AuthState {
         match self.tokens.validate().await {
             Ok(session) => {
-                if let Err(error) = self.claim_account(&session.login).await {
+                if let Err(error) = self.ensure_database(&session.login).await {
                     tracing::warn!(%error, "could not reconcile the cached account");
                 }
                 AuthState::Authorized { session }
@@ -211,9 +222,10 @@ impl AuthService {
         let viewer = self.oauth.fetch_viewer(&tokens.access_token).await?;
         let session = self.tokens.adopt(&tokens, &viewer)?;
 
-        // A different account signing in must not inherit the previous
-        // account's cached repositories.
-        if let Err(error) = self.claim_account(&session.login).await {
+        // A different account signing in must not inherit the previous account's
+        // cached repositories, and this is where the switch happens: the database
+        // is opened under the new account's name.
+        if let Err(error) = self.ensure_database(&session.login).await {
             tracing::warn!(%error, "could not reconcile the cached account");
         }
 
