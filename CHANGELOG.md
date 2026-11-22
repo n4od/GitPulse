@@ -30,6 +30,11 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
   is filed under the account recorded inside it — a rename, not a migration —
   and one with no recorded owner is discarded. Signing out deletes that account's
   file and leaves the others where they are. (`M13-03`.)
+- **The active account can be changed without signing in again.** The token
+  manager holds the active account's session and loads another from the keychain
+  on demand, refreshing only the account being activated — so switching costs a
+  keychain read rather than a round of device flow. What is not built yet is the
+  UI that asks it to switch. (`M13-04`.)
 
 ---
 

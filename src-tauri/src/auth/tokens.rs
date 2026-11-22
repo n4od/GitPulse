@@ -86,13 +86,55 @@ impl TokenManager {
             .and_then(|guard| guard.as_ref().map(|state| state.session.clone()))
     }
 
-    /// The account the in-memory session belongs to, if there is one.
-    fn login(&self) -> Option<String> {
+    /// The account the manager is holding, if any.
+    #[must_use]
+    pub fn login(&self) -> Option<String> {
         self.lock().ok().and_then(|guard| {
             guard
                 .as_ref()
                 .and_then(|state| state.metadata.login.clone())
         })
+    }
+
+    /// The accounts this machine has tokens for, so a switcher can offer them.
+    pub fn known_logins(&self) -> Result<Vec<String>, AppError> {
+        self.store.known_logins()
+    }
+
+    /// Switches which account is active, loading that account's tokens.
+    ///
+    /// A switch costs a keychain read, not a device flow: every account's tokens
+    /// were stored when it signed in, and GitHub keeps them valid until they are
+    /// revoked. Tokens already past their expiry margin are renewed here rather
+    /// than left to fail the first request.
+    ///
+    /// It deliberately does **not** keep the other accounts' sessions in memory as
+    /// well. The database, the poller, the tray and the dashboard are all about one
+    /// account, so the way to keep "which account is this row's?" answerable is to
+    /// hold one answer.
+    pub async fn activate(&self, login: &str) -> Result<AuthSession, AppError> {
+        let stored = self.store.load(login)?.ok_or(AppError::AuthRequired)?;
+
+        self.store.set_active(Some(login))?;
+
+        let session = Self::session_from(&stored.metadata, stored.refresh_token.is_some(), None);
+
+        {
+            let mut guard = self.lock()?;
+            *guard = Some(SessionState {
+                access_token: stored.access_token,
+                refresh_token: stored.refresh_token,
+                expires_at: stored.metadata.expires_at,
+                metadata: stored.metadata,
+                session: session.clone(),
+            });
+        }
+
+        if self.fresh_token()?.is_none() {
+            self.refresh().await?;
+        }
+
+        self.session().ok_or(AppError::AuthRequired)
     }
 
     /// Returns a usable access token, refreshing first if it is expired or

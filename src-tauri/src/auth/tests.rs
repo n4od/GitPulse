@@ -765,3 +765,156 @@ fn tokens_with_no_recorded_account_are_discarded() {
         "tokens that cannot be attributed to an account are dropped, not filed under a guessed name"
     );
 }
+
+/// One account's tokens, as a sign-in would have left them.
+fn stored(
+    login: &str,
+    access: &str,
+    refresh: Option<&str>,
+    expires_at: Option<chrono::DateTime<Utc>>,
+) -> StoredTokens {
+    StoredTokens {
+        access_token: secret(access),
+        refresh_token: refresh.map(secret),
+        metadata: TokenMetadata {
+            login: Some(login.to_owned()),
+            expires_at,
+            ..TokenMetadata::default()
+        },
+    }
+}
+
+#[tokio::test]
+async fn activating_an_account_switches_which_one_is_active() {
+    let store = Arc::new(MemoryStore::new());
+    store
+        .save("octocat", &stored("octocat", "octocat-access", None, None))
+        .expect("save");
+    store
+        .save("n4od", &stored("n4od", "n4od-access", None, None))
+        .expect("save");
+
+    let manager = TokenManager::new(offline_client(), store.clone());
+    assert!(
+        manager.login().is_none(),
+        "nothing is held until an account is activated"
+    );
+
+    manager.activate("octocat").await.expect("activate");
+
+    assert_eq!(manager.login().as_deref(), Some("octocat"));
+    assert_eq!(store.active().expect("active").as_deref(), Some("octocat"));
+    assert_eq!(
+        manager.access_token().await.expect("token").expose_secret(),
+        "octocat-access"
+    );
+
+    // The key an account is stored under is lowercased, so the name GitHub shows
+    // is not what finds it.
+    manager.activate("N4OD").await.expect("activate");
+
+    assert_eq!(manager.login().as_deref(), Some("n4od"));
+    assert_eq!(store.active().expect("active").as_deref(), Some("n4od"));
+    assert_eq!(
+        manager.access_token().await.expect("token").expose_secret(),
+        "n4od-access"
+    );
+
+    // Switching away disturbs nothing about the account left behind.
+    assert_eq!(
+        store
+            .load("octocat")
+            .expect("load")
+            .expect("kept")
+            .access_token
+            .expose_secret(),
+        "octocat-access"
+    );
+}
+
+#[tokio::test]
+async fn activating_an_account_with_no_tokens_is_an_error() {
+    let store = Arc::new(MemoryStore::new());
+    let manager = TokenManager::new(offline_client(), store);
+
+    let error = manager.activate("nobody").await.expect_err("no tokens");
+
+    assert_eq!(error.code(), "auth_required");
+    assert!(manager.login().is_none());
+}
+
+#[tokio::test]
+async fn activating_a_stale_account_refreshes_that_account_only() {
+    let server = MockServer::start().await;
+    mount_token(
+        &server,
+        json!({
+            "access_token": "a-fresh",
+            "refresh_token": "a-rotated",
+            "expires_in": 28_800,
+        }),
+        None,
+    )
+    .await;
+
+    let store = Arc::new(MemoryStore::new());
+    // One account's token has expired, so activating it has to renew it. The
+    // other's is current, and must not be spent.
+    store
+        .save(
+            "a",
+            &stored(
+                "a",
+                "a-stale",
+                Some("refresh-a"),
+                Some(Utc::now() - ChronoDuration::hours(1)),
+            ),
+        )
+        .expect("save");
+    store
+        .save("b", &stored("b", "b-access", Some("refresh-b"), None))
+        .expect("save");
+
+    let manager = TokenManager::new(Arc::new(oauth_client(&server, true)), store.clone());
+
+    let session = manager.activate("a").await.expect("activate");
+
+    assert_eq!(session.login, "a");
+    assert_eq!(
+        manager.access_token().await.expect("token").expose_secret(),
+        "a-fresh"
+    );
+
+    let requests = server.received_requests().await.expect("requests");
+    let refresh = requests
+        .iter()
+        .find(|request| request.url.path() == TOKEN_PATH)
+        .expect("a refresh was made");
+    let body = String::from_utf8_lossy(&refresh.body);
+
+    assert!(
+        body.contains("refresh_token=refresh-a"),
+        "the refresh must carry the activating account's token, got {body}"
+    );
+    assert_eq!(
+        store
+            .load("a")
+            .expect("load")
+            .expect("kept")
+            .refresh_token
+            .expect("rotated")
+            .expose_secret(),
+        "a-rotated"
+    );
+    assert_eq!(
+        store
+            .load("b")
+            .expect("load")
+            .expect("kept")
+            .refresh_token
+            .expect("untouched")
+            .expose_secret(),
+        "refresh-b",
+        "activating one account must not spend another's refresh token"
+    );
+}
