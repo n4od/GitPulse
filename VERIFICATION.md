@@ -85,6 +85,14 @@ not drafts, and each one's download links were followed through GitHub's
 redirect to the CDN and confirmed to return bytes rather than merely being
 listed in the API.
 
+**`0.5.6` changes the shape of a release, and that shape has not run yet.** Every
+artifact is now named once, with its version
+(`GitPulse-0.5.6-windows-x64-setup.exe`); `verify` asserts the exact set of ten
+rather than pattern-matching; the README's links are version-pinned and checked
+against the tag; and a `SHA256SUMS.txt` is published from a re-download of every
+asset. The next tag is that pipeline's first run — until then the paragraphs
+above describe the pipeline as it was up to `v0.5.5`.
+
 ## How to close the largest gaps
 
 1. **Register the app** (README, "GitHub authentication"), set

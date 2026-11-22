@@ -15,10 +15,19 @@ if [[ "$args" =~ --target[[:space:]]+([^[:space:]]+) ]]; then
   target="${BASH_REMATCH[1]}"
 fi
 
-arch="$(uname -m)"
+# One arch vocabulary across every asset name: `arm64` / `x64`. A Rust target
+# triple says `aarch64` / `x86_64`, and Tauri says `aarch64` / `x64`, so the
+# mapping happens here rather than leaking three spellings into the release.
+triple_arch="$(uname -m)"
 if [[ -n "$target" ]]; then
-  arch="${target%%-*}"   # aarch64-apple-darwin -> aarch64
+  triple_arch="${target%%-*}"   # aarch64-apple-darwin -> aarch64
 fi
+
+case "$triple_arch" in
+  aarch64) arch="arm64" ;;
+  x86_64|amd64) arch="x64" ;;
+  *) arch="$triple_arch" ;;
+esac
 
 bundle_dir="src-tauri/target/${target:+$target/}release/bundle/macos"
 app="$(find "$bundle_dir" -maxdepth 1 -name '*.app' -print -quit 2>/dev/null || true)"
@@ -30,7 +39,7 @@ fi
 
 mkdir -p portable
 version="${tag#v}"
-out="portable/GitPulse_${version}_${arch}_portable.tar.gz"
+out="portable/GitPulse-${version}-macos-${arch}-portable.tar.gz"
 rm -f "$out"
 
 tar -czf "$out" -C "$(dirname "$app")" "$(basename "$app")"
