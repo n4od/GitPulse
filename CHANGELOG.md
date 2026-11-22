@@ -20,46 +20,49 @@ _Nothing yet._
 ## [0.5.6] — 2026-11-22
 
 No application code changed. The application is byte-for-byte the same as
-`0.5.5` apart from its version string; this release is about the packaging,
-which had quietly accumulated three problems.
+`0.5.5` apart from its version string; this release is about the packaging.
 
 ### Fixed
 
-- **Two dead assets on every release are gone.** `tauri-action`'s
-  `uploadUpdaterJson` defaults to `true`, so the action tarred the macOS `.app`
-  itself to build an updater manifest — then, finding no signature because no
-  signing key is configured, skipped the manifest but _still uploaded the
-  tarball_. Since `v0.5.0` each release had carried `GitPulse_aarch64.app.tar.gz`
-  and `GitPulse_x64.app.tar.gz`, ~12 MB with nothing that reads them. The
-  workflow comment claiming they were "intentionally absent" was wrong about the
-  mechanism and had never been checked.
+- **Two dead assets are gone from every release.** Each release since `v0.5.0`
+  had carried `GitPulse_aarch64.app.tar.gz` and `GitPulse_x64.app.tar.gz` — about
+  12 MB with nothing that reads them — while a workflow comment claimed they were
+  "intentionally absent". They were not. `tauri-action` packages the macOS `.app`
+  into a tarball **unconditionally**; its own source says _"Other steps may
+  benefit from this so we do this whether or not we want to upload it"_, and it
+  then uploads what it made. No input turns that off, so the action is no longer
+  given a release to upload to: it builds, and the workflow names and uploads the
+  nine artifacts itself.
 - **Intel macOS is no longer `x86_64` in one filename and `x64` in another.**
-  `package-portable.sh` used the Rust target triple's architecture verbatim
-  while every other name used `x64`.
+  `package-portable.sh` used the Rust target triple's architecture verbatim,
+  while every release name says `x64`.
 
 ### Changed
 
-- **One file per artifact, with the version in the name.** There used to be two:
-  a versioned copy and a version-less one, which is why a release held twenty
+- **One file per artifact.** Every artifact used to be published twice — a
+  versioned copy and a version-less one — which is why a release held twenty
   assets. GitHub resolves `releases/latest/download/<file>` by _exact filename_,
-  so a name can carry the version or stay stable across releases, never both.
-  Now there is one name per artifact —
-  `GitPulse-0.5.6-windows-x64-setup.exe` and the like — named by a per-platform
-  `releaseAssetNamePattern`, because Tauri's own names disagree across platforms
-  (`amd64` on Debian, `x64` on Windows, `x86_64` in a target triple, `darwin` for
-  macOS).
-- **The README's download links are version-pinned**, so the URL names the file
-  and it never changes under the reader. They are repointed on each release, and
-  the `verify` job now **fails the release** if they still point at an older tag
-  — a stale README is otherwise a silent 404 for anyone clicking Download.
-- **The `verify` job asserts the exact artifact set** — these ten names and
+  so a name can either carry the version or stay stable across releases, never
+  both, and the pipeline had been doing both. There is now one name per artifact,
+  and it carries no version: `GitPulse-windows-x64-setup.exe`,
+  `GitPulse-macos-arm64.dmg`, and so on. The README's links therefore keep
+  resolving as versions ship and need no edit per release — which is the whole
+  point of a stable name.
+- **The workflow no longer uses `tauri-action` to publish.** It creates the draft
+  release, builds with the action, copies each bundle to its release name, and
+  uploads exactly those. Tauri's own names cannot be used as release names: the
+  architecture is `amd64` in a Debian package, `x64` on Windows and `x86_64` in a
+  Rust target triple.
+- **The `verify` job asserts the exact artifact set** — these nine names, and
   nothing else — instead of "does something match this pattern". An unexpected
   asset is a signal that the pipeline changed underneath us, and a missing one
-  fails the run rather than reaching a user.
+  fails the run rather than reaching a download button. It also checks that the
+  README links to all nine, because `latest/download/` 404s silently if a name
+  drifts.
 - **`SHA256SUMS.txt` is published with every release.** The job re-downloads all
-  nine artifacts and hashes what actually arrived, rather than trusting the
-  build directory. These bundles are unsigned, so a checksum is the only
-  integrity signal a downloader has.
+  nine artifacts and hashes what actually arrived, rather than trusting the build
+  directory. These bundles are unsigned, so a checksum is the only integrity
+  signal a downloader has.
 
 ---
 

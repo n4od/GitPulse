@@ -43,7 +43,7 @@ This build is unsigned. Windows SmartScreen may warn on first run; choose
 "@ | Set-Content "$stage/README.txt" -Encoding utf8
 
 $version = $Tag.TrimStart("v")
-$zip = "portable/GitPulse-${version}-windows-x64-portable.zip"
+$zip = "portable/GitPulse-windows-x64-portable.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 
 Compress-Archive -Path "$stage/*" -DestinationPath $zip

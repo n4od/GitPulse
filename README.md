@@ -16,15 +16,15 @@ pull requests. Tauri 2 + Rust core, React 19 frontend, everything cached on
 your machine.
 
 <p align="center">
-  <a href="https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-windows-x64-setup.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-4C8DFF?style=for-the-badge&amp;logo=windows11&amp;logoColor=white"></a>
-  <a href="https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-macos-arm64.dmg"><img alt="Download for macOS on Apple Silicon" src="https://img.shields.io/badge/Download-macOS%20ARM-262A33?style=for-the-badge&amp;logo=apple&amp;logoColor=white"></a>
-  <a href="https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-macos-x64.dmg"><img alt="Download for macOS on Intel" src="https://img.shields.io/badge/Download-macOS%20Intel-262A33?style=for-the-badge&amp;logo=apple&amp;logoColor=white"></a>
-  <a href="https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-linux-x64.AppImage"><img alt="Download for Linux" src="https://img.shields.io/badge/Download-Linux-F5B942?style=for-the-badge&amp;logo=linux&amp;logoColor=0B0C0E"></a>
+  <a href="https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-windows-x64-setup.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-4C8DFF?style=for-the-badge&amp;logo=windows11&amp;logoColor=white"></a>
+  <a href="https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-macos-arm64.dmg"><img alt="Download for macOS on Apple Silicon" src="https://img.shields.io/badge/Download-macOS%20ARM-262A33?style=for-the-badge&amp;logo=apple&amp;logoColor=white"></a>
+  <a href="https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-macos-x64.dmg"><img alt="Download for macOS on Intel" src="https://img.shields.io/badge/Download-macOS%20Intel-262A33?style=for-the-badge&amp;logo=apple&amp;logoColor=white"></a>
+  <a href="https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-linux-x64.AppImage"><img alt="Download for Linux" src="https://img.shields.io/badge/Download-Linux-F5B942?style=for-the-badge&amp;logo=linux&amp;logoColor=0B0C0E"></a>
 </p>
 
-> **v0.5.6** — installable builds for Windows, macOS and Linux. They are
-> unsigned, so the OS asks for confirmation on first launch. What is measured and
-> what is not lives in [`VERIFICATION.md`](./VERIFICATION.md).
+> **Installable builds for Windows, macOS and Linux.** They are unsigned, so the
+> OS asks for confirmation on first launch. What is measured and what is not
+> lives in [`VERIFICATION.md`](./VERIFICATION.md).
 
 ## Download
 
@@ -32,16 +32,18 @@ The buttons above download the right file directly. Pick the installer if you
 want it registered with your OS, or the portable file if you would rather just
 run it.
 
-These links are pinned to **v0.5.6**, so they name the file you get and never
-change under you. [Older and newer releases](https://github.com/n4od/GitPulse/releases)
-carry the same table with their own version in the name.
+Every asset name is **version-less** and identical in each release, so these
+links keep resolving as new versions ship — they always point at the newest one.
+The version you downloaded is the one in the release title, and it is inside the
+package: Add/Remove Programs on Windows, Get Info on macOS, `dpkg -I` on Linux.
+Each release also publishes `SHA256SUMS.txt`.
 
-| Platform                  | Installer                                                                                                                                                                                                            | Portable                                                                                                          |
-| :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------- |
-| **Windows 10/11** (x64)   | [`.exe` (NSIS)](https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-windows-x64-setup.exe) · [`.msi`](https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-windows-x64.msi) | [`.zip`](https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-windows-x64-portable.zip)       |
-| **macOS** (Apple Silicon) | [`.dmg`](https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-macos-arm64.dmg)                                                                                                                   | [`.tar.gz`](https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-macos-arm64-portable.tar.gz) |
-| **macOS** (Intel)         | [`.dmg`](https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-macos-x64.dmg)                                                                                                                     | [`.tar.gz`](https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-macos-x64-portable.tar.gz)   |
-| **Linux** (x64)           | [`.deb`](https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-linux-x64.deb)                                                                                                                     | [`.AppImage`](https://github.com/n4od/GitPulse/releases/download/v0.5.6/GitPulse-0.5.6-linux-x64.AppImage)        |
+| Platform                  | Installer                                                                                                                                                                                                | Portable                                                                                                    |
+| :------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
+| **Windows 10/11** (x64)   | [`.exe` (NSIS)](https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-windows-x64-setup.exe) · [`.msi`](https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-windows-x64.msi) | [`.zip`](https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-windows-x64-portable.zip)       |
+| **macOS** (Apple Silicon) | [`.dmg`](https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-macos-arm64.dmg)                                                                                                             | [`.tar.gz`](https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-macos-arm64-portable.tar.gz) |
+| **macOS** (Intel)         | [`.dmg`](https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-macos-x64.dmg)                                                                                                               | [`.tar.gz`](https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-macos-x64-portable.tar.gz)   |
+| **Linux** (x64)           | [`.deb`](https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-linux-x64.deb)                                                                                                               | [`.AppImage`](https://github.com/n4od/GitPulse/releases/latest/download/GitPulse-linux-x64.AppImage)        |
 
 > **Unsigned builds.** Windows SmartScreen shows _More info → Run anyway_;
 > macOS Gatekeeper needs right-click → **Open** the first time. There is no

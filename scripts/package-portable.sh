@@ -2,11 +2,15 @@
 # Build the macOS *portable* artifact: a tarball of the .app bundle, so it can be
 # unpacked and run without the .dmg installer.
 #
-# Usage: ./scripts/package-portable.sh v0.5.0 "--target aarch64-apple-darwin"
+# The file name carries no version. The release publishes it as
+# /releases/latest/download/<name>, which only resolves while the name stays the
+# same from release to release; the version is inside the bundle, where Finder
+# shows it.
+#
+# Usage: ./scripts/package-portable.sh "--target aarch64-apple-darwin"
 set -euo pipefail
 
-tag="${1:?usage: package-portable.sh <tag> [build args]}"
-args="${2:-}"
+args="${1:-}"
 
 # tauri-action passes the target through --args; the bundle lands under a
 # target-specific directory when one is set.
@@ -16,8 +20,8 @@ if [[ "$args" =~ --target[[:space:]]+([^[:space:]]+) ]]; then
 fi
 
 # One arch vocabulary across every asset name: `arm64` / `x64`. A Rust target
-# triple says `aarch64` / `x86_64`, and Tauri says `aarch64` / `x64`, so the
-# mapping happens here rather than leaking three spellings into the release.
+# triple says `aarch64` / `x86_64`, so the mapping happens here rather than
+# leaking a second spelling into the release.
 triple_arch="$(uname -m)"
 if [[ -n "$target" ]]; then
   triple_arch="${target%%-*}"   # aarch64-apple-darwin -> aarch64
@@ -38,8 +42,7 @@ if [[ -z "$app" ]]; then
 fi
 
 mkdir -p portable
-version="${tag#v}"
-out="portable/GitPulse-${version}-macos-${arch}-portable.tar.gz"
+out="portable/GitPulse-macos-${arch}-portable.tar.gz"
 rm -f "$out"
 
 tar -czf "$out" -C "$(dirname "$app")" "$(basename "$app")"

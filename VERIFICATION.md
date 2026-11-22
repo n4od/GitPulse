@@ -85,13 +85,21 @@ not drafts, and each one's download links were followed through GitHub's
 redirect to the CDN and confirmed to return bytes rather than merely being
 listed in the API.
 
-**`0.5.6` changes the shape of a release, and that shape has not run yet.** Every
-artifact is now named once, with its version
-(`GitPulse-0.5.6-windows-x64-setup.exe`); `verify` asserts the exact set of ten
-rather than pattern-matching; the README's links are version-pinned and checked
-against the tag; and a `SHA256SUMS.txt` is published from a re-download of every
-asset. The next tag is that pipeline's first run — until then the paragraphs
-above describe the pipeline as it was up to `v0.5.5`.
+**`0.5.6` reshapes a release, and that shape has not run yet.** Each artifact is
+now published once, under a stable name with no version in it
+(`GitPulse-windows-x64-setup.exe`), and the _workflow_ names and uploads them
+rather than `tauri-action` — because the action attaches a macOS `.app.tar.gz`
+that nothing reads and no input disables. `verify` asserts the exact set of nine
+instead of pattern-matching, checks that the README links to all nine, and
+publishes a `SHA256SUMS.txt` built from a re-download of every asset. The next tag
+is that pipeline's first run; until it happens, the paragraphs above describe the
+pipeline as it was up to `v0.5.5`.
+
+The first attempt at `0.5.6` failed, informatively: `verify` refused to publish —
+twelve assets instead of nine. The cause was the workflow pinning `tauri-action@v0`
+while setting two inputs that only exist in its v1 line, which the action ignored
+silently. The exact-set assertion and the checksum step are what made that visible
+rather than shipping twenty wrong assets.
 
 ## How to close the largest gaps
 

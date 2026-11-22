@@ -28,6 +28,10 @@ logs/
 # Local release packaging output (scripts/package-portable.*)
 portable/
 
+# Where release.yml collects the artifacts under their release names before
+# uploading them. Copies of build output, never source.
+release-assets/
+
 # Kept release binaries. Build output, not source: ~30 MB per release, so it
 # lives on disk for convenience but never in the repository.
 releases/

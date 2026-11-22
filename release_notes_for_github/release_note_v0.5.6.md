@@ -8,38 +8,41 @@ If you already run v0.5.5, there is no functional reason to reinstall.
 
 ## 🚀 Key Improvements
 
-### 📦 One file per artifact, and the version is in its name
+### 📦 One file per artifact
 
 Every release used to publish each artifact **twice** — a versioned copy and a
 version-less one — which is why a release held twenty assets. GitHub resolves
-`releases/latest/download/<file>` by exact filename, so a name can carry the
-version or stay stable across releases, never both, and the pipeline had been
-doing both to have it either way.
+`releases/latest/download/<file>` by exact filename, so a name can either carry
+the version or stay stable across releases, never both, and the pipeline had been
+trying to do both.
 
-Now there is one file per artifact, named with its version:
+There is now exactly one file per platform and format:
 
 ```
-GitPulse-0.5.6-windows-x64-setup.exe
-GitPulse-0.5.6-windows-x64.msi
-GitPulse-0.5.6-windows-x64-portable.zip
-GitPulse-0.5.6-macos-arm64.dmg
-GitPulse-0.5.6-macos-arm64-portable.tar.gz
-GitPulse-0.5.6-macos-x64.dmg
-GitPulse-0.5.6-macos-x64-portable.tar.gz
-GitPulse-0.5.6-linux-x64.deb
-GitPulse-0.5.6-linux-x64.AppImage
+GitPulse-windows-x64-setup.exe
+GitPulse-windows-x64.msi
+GitPulse-windows-x64-portable.zip
+GitPulse-macos-arm64.dmg
+GitPulse-macos-arm64-portable.tar.gz
+GitPulse-macos-x64.dmg
+GitPulse-macos-x64-portable.tar.gz
+GitPulse-linux-x64.deb
+GitPulse-linux-x64.AppImage
 ```
 
-Ten files instead of twenty. The README's download links are pinned to match, so
-the URL names the file you get and never changes under you.
+Ten files instead of twenty. The names carry no version, deliberately: that is
+what keeps the download links working as versions ship. The version you
+downloaded is in the release title, and inside the package — Add/Remove Programs
+on Windows, Get Info on macOS, `dpkg -I` on Linux.
 
 ### 🧹 Two dead files are gone from every release
 
 Each release since v0.5.0 carried `GitPulse_aarch64.app.tar.gz` and
 `GitPulse_x64.app.tar.gz` — about 12 MB per release, with nothing to read them.
-The cause was a default in the release action: it packaged the macOS `.app`
-itself to build an updater manifest, then found no signature (no signing key is
-configured), skipped the manifest — and uploaded the tarball anyway.
+The release action packaged the macOS `.app` into a tarball unconditionally while
+preparing for an updater that does not exist, and uploaded it. The workflow no
+longer lets the action upload anything: it builds, and the workflow itself names
+and uploads the nine files.
 
 ### ✅ Downloads are now checkable
 
@@ -52,11 +55,10 @@ signal you have:
 sha256sum --check SHA256SUMS.txt
 ```
 
-The release job also now refuses to publish a set of artifacts that is not
-_exactly_ the ten expected ones. An unexpected file is a sign the pipeline
-changed underneath us — which is how those two macOS tarballs went unnoticed for
-four releases — and a missing one fails the run instead of reaching a download
-button.
+The job also refuses to publish a set of artifacts that is not _exactly_ the nine
+expected ones. An unexpected file is a sign the pipeline changed underneath us —
+which is how those two macOS tarballs went unnoticed for four releases — and a
+missing one fails the run instead of reaching a download button.
 
 ## ⚠️ What did not change
 
@@ -69,7 +71,7 @@ button.
 
 ## 📅 Recent Version History
 
-- **v0.5.6**: One file per artifact named with its version, dead assets removed, published checksums.
+- **v0.5.6**: One file per artifact under stable names, dead assets removed, published checksums.
 - **v0.5.5**: Context menu, per-repository errors with detail, compact cards, `Mine` filter, a way back into the picker, and the MIT licence.
 - **v0.5.2**: One-click downloads and permanent, version-less download links.
 - **v0.5.1**: Installers that can sign in, dashboard restyle, idle-CPU and token-refresh verified.

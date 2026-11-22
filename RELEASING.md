@@ -13,8 +13,8 @@ draft release.
 ## The short version
 
 ```bash
-# 1. Land the release on main: changelog, version bump, and the README's
-#    download links repointed at the new tag.
+# 1. Land the release on main: changelog and version bump. (The README needs no
+#    edit - its download links are version-less and never change.)
 # 2. Tag it.
 git tag v0.5.6
 git push origin v0.5.6            # this starts the release workflow
@@ -63,52 +63,66 @@ rights. That is **nine files plus `SHA256SUMS.txt`** — one per artifact.
 
 #### Names
 
+One file per platform and format, and the names carry **no version**:
+
 ```
-GitPulse-0.5.6-windows-x64-setup.exe
-GitPulse-0.5.6-windows-x64.msi
-GitPulse-0.5.6-windows-x64-portable.zip
-GitPulse-0.5.6-macos-arm64.dmg
-GitPulse-0.5.6-macos-arm64-portable.tar.gz
-GitPulse-0.5.6-macos-x64.dmg
-GitPulse-0.5.6-macos-x64-portable.tar.gz
-GitPulse-0.5.6-linux-x64.deb
-GitPulse-0.5.6-linux-x64.AppImage
+GitPulse-windows-x64-setup.exe
+GitPulse-windows-x64.msi
+GitPulse-windows-x64-portable.zip
+GitPulse-macos-arm64.dmg
+GitPulse-macos-arm64-portable.tar.gz
+GitPulse-macos-x64.dmg
+GitPulse-macos-x64-portable.tar.gz
+GitPulse-linux-x64.deb
+GitPulse-linux-x64.AppImage
 SHA256SUMS.txt
 ```
 
-The bundles are named by tauri-action's `releaseAssetNamePattern`, with one
-pattern per platform in the build matrix. That is not decoration: Tauri's own
-names disagree across platforms — the architecture is `amd64` in a Debian
-package, `x64` on Windows and `x86_64` in a Rust target triple, and macOS is
-called `darwin`. The portable scripts write their final names themselves.
+**Why no version in the name.** GitHub resolves
+`releases/latest/download/<file>` by _exact filename_, so a name can either carry
+the version or stay stable across releases — never both. Up to `v0.5.5` every
+artifact was published twice, in an attempt to have it both ways, which is why a
+release held twenty assets and why the README's links resolved to whatever the
+newest release happened to contain.
 
-**Why the version is in the filename.** GitHub resolves
-`releases/latest/download/<file>` by _exact filename_, so a name can carry the
-version or stay stable across releases — never both. Up to `v0.5.5` every
-artifact was published twice to have it both ways: a versioned copy and a
-version-less one. That doubled the release and, worse, meant the README's links
-resolved to whatever the newest release happened to contain. Now there is one
-name per artifact, pinned by URL (`releases/download/v0.5.6/<file>`), and the
-README is repointed on each release.
+Now each artifact has one stable name and the README links through
+`latest/download/`, so the links keep resolving as versions ship and **need no
+edit per release**. The version is not lost: it is in the release title, inside
+the package (Add/Remove Programs, `dpkg -I`, Get Info), and in each release's
+`SHA256SUMS.txt`.
+
+**The workflow names and uploads the artifacts itself.** It creates the draft,
+builds with `tauri-action` — given no `tagName` or `releaseId`, so it uploads
+nothing — then copies each bundle to its release name and uploads exactly those.
+Tauri's own names cannot be used as-is: the architecture is `amd64` in a Debian
+package, `x64` on Windows and `x86_64` in a Rust target triple.
+
+> **Why the action is not allowed to upload.** On macOS it packages the `.app`
+> into a tarball _unconditionally_ — its source says _"Other steps may benefit
+> from this so we do this whether or not we want to upload it"_ — and then
+> uploads what it made. That put two dead assets in every release from `v0.5.0` to
+> `v0.5.5`. No input disables it, so the fix is to give the action no release to
+> upload to.
 
 #### What `verify` enforces
 
-Not "an artifact matching this pattern exists" but **exactly these ten names,
+Not "an artifact matching this pattern exists" but **exactly these nine names,
 and nothing else**. An asset nobody asked for is a signal that the pipeline
-changed underneath us — which is precisely how two dead macOS tarballs,
-attached by tauri-action's `uploadUpdaterJson` default, went unnoticed for four
-releases. A missing one fails the run rather than being discovered by a user.
+changed underneath us — which is precisely how those two tarballs went unnoticed
+for four releases — and a missing one fails the run rather than being discovered
+by a user.
+
+It also checks that the README links to all nine, through `latest/download/`.
+That is the coupling a stable name buys: if a name drifts, every Download button
+404s, and nothing else would catch it.
 
 `verify` then re-downloads every asset, hashes what actually arrived, and
 publishes `SHA256SUMS.txt`. These bundles are unsigned, so a hash is the only
 integrity signal a user has.
 
-It also fails the run if the README's download links do not point at the tag
-being released. That is deliberate: the links are version-pinned, so forgetting
-to bump them is a silent 404 for anyone clicking **Download**.
-
 Adding a bundle target to `src-tauri/tauri.conf.json` means adding it to the
-expected list and to the README table, or the run fails — which is the point.
+collect step, to the expected list and to the README table, or the run fails —
+which is the point.
 
 The portable archives are built by `scripts/package-portable.ps1` (Windows) and
 `scripts/package-portable.sh` (macOS), which `release.yml` calls after the
@@ -135,8 +149,11 @@ a deliberate state, not an oversight, and it has real consequences:
   button behind **More info → Run anyway**. A code-signing certificate removes
   this.
 
-Because of that, an unsigned build is a **prerelease**, and it is not
-`v1.0.0`. See [Why not v1.0.0 yet](#why-not-v100-yet).
+An unsigned build is still published as a **normal release**, not a prerelease,
+and it is not `v1.0.0`. Publishing it as a prerelease would keep it out of
+`/releases/latest`, which is exactly where the README's download links point, so
+a prerelease would break the buttons for everyone. The release notes say plainly
+that the builds are unsigned. See [Why not v1.0.0 yet](#why-not-v100-yet).
 
 ---
 
@@ -145,31 +162,30 @@ Because of that, an unsigned build is a **prerelease**, and it is not
 1. **Move the changelog.** In `CHANGELOG.md`, move everything under
    `[Unreleased]` into a new `## [x.y.z] - YYYY-MM-DD` section. Keep the
    `[Unreleased]` heading.
-2. **Bump the version in three places** — they must agree, or the asset names
-   and the release tag drift apart:
+2. **Bump the version in three places** — they must agree, or the tag and the
+   version inside the installers drift apart:
    - `src-tauri/tauri.conf.json` → `"version"`
    - `src-tauri/Cargo.toml` → `[package] version`
    - `package.json` → `"version"`
 
    `src-tauri/Cargo.lock` follows the manifest on the next `cargo` command.
 
-3. **Repoint the README.** Every download link is version-pinned, so replace the
-   version in all thirteen of them — four badges and nine table entries — with
-   the new tag, and check the filenames against the list under
-   [Artifacts, by platform](#artifacts-by-platform). `verify` fails the release
-   if any link still names an older tag, so this cannot be forgotten silently.
+   **The README needs no edit.** Its links go through
+   `releases/latest/download/<name>` and the names never change; `verify` checks
+   that the README still links to all nine, so a deliberate rename cannot slip
+   through.
 
-4. **Commit, push to `main`, and confirm CI is green.** Do not tag a red commit.
-5. **Tag and push.**
+3. **Commit, push to `main`, and confirm CI is green.** Do not tag a red commit.
+4. **Tag and push.**
 
    ```bash
    git tag v0.5.6
    git push origin v0.5.6
    ```
 
-6. **Watch the run** under the repository's **Actions** tab. Four build jobs
+5. **Watch the run** under the repository's **Actions** tab. Four build jobs
    plus `verify`, on a cold cache taking roughly 20–30 minutes.
-7. **Review the draft** under **Releases**. It should hold exactly **ten
+6. **Review the draft** under **Releases**. It should hold exactly **ten
    assets**: the nine named artifacts plus `SHA256SUMS.txt`. Check the notes,
    download an installer or two, verify one against the checksum, then publish.
    The builds are unsigned; that is a known state, not a reason to hold the
