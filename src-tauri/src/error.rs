@@ -18,8 +18,8 @@ use serde::{Serialize, Serializer};
 pub type BoxError = Box<dyn StdError + Send + Sync + 'static>;
 
 #[derive(Debug, thiserror::Error)]
-// Variants are wired up as their milestone lands (M2 auth, M3 db, M4 network,
-// M8 webhooks). The enum is the wire contract with the frontend, so it is
+// Variants are wired up as their milestone lands (M2 auth, M3 db, M4 network).
+// The enum is the wire contract with the frontend, so it is
 // defined once rather than grown ad hoc — hence the module-level allow.
 #[allow(
     dead_code,
@@ -63,12 +63,6 @@ pub enum AppError {
     #[error("insufficient permissions")]
     Forbidden { scope: Option<String> },
 
-    #[error("webhook signature verification failed")]
-    SignatureInvalid,
-
-    #[error("webhook payload is too large")]
-    PayloadTooLarge,
-
     #[error("database error")]
     Db {
         #[source]
@@ -102,8 +96,6 @@ impl AppError {
             Self::SecondaryRateLimited { .. } => "secondary_rate_limited",
             Self::NotFound => "not_found",
             Self::Forbidden { .. } => "forbidden",
-            Self::SignatureInvalid => "signature_invalid",
-            Self::PayloadTooLarge => "payload_too_large",
             Self::Db { .. } => "db",
             Self::Config(_) => "config",
             Self::Internal(_) => "internal",

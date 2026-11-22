@@ -53,7 +53,6 @@ function seed(state: AuthState): void {
           dbSizeMb: 0,
           monitoredRepos: 0,
           cachedRuns: 0,
-          deliveries: 0,
           budgetAvailable: 30,
           uptimeSecs: 1,
         });

@@ -17,6 +17,37 @@ _Nothing yet._
 
 ---
 
+## [0.7.0] — 2026-11-22
+
+### Removed
+
+- **The webhook subsystem is gone.** The local listener, the relay client, the
+  signature verifier, the transport panel, five commands, the
+  `webhook_deliveries` table (migration `0005` drops it) and the four crates that
+  existed only for it — `axum`, `hmac`, `sha2`, `subtle`, `hex`.
+
+  It was verified working first: a real GitHub delivery over an `ngrok` tunnel,
+  signature checked, refresh queued. That verification is what argued for
+  removing it — see [ADR-021](./ARCHITECTURE.md#adr-021--remove-the-webhook-subsystem):
+
+  - the **relay** transport could never verify a signature, because `smee.io`
+    re-encodes the body and the signed bytes are gone by the time we see them;
+  - the **local** transport needed a public URL, a tunnel and a port that stayed
+    the same across restarts, which it did not;
+  - and what it bought was **latency only** — the poller is the only writer by
+    design, so a delivery queued a refresh and spent the same API call sooner.
+
+  The cost is that the dashboard and notifications now update at the poll
+  interval rather than within a second. The gain is that nothing listens on a
+  socket any more, which is what "everything stays on your machine" was supposed
+  to mean.
+
+  **Verified, then removed** is its own kind of entry: the measurement stays in
+  `VERIFICATION.md` as the reason the decision was made, not as a claim about the
+  current app.
+
+---
+
 ## [0.6.2] — 2026-11-22
 
 The account switcher moved to where the account is. Nothing else about the

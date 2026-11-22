@@ -7,7 +7,6 @@ export type SystemMetrics = {
   dbSizeMb: number;
   monitoredRepos: number;
   cachedRuns: bigint;
-  deliveries: bigint;
   /**
    * Requests the local bucket will still hand out right now.
    */

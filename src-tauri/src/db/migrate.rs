@@ -27,6 +27,14 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0004_repo_error_detail",
         include_str!("../../migrations/0004_repo_error_detail.sql"),
     ),
+    (
+        "0005_drop_webhook_deliveries",
+        include_str!("../../migrations/0005_drop_webhook_deliveries.sql"),
+    ),
+    (
+        "0006_drop_webhook_settings",
+        include_str!("../../migrations/0006_drop_webhook_settings.sql"),
+    ),
 ];
 
 const CREATE_LEDGER: &str = "

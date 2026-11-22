@@ -91,7 +91,7 @@ export function Bench() {
     });
   }
 
-  /** Fifty cards at once: a burst of webhook deliveries. */
+  /** Fifty cards at once: a burst of updates. */
   function updateFifty(): void {
     measure(() => {
       setCards((current) =>

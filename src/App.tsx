@@ -10,7 +10,6 @@ import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { RateLimitMeter } from "@/components/status/RateLimitMeter";
 import { StatusBar } from "@/components/shell/StatusBar";
 import { TitleBar } from "@/components/shell/TitleBar";
-import { WebhookPanel } from "@/components/webhook/WebhookPanel";
 import { useAuthBridge } from "@/hooks/useAuthBridge";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useLiveUpdates } from "@/hooks/useLiveUpdates";
@@ -26,7 +25,7 @@ import { KitchenSink } from "@/pages/KitchenSink";
 import { useSession } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
 
-type Overlay = "palette" | "settings" | "webhooks" | null;
+type Overlay = "palette" | "settings" | null;
 
 /**
  * Application shell: header, routed content, global toast region, and the
@@ -108,9 +107,6 @@ function Shell() {
       case "settings":
         setOverlay("settings");
         break;
-      case "webhooks":
-        setOverlay("webhooks");
-        break;
       case "refresh-all":
         void refreshAll();
         break;
@@ -188,17 +184,6 @@ function Shell() {
 
       {overlay === "settings" ? (
         <SettingsPanel
-          onClose={() => {
-            setOverlay(null);
-          }}
-          onOpenWebhooks={() => {
-            setOverlay("webhooks");
-          }}
-        />
-      ) : null}
-
-      {overlay === "webhooks" ? (
-        <WebhookPanel
           onClose={() => {
             setOverlay(null);
           }}

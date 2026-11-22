@@ -29,14 +29,14 @@ describe("call", () => {
 
   it("converts a structured backend error into a PulseError", async () => {
     invoke.mockRejectedValue({
-      code: "signature_invalid",
-      message: "webhook signature verification failed",
+      code: "forbidden",
+      message: "the operation failed",
       retryable: false,
     });
 
-    await expect(call("webhook_status")).rejects.toBeInstanceOf(PulseError);
-    await expect(call("webhook_status")).rejects.toMatchObject({
-      code: "signature_invalid",
+    await expect(call("repos_list")).rejects.toBeInstanceOf(PulseError);
+    await expect(call("repos_list")).rejects.toMatchObject({
+      code: "forbidden",
       retryable: false,
     });
   });

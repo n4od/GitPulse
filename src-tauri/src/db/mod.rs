@@ -9,7 +9,7 @@
 //! renamed under someone else's name would otherwise be trusted.
 //!
 //! The handle is deliberately indirect. Callers hold a [`Db`] clone — the poller,
-//! the tray, the webhook sink, every command — and the connection behind it is
+//! the tray, every command - and the connection behind it is
 //! swapped when the account changes, so none of them has to be rebuilt.
 //!
 //! # Why a single connection
@@ -27,7 +27,7 @@
 //! hand.
 //!
 //! Blocking work runs on `spawn_blocking` so a slow query cannot stall the
-//! async runtime that owns the poller and the webhook listener.
+//! async runtime that owns the poller.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -38,7 +38,6 @@ use crate::accounts;
 use crate::error::AppError;
 
 pub mod cache;
-pub mod deliveries;
 pub mod deployments;
 pub mod diff;
 pub mod jobs;
@@ -385,4 +384,30 @@ fn lock(current: &Mutex<Open>) -> Result<MutexGuard<'_, Open>, AppError> {
     current.lock().map_err(|_| {
         AppError::Internal("the database connection was poisoned by an earlier panic".to_owned())
     })
+}
+
+/// Drops everything the poller fetched, keeping the repositories themselves.
+///
+/// "Clear cache" is about the *activity* — runs, jobs, deployments, pull
+/// requests — because that is what goes stale. The repositories are the user's
+/// choices, so they stay, and the next sweep refetches the rest.
+///
+/// This used to live in the deliveries module, which it never really belonged to:
+/// it cleared the cache and merely also deleted webhook deliveries.
+pub fn clear_cached_activity(connection: &Connection) -> Result<usize, AppError> {
+    let transaction = connection.unchecked_transaction().map_err(AppError::db)?;
+
+    let mut removed = 0usize;
+    // Children before parents, so this does not depend on cascade behaviour.
+    for statement in [
+        "DELETE FROM jobs",
+        "DELETE FROM workflow_runs",
+        "DELETE FROM deployments",
+        "DELETE FROM pull_requests",
+    ] {
+        removed += transaction.execute(statement, []).map_err(AppError::db)?;
+    }
+
+    transaction.commit().map_err(AppError::db)?;
+    Ok(removed)
 }

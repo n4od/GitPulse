@@ -76,84 +76,6 @@ npm run tauri dev
 On Windows, if `npm` is blocked by the PowerShell execution policy, use
 `npm.cmd` instead — the `.ps1` shim cannot load under `Restricted`.
 
-## Webhooks
-
-Polling alone works, and it is the fallback for every situation. Webhooks make
-updates arrive in under a second instead of at the next interval.
-
-### Why the three options exist
-
-**GitHub cannot deliver a webhook to `127.0.0.1`.** Deliveries come from
-GitHub's servers, and a loopback address means nothing to them. Anything local
-therefore needs a public address in front of it, and there are only two honest
-ways to get one:
-
-| Option             | What it needs                                | What it costs                                                            |
-| ------------------ | -------------------------------------------- | ------------------------------------------------------------------------ |
-| **Off** (default)  | Nothing                                      | Updates arrive on the polling interval                                   |
-| **Relay**          | A relay URL (smee.io or compatible)          | Deliveries leave GitHub for a third party, which sees the payload bodies |
-| **Local + tunnel** | A tunnel you run (`cloudflared`, `ngrok`, …) | You operate it; the payloads stay between GitHub and your machine        |
-
-All three verify the same HMAC signature over the raw body, so none of them is
-the weak option. The relay is the least work; the tunnel keeps the payloads off
-someone else's server.
-
-### Why smee.io does not work
-
-smee.io parses the webhook JSON and sends it back as a JSON _object_:
-
-```json
-{"x-github-event":"workflow_run", "x-hub-signature-256":"sha256=...",
- "body":{"action":"completed","repository":{...}}}
-```
-
-The flattened headers are handled. The fatal part is `body`: it is no longer the
-bytes GitHub signed. The HMAC covers the _exact_ original bytes, and re-encoding
-a parsed object does not reproduce them — keys get reordered, escaping can
-differ — so the signature can never match.
-
-GitPulse refuses such a payload and says so:
-
-```
-refusing a relayed payload whose body is not raw text; this relay re-encodes
-JSON, so its signature cannot be verified. Use a tunnel, or a relay that
-forwards the original bytes.
-```
-
-Verifying the re-encoded body against itself would accept anything holding the
-signing secret and prove nothing about GitHub. **Use a tunnel.** A relay is only
-viable if it forwards the original bytes.
-
-### Setting it up
-
-Open the webhook panel from the title bar (the plug icon), pick a transport,
-and save. Then:
-
-1. Copy the **signing secret** — the panel reveals it on request.
-2. In GitHub, add a webhook to each repository you watch:
-   - **Payload URL**: your relay or tunnel URL, plus the path shown in the panel
-   - **Content type**: `application/json`
-   - **Secret**: the value you just copied
-   - **Which events**: I'd like to receive _individual_ events — at minimum
-     `Workflow runs`, `Workflow jobs`, `Deployments`, `Pull requests` and
-     `Check runs`
-3. Press **Test** in the panel to confirm the tunnel reaches GitPulse.
-
-Rotating the secret invalidates the old one immediately, so update GitHub in the
-same breath.
-
-### What a delivery does
-
-GitPulse records the delivery ID — so a GitHub retry or a relay replay is ignored —
-and then asks the poller to refresh that one repository right away. It does not
-apply the payload to the database directly: that keeps the event-to-state
-mapping in the one place that already has tests for it, and avoids a second
-writer racing the poller.
-
-That means a webhook costs one API request rather than zero. In exchange it is
-impossible for a payload GitPulse misreads to leave the cache wrong — the refresh
-fetches the truth.
-
 ## Scripts
 
 | Command               | What it does                                            |
@@ -180,7 +102,7 @@ cargo test  --manifest-path src-tauri/Cargo.toml --all-targets
 ```
 src/              React application
 src/lib/ipc.ts    the only bridge to Rust
-src-tauri/        Rust core (commands, auth, db, github, poller, webhook)
+src-tauri/        Rust core (commands, auth, db, github, poller, native)
 src-tauri/migrations/   SQLite migrations
 ARCHITECTURE.md   decisions, threat model, module map
 ROADMAP.md        milestones and task IDs

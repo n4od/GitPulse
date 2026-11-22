@@ -27,6 +27,7 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 | `0.4.0` | Polish & hardening  | M10 → M11  | Perf budgets measured, a11y audited, e2e green                           |
 | `0.5.0` | Buildable release   | M12        | Installers and portable builds on three OSes, with no secrets configured |
 | `0.6.0` | Multi-account       | M13        | Signed in to more than one account, switching without re-authenticating  |
+| `0.7.0` | Local only          | —          | The webhook subsystem removed; no listening socket                       |
 | `1.0.0` | Release-ready       | M12        | Signed installers on three OSes, auto-update                             |
 
 **Critical path:** M0 → M1 → M2 → M3 → M4 → M5 → M6. Everything after M6 is parallelisable
@@ -308,7 +309,13 @@ but has only been exercised against mocks.
 
 ---
 
-## M8 — Webhook ingestion · L → **v0.3.0**
+## M8 — Webhook ingestion · L → **v0.3.0** — **removed in `0.7.0`**
+
+> **This milestone no longer exists in the code.** The module, its tests, the
+> panel, the commands and the `webhook_deliveries` table were removed — see
+> [ADR-021](./ARCHITECTURE.md#adr-021--remove-the-webhook-subsystem). The tasks
+> below are kept as the record of what was built and measured, not as a
+> description of the application.
 
 **Goal:** sub-second updates without burning API budget.
 
@@ -480,9 +487,9 @@ without re-authenticating.
 - [x] `M13-07` Signing out of one account leaves the others intact — **done** by construction rather than by a special case: one keychain entry per account and one database file per account mean signing out removes exactly one of each. Covered by `accounts_do_not_share_keys` and `signing_out_deletes_only_that_accounts_file`.
 - [x] `M13-08` Tests: isolation between two accounts, with the manual half run against a second real account — **done**: the automated half is the isolation tests added across `M13-02`–`M13-05` (keys, files, active pointer, activation, and which account a refresh spends); the manual half was run with two real accounts, switching between them and checking that each showed only its own repositories.
 
-**Deliberately excluded:** polling several accounts at once, a merged dashboard,
-and per-account webhook secrets on one listener. Those are a different product,
-and they make "which account failed?" unanswerable in a notification.
+**Deliberately excluded:** polling several accounts at once and a merged
+dashboard. Those are a different product, and they make "which account failed?"
+unanswerable in a notification.
 
 **Prerequisite already in place:** `0.5.5` made the cache account-aware
 (`meta.account_login`, `purge_account_data`). This milestone extends that seam
@@ -500,21 +507,6 @@ Unscheduled. Promote into a milestone when it becomes a real user complaint.
 - Organization and team filters
 - GraphQL batching to cut request count
 - Saved filter presets and pinned ordering
-- **A stable local listener port.** It binds an OS-chosen port and records `0`,
-  so the URL GitHub was given stops working at the next launch — which makes the
-  tunnel transport a per-session setup rather than a configuration. Either a fixed
-  default or persisting the port actually bound. Found while verifying a real
-  webhook delivery, where the payload URL had to be re-pasted into GitHub after
-  every restart.
-- **Say what the relay cannot do, or drop it.** `smee.io` re-encodes the body, so
-  a signature can never verify through it and every delivery is refused. The
-  transport is still offered and its hint reads "needs only a URL" — which makes
-  it look like the easy option when it is the one that cannot work.
-- **The webhook panel's URL shapes.** It asks for a public URL for the health
-  probe, but the URL to paste into GitHub is that base plus the path segment plus
-  `/webhook`. Two shapes for one concept, and the difference is invisible unless
-  you read the source.
-- Webhook-only mode (disable polling entirely)
 - Full-text search index over cached logs
 - Windows toast action buttons ("Re-run", "Open")
 - Linux AppIndicator fallback when no tray is available
@@ -532,7 +524,6 @@ Open ones are below.
 | #      | Decision                  | Options                                                                                                          | Default if unresolved                                    | Affects |
 | ------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------- |
 | ~~D1~~ | ~~Auth model~~            | **Resolved in M2:** the code supports both — it branches on whether the token response contains a refresh token. | Either; GitHub App for refresh, OAuth App for simplicity | M2      |
-| D2     | Webhook transport         | **Relay only** (smee-style, zero config) vs relay + tunnel + local server                                        | Relay + local server, tunnel documented                  | M8      |
 | D3     | Polling default           | 60 s min / 15 min max vs user-set fixed interval                                                                 | Budget-aware adaptive                                    | M5, M10 |
 | D4     | Log retention             | Keep log text on disk vs fetch-on-demand only                                                                    | Fetch-on-demand, cache nothing                           | M7, M11 |
 | D5     | Product name / identifier | `GitPulse` / `dev.gitpulse.workflowmonitor`                                                                      | As written                                               | M0      |

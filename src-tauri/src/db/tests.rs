@@ -4,7 +4,7 @@ use chrono::{Duration, Utc};
 use rusqlite::Connection;
 
 use super::models::{DeploymentUpsert, JobUpsert, PullRequestUpsert, RepoUpsert, RunUpsert};
-use super::{cache, deliveries, diff, meta, migrate, pulls, repos, retention, runs, Db};
+use super::{cache, diff, meta, migrate, pulls, repos, retention, runs, Db};
 use crate::error::AppError;
 
 fn connection() -> Connection {
@@ -59,7 +59,7 @@ fn migrations_apply_once_and_are_recorded() {
 
     assert_eq!(
         migrate::current_version(&connection).expect("version"),
-        Some("0004_repo_error_detail".to_owned())
+        Some("0006_drop_webhook_settings".to_owned())
     );
 
     // Re-running must be a no-op rather than an error about existing tables.
@@ -70,7 +70,7 @@ fn migrations_apply_once_and_are_recorded() {
             row.get(0)
         })
         .expect("count");
-    assert_eq!(applied, 4);
+    assert_eq!(applied, 6);
 }
 
 #[test]
@@ -303,25 +303,6 @@ fn has_active_reports_only_in_flight_runs() {
 }
 
 #[test]
-fn webhook_deliveries_are_recorded_once() {
-    let connection = connection();
-
-    assert!(
-        deliveries::record(&connection, "delivery-1", "workflow_run", Some("acme/api"))
-            .expect("first")
-    );
-    assert!(
-        !deliveries::record(&connection, "delivery-1", "workflow_run", Some("acme/api"))
-            .expect("replay"),
-        "a replayed delivery must be rejected"
-    );
-
-    assert!(deliveries::seen(&connection, "delivery-1").expect("seen"));
-    assert!(!deliveries::seen(&connection, "delivery-2").expect("unseen"));
-    assert_eq!(deliveries::count(&connection).expect("count"), 1);
-}
-
-#[test]
 fn retention_prunes_old_rows_and_keeps_recent_ones() {
     let connection = connection();
     let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
@@ -337,20 +318,10 @@ fn retention_prunes_old_rows_and_keeps_recent_ones() {
     fresh.updated_at = recent;
     runs::upsert(&connection, &fresh).expect("fresh run");
 
-    connection
-        .execute(
-            "INSERT INTO webhook_deliveries (delivery_id, event, received_at) VALUES (?1, ?2, ?3)",
-            rusqlite::params!["stale-delivery", "ping", old],
-        )
-        .expect("stale delivery");
-    deliveries::record(&connection, "fresh-delivery", "ping", None).expect("fresh delivery");
-
     let report = retention::prune_with_defaults(&connection).expect("prune");
 
     assert_eq!(report.runs_deleted, 1);
-    assert_eq!(report.deliveries_deleted, 1);
     assert_eq!(runs::count_by_repo(&connection, repo_id).expect("runs"), 1);
-    assert_eq!(deliveries::count(&connection).expect("deliveries"), 1);
 }
 
 #[test]

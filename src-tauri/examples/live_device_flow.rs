@@ -50,8 +50,13 @@ async fn check_api_with_token() -> Result<(), Box<dyn std::error::Error>> {
         println!("  {}", repo.full_name);
     }
 
-    let runs = client.runs("birukboss/discord-testing", 20).await?;
-    println!("GET /actions/runs: {} runs", runs.len());
+    // Any repository the token can read; the default is public, so the check runs
+    // without anyone's private repository being named in the source.
+    let sample =
+        std::env::var("GITPULSE_CHECK_REPO").unwrap_or_else(|_| "octocat/Hello-World".to_owned());
+
+    let runs = client.runs(&sample, 20).await?;
+    println!("GET /actions/runs for {sample}: {} runs", runs.len());
     for run in runs.iter().take(5) {
         println!(
             "  #{} {} {} {:?}",
@@ -76,10 +81,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if std::env::args().any(|argument| argument == "--errors") {
         return check_error_paths(http, &client_id).await;
-    }
-
-    if std::env::args().any(|argument| argument == "--send") {
-        return send_signed_webhook().await;
     }
 
     if std::env::args().any(|argument| argument == "--api-me") {
@@ -213,37 +214,5 @@ async fn check_error_paths(
         Err(error) => println!("  bogus device code : {} ({})", error.code(), error),
     }
 
-    Ok(())
-}
-
-/// Signs and sends one webhook through a public relay.
-///
-/// The secret is read from the keychain and never printed.
-async fn send_signed_webhook() -> Result<(), Box<dyn std::error::Error>> {
-    let secret = gitpulse_lib::secrets::get("github-webhook-secret")?
-        .ok_or("no webhook secret; start the app with a relay first")?;
-    let url = std::env::var("GITPULSE_RELAY_URL")?;
-
-    let body = r#"{"action":"completed","repository":{"full_name":"birukboss/discord-testing"}}"#;
-
-    let mut mac = <hmac::Hmac<sha2::Sha256> as hmac::KeyInit>::new_from_slice(secret.as_bytes())?;
-    hmac::Mac::update(&mut mac, body.as_bytes());
-    let signature = format!(
-        "sha256={}",
-        hex::encode(hmac::Mac::finalize(mac).into_bytes())
-    );
-
-    let http = build_client()?;
-    let response = http
-        .post(url)
-        .header("content-type", "application/json")
-        .header("x-github-event", "workflow_run")
-        .header("x-github-delivery", "live-relay-check-1")
-        .header("x-hub-signature-256", signature)
-        .body(body)
-        .send()
-        .await?;
-
-    println!("relay POST: {}", response.status());
     Ok(())
 }

@@ -19,7 +19,6 @@ pub mod poller;
 pub mod redact;
 pub mod secrets;
 pub mod state;
-pub mod webhook;
 
 #[cfg(test)]
 pub mod testkit;
@@ -103,11 +102,6 @@ pub fn run() {
             commands::runs::runs_rerun_failed,
             commands::system::system_info,
             commands::system::system_open_url,
-            commands::webhook::webhook_config,
-            commands::webhook::webhook_rotate_secret,
-            commands::webhook::webhook_set_transport,
-            commands::webhook::webhook_signing_secret,
-            commands::webhook::webhook_test_public_url,
             commands::workflows::workflows_dispatch,
             commands::workflows::workflows_list,
         ])
@@ -202,21 +196,6 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     apply_native_settings(app.handle(), &notifier, &settings);
 
-    let webhooks = Arc::new(webhook::WebhookService::new(
-        database.clone(),
-        Arc::clone(&poller),
-    )?);
-    app.manage(Arc::clone(&webhooks));
-
-    tauri::async_runtime::spawn({
-        let webhooks = Arc::clone(&webhooks);
-        async move {
-            if let Err(error) = webhooks.start().await {
-                tracing::warn!(%error, "could not start the webhook transport");
-            }
-        }
-    });
-
     app.manage(database.clone());
     app.manage(auth_service);
     app.manage(Arc::clone(&github_client));
@@ -240,7 +219,6 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         {
             Ok(report) => tracing::info!(
                 runs = report.runs_deleted,
-                deliveries = report.deliveries_deleted,
                 vacuumed = report.vacuumed,
                 "retention sweep complete"
             ),

@@ -124,7 +124,7 @@ function fromConclusion(conclusion: string): StatusPresentation {
  * Maps a GitHub Actions `status` + `conclusion` pair to a badge.
  *
  * `conclusion` wins when present: GitHub reports `status: "completed"` with a
- * conclusion, but webhook payloads in flight can carry a conclusion while the
+ * conclusion, but a run in flight can carry a conclusion while the
  * status field is still stale.
  */
 export function mapRunStatus(

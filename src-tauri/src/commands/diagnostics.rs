@@ -36,7 +36,7 @@ pub async fn system_clear_cache(
     let database = db.inner().clone();
 
     database
-        .with_connection(crate::db::deliveries::clear_cache)
+        .with_connection(crate::db::clear_cached_activity)
         .await?;
 
     // Ask for everything back immediately rather than at the next interval.

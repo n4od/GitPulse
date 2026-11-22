@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Database, Webhook } from "lucide-react";
+import { Database } from "lucide-react";
 import type { NativeSettings } from "@/lib/bindings/NativeSettings";
 import type { SystemMetrics } from "@/lib/bindings/SystemMetrics";
 import { Button } from "@/components/primitives/Button";
@@ -14,10 +14,9 @@ import { toast } from "@/stores/toasts";
 
 interface SettingsPanelProps {
   onClose: () => void;
-  onOpenWebhooks: () => void;
 }
 
-export function SettingsPanel({ onClose, onOpenWebhooks }: SettingsPanelProps) {
+export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const settings = useSettingsStore((store) => store.settings);
   const saving = useSettingsStore((store) => store.saving);
   const load = useSettingsStore((store) => store.load);
@@ -174,10 +173,6 @@ export function SettingsPanel({ onClose, onOpenWebhooks }: SettingsPanelProps) {
                     />
                     <Metric label="Cached runs" value={String(metrics.data.cachedRuns)} />
                     <Metric
-                      label="Webhook deliveries"
-                      value={String(metrics.data.deliveries)}
-                    />
-                    <Metric
                       label="Requests left"
                       value={String(metrics.data.budgetAvailable)}
                     />
@@ -198,14 +193,6 @@ export function SettingsPanel({ onClose, onOpenWebhooks }: SettingsPanelProps) {
                     }}
                   >
                     Clear cache
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    leadingIcon={<Webhook className="size-3.5" />}
-                    onClick={onOpenWebhooks}
-                  >
-                    Webhooks
                   </Button>
                 </div>
               </fieldset>

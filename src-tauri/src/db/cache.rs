@@ -27,7 +27,7 @@ pub fn account_owner(connection: &Connection) -> Result<Option<String>, AppError
 
 /// Deletes every row that belongs to the signed-in account.
 ///
-/// Repositories go too, unlike [`super::deliveries::clear_cache`], which keeps
+/// Repositories go too, unlike [`super::clear_cached_activity`], which keeps
 /// them because within one account they are the user's choices. Here the
 /// account itself may be changing, so keeping them would show the next account
 /// repositories it may not even be able to see.
@@ -44,7 +44,6 @@ pub fn purge_account_data(connection: &Connection) -> Result<usize, AppError> {
         "DELETE FROM workflow_runs",
         "DELETE FROM deployments",
         "DELETE FROM pull_requests",
-        "DELETE FROM webhook_deliveries",
         "DELETE FROM repos",
     ] {
         removed += transaction.execute(statement, []).map_err(AppError::db)?;

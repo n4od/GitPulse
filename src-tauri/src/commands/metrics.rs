@@ -14,7 +14,6 @@ pub struct SystemMetrics {
     pub db_size_mb: f64,
     pub monitored_repos: usize,
     pub cached_runs: i64,
-    pub deliveries: i64,
     /// Requests the local bucket will still hand out right now.
     pub budget_available: u32,
     #[ts(type = "number")]
@@ -36,13 +35,11 @@ pub async fn collect(
         .with_connection(|connection| Ok(db::repos::list_monitored(connection)?.len()))
         .await?;
 
-    let (cached_runs, deliveries) = db
+    let cached_runs = db
         .with_connection(|connection| {
-            let runs: i64 = connection
+            connection
                 .query_row("SELECT COUNT(*) FROM workflow_runs", [], |row| row.get(0))
-                .map_err(AppError::db)?;
-
-            Ok((runs, db::deliveries::count(connection)?))
+                .map_err(AppError::db)
         })
         .await?;
 
@@ -56,7 +53,6 @@ pub async fn collect(
         db_size_mb,
         monitored_repos,
         cached_runs,
-        deliveries,
         budget_available,
         uptime_secs,
     })

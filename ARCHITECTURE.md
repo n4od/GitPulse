@@ -1,8 +1,8 @@
 # Architecture
 
 GitPulse is a local-first desktop client for GitHub Actions. There is no GitPulse
-server: the app talks to the GitHub API and (optionally) receives webhooks
-through a relay, and everything it learns is cached in a local SQLite file.
+server, and nothing listens for connections: the app talks to the GitHub API and
+caches what it learns in a local SQLite file.
 
 This document records **why** the system is shaped the way it is. Task-level
 planning lives in [ROADMAP.md](./ROADMAP.md); user-visible changes live in
@@ -27,7 +27,6 @@ planning lives in [ROADMAP.md](./ROADMAP.md); user-visible changes live in
 │  │   auth/      ── device flow, keyring, refresh      │                │
 │  │   github/    ── HTTP client, ETag, rate budget     │                │
 │  │   poller/    ── scheduler, adaptive intervals      │                │
-│  │   webhook/   ── local server, relay, HMAC verify   │                │
 │  │   db/        ── SQLite, migrations, diffs          │                │
 │  │   tray/ notify/ ── native surface                  │                │
 │  └────────────────────────────────────────────────────┘                │
@@ -53,7 +52,6 @@ single owner.
 | `src-tauri/migrations/`         | Append-only `.sql` schema versions                        | M3        |
 | `src-tauri/src/github/`         | HTTP client and endpoints (ETag + budget from M4)         | M2+       |
 | `src-tauri/src/poller/`         | Scheduler, budget math, backoff                           | M5        |
-| `src-tauri/src/webhook/`        | Local server, relay, HMAC verification                    | M8        |
 | `src/lib/ipc.ts`                | Typed `invoke` wrapper, error normalisation               | M0        |
 | `src/lib/repo-selectors.ts`     | Filtering, sorting, surgical card updates, formatting     | M6        |
 | `src/components/runs/`          | Run inspector, job list, log viewer, dispatch dialog      | M7        |
@@ -218,6 +216,10 @@ back.
 
 ### ADR-016 — A webhook refreshes; it does not patch
 
+> **Superseded by ADR-021.** The webhook subsystem, and with it this decision,
+> was removed in `0.7.0`. Kept because it explains why the poller is the only
+> writer — which is still true.
+
 The obvious design for webhook ingestion is to apply the payload: a
 `workflow_run.completed` event says the run finished, so write that to the run's
 row. It is fewer requests and it is what "real-time" usually means.
@@ -246,6 +248,10 @@ hour, this is nowhere near the ceiling — and every one of those requests is on
 the poller would have made later anyway.
 
 ### ADR-017 — What a relay must forward
+
+> **Superseded by ADR-021** — and by the measurement that made it: `smee.io`
+> re-encodes the body, so a relay of that kind could never pass verification at
+> all. Kept for the reasoning about headers, which is why no relay shipped.
 
 A relay is not a transparent pipe, and that is the whole difficulty. GitPulse
 verifies every payload against the signing secret, and the signature lives in a
@@ -507,10 +513,10 @@ Two cross-cutting concerns are centralised rather than left to components:
   budget, so the check lives in one hook that every animated component calls
   rather than in each component's CSS.
 
-`conclusion` is treated as authoritative over `status`, because webhook
-payloads can carry a conclusion while the status field is still stale. A
-`completed` run with no conclusion maps to `unknown` rather than `success` —
-never invent a green badge.
+`conclusion` is treated as authoritative over `status`, because a run can carry
+a conclusion while its status field is still stale — a completed run reported as
+queued, briefly. A `completed` run with no conclusion maps to `unknown` rather
+than `success` — never invent a green badge.
 
 ### ADR-009 — Coverage gate scoped to logic, not markup
 
@@ -537,9 +543,7 @@ kind that is hard to reverse once data exists in it. `M13-01`.
 **One active account, not all of them at once.** Signing in to several accounts
 simultaneously is a different product, not a bigger version of this one. The
 dashboard would have to disambiguate `acme/api` owned by two accounts; a
-notification ("build failed") would have to say _whose_; and the webhook listener
-is one socket on one port while the signing secret is per account, so a delivery
-could not be attributed to the account it belongs to. The idle-CPU budget of
+notification ("build failed") would have to say _whose_. The idle-CPU budget of
 under 1% was measured for **one** poller — `0.04%` average — and N pollers
 multiply it by N. So: exactly one account is active, and switching is explicit.
 
@@ -570,7 +574,7 @@ Consequences worth having written down:
 
   That second half turned out to be free, and it is worth recording why: the
   handle is an indirection — callers hold a `Db` clone and the connection behind
-  it is swapped — so the poller, the tray, the webhook sink and the commands keep
+  it is swapped — so the poller, the tray and the commands keep
   working across a switch without being rebuilt. The price is one mutex per
   query, which the single-connection design already pays.
 
@@ -593,11 +597,10 @@ ownership is the filename. Otherwise "sign out" is ambiguous about whether the
 other account survives, and the honest answer to "what did that delete?" should
 be visible on disk.
 
-**Deliberately excluded:** polling several accounts at once, a merged dashboard,
-and per-account webhook secrets on a single listener. Each of them makes the
-question "which account does this row belong to?" unavoidable in the UI, and
-none of them is needed to switch accounts without re-authenticating, which is
-the actual feature.
+**Deliberately excluded:** polling several accounts at once and a merged
+dashboard. Each makes the question "which account does this row belong to?"
+unavoidable in the UI, and neither is needed to switch accounts without
+re-authenticating, which is the actual feature.
 
 **Upgrade path.** On first run, an existing `gitpulse.db` whose
 `meta.account_login` names an account is claimed for it and moved to
@@ -607,17 +610,54 @@ discarded by the rule `0.5.5` already applies rather than being adopted.
 
 Implemented by `M13-02` through `M13-08`.
 
+### ADR-021 — Remove the webhook subsystem
+
+The webhook feature is gone: the module, the local listener, the relay client,
+the signature verifier, the panel, the commands, the `webhook_deliveries` table
+(migration `0005` drops it) and the four crates that existed only for it.
+
+**Why.** It was verified working — a real GitHub delivery over an `ngrok` tunnel,
+signature checked, refresh queued — and the verification is what killed it. Three
+things came out of doing it for real rather than reasoning about it:
+
+1. **The relay transport could never work.** `smee.io` re-encodes the body, so
+   the bytes GitHub signed do not exist by the time we see them. Not a
+   misconfiguration: a relay's body is not raw text by construction. `ADR-017`
+   had already documented this; the panel hint still said "needs only a URL",
+   which is how the author of the panel (and later a reader of this file) came to
+   recommend the one transport that could not succeed.
+2. **The local transport needed a public URL and a stable port** — a tunnel, a
+   GitHub webhook form, and a port that survives a restart (`0.6.2` bound an
+   OS-chosen one and recorded `0`). That is real setup, per machine, forever.
+3. **What it bought was latency.** The poller is the only writer by design
+   (`ADR-016`), so a delivery could not patch the cache — it queued a refresh,
+   spending the same API call sooner. The rate-limit saving people expect needs
+   the poll interval to stretch when pushes cover the gaps, and that was never
+   built.
+
+Against that: removing it deleted the only listening socket in the application,
+which is the one thing that contradicted "everything stays on your machine."
+Polling is always eventually right; a monitor a minute behind is still a monitor.
+
+**What is kept.** `ADR-016` and `ADR-017` stay, marked superseded: the first
+explains why the poller remains the only writer, and the second explains why no
+relay shipped.
+
+**Cost accepted.** Notifications and the dashboard update at the poll interval
+rather than within a second. If the 250-repository case ever becomes the goal,
+the honest route is a longer interval with a listener, and that decision starts
+again from here rather than from the code that was deleted.
+
 ## 4. Threat model
 
 ### Assets
 
-| Asset                  | Where it lives | Impact if leaked                              |
-| ---------------------- | -------------- | --------------------------------------------- |
-| GitHub access token    | OS keychain    | Full repo access as the user                  |
-| GitHub refresh token   | OS keychain    | Token minting after access expiry             |
-| Webhook signing secret | OS keychain    | Forged build events                           |
-| Cached repo data       | Local SQLite   | Private repo names, branches, commit messages |
-| Log files              | App log dir    | Anything logged, if redaction fails           |
+| Asset                | Where it lives | Impact if leaked                              |
+| -------------------- | -------------- | --------------------------------------------- |
+| GitHub access token  | OS keychain    | Full repo access as the user                  |
+| GitHub refresh token | OS keychain    | Token minting after access expiry             |
+| Cached repo data     | Local SQLite   | Private repo names, branches, commit messages |
+| Log files            | App log dir    | Anything logged, if redaction fails           |
 
 ### Trust boundaries
 
@@ -626,9 +666,6 @@ Implemented by `M13-02` through `M13-08`.
    so the webview cannot be used as a generic protocol launcher.
 2. **Network ↔ Rust.** All GitHub responses are untrusted input: parsed into
    typed models, never `eval`'d, never rendered as HTML.
-3. **Relay ↔ Rust.** Webhook payloads arrive from a public relay. HMAC
-   verification over raw bytes happens _before_ deserialization, and the local
-   listener is bound to `127.0.0.1` behind a secret path segment.
 
 ### Mitigations in place (M0–M2)
 
@@ -659,13 +696,12 @@ Implemented by `M13-02` through `M13-08`.
 
 Carried from the roadmap; each one changes the shape of a milestone.
 
-| #   | Decision                                                       | Default if unresolved                       | Affects |
-| --- | -------------------------------------------------------------- | ------------------------------------------- | ------- |
-| D1  | GitHub App (refresh tokens) vs OAuth App (non-expiring token)  | GitHub App                                  | M2      |
-| D2  | Webhook transport: relay only vs relay + tunnel + local server | Relay + local                               | M8      |
-| D3  | Polling: budget-aware adaptive vs user-fixed interval          | Adaptive                                    | M5      |
-| D4  | Log retention: cache text vs fetch on demand                   | Fetch on demand                             | M7      |
-| D5  | Product name / bundle identifier                               | `GitPulse` / `dev.gitpulse.workflowmonitor` | shipped |
+| #   | Decision                                                      | Default if unresolved                       | Affects |
+| --- | ------------------------------------------------------------- | ------------------------------------------- | ------- |
+| D1  | GitHub App (refresh tokens) vs OAuth App (non-expiring token) | GitHub App                                  | M2      |
+| D3  | Polling: budget-aware adaptive vs user-fixed interval         | Adaptive                                    | M5      |
+| D4  | Log retention: cache text vs fetch on demand                  | Fetch on demand                             | M7      |
+| D5  | Product name / bundle identifier                              | `GitPulse` / `dev.gitpulse.workflowmonitor` | shipped |
 
 ## 7. Known constraints of the current toolchain
 
