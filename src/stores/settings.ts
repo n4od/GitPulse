@@ -25,6 +25,7 @@ const DEFAULTS: NativeSettings = {
   quietHours: null,
   autostart: false,
   closeToTray: true,
+  checkUpdatesOnLaunch: true,
 };
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({

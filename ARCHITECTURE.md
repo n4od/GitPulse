@@ -52,11 +52,13 @@ single owner.
 | `src-tauri/migrations/`         | Append-only `.sql` schema versions                        | M3        |
 | `src-tauri/src/github/`         | HTTP client and endpoints (ETag + budget from M4)         | M2+       |
 | `src-tauri/src/poller/`         | Scheduler, budget math, backoff                           | M5        |
+| `src-tauri/src/update.rs`       | Update check, signed install, last-check state            | M12       |
 | `src/lib/ipc.ts`                | Typed `invoke` wrapper, error normalisation               | M0        |
 | `src/lib/repo-selectors.ts`     | Filtering, sorting, surgical card updates, formatting     | M6        |
 | `src/components/runs/`          | Run inspector, job list, log viewer, dispatch dialog      | M7        |
 | `src/lib/run-selectors.ts`      | Optimistic status, log line parsing and search            | M7        |
 | `src/hooks/useLiveUpdates.ts`   | Bridges push events into the query cache and live store   | M6        |
+| `src/hooks/useUpdateBridge.ts`  | Bridges the update event into the update store            | M12       |
 | `src/components/dashboard/`     | Grid, card, sparkline, filter bar, repository picker      | M6        |
 | `src/pages/Bench.tsx`           | Dev-only render profiler (compiled out of production)     | M6        |
 | `src/lib/status.ts`             | Canonical status vocabulary (mapping table, worst-of)     | M1        |
@@ -647,6 +649,51 @@ relay shipped.
 rather than within a second. If the 250-repository case ever becomes the goal,
 the honest route is a longer interval with a listener, and that decision starts
 again from here rather than from the code that was deleted.
+
+### ADR-022 — Check for a release at launch, and install only when asked
+
+`0.8.0` gains the thing `v1.0.0` was being held back for: the app notices a newer
+release, and can install it. Three decisions came with it.
+
+**The updater key is not code signing, and release notes must not conflate them.**
+Authenticode and Apple notarization tell the _operating system_ who built a
+binary; the app itself can verify neither after the fact. The updater's minisign
+key tells GitPulse that a download is the one its maintainer signed, and it needs
+no certificate authority at all — which is why auto-update ships at `0.8.0` while
+code signing stays unbought. The public half is compiled into the binary as
+`plugins.updater.pubkey`; the private half exists only as a GitHub Actions secret.
+A key read from configuration would let anyone who could write that configuration
+choose what the app trusts, so it is compiled in instead.
+
+**A check downloads a manifest; nothing else happens without a click.** One HTTPS
+request returns a few hundred bytes. The update is fetched only when the user
+presses Install, and installed only if it matches the signature. That is the
+difference between an app that keeps itself current and one that replaces itself,
+and the second is a thing people are right to distrust. The opt-in toggle controls
+the _check_; it never authorises an install.
+
+**The check runs in Rust, during bootstrap, not from the window.** The setting that
+gates it is read there, before a window exists to ask. The frontend learns the
+result two ways: an event, and an `update_pending` read performed immediately
+after subscribing. The second exists because the first can lose a race — the
+window takes a moment to load, and a check can finish before its listener exists.
+`useAuthBridge` solves the same problem the same way, for the same reason.
+
+**Rejected: checking from the frontend on mount.** `native_get_settings` needs the
+database, and `bootstrap` does not manage that until near its end, so a check
+driven from first render would sometimes run before the state it needs exists.
+Every other mount-time call in the app avoids the database for exactly that
+reason.
+
+**Rejected: `tauri-plugin-process` for the restart.** `AppHandle::restart` is in
+the `tauri` crate itself. On Windows the NSIS installer takes the process down
+before that line is reached, which is why the restart is unconditional rather than
+platform-gated — dead code on one platform beats a `cfg` that no build here can
+compile.
+
+**What this does not do.** No automatic download, no delta updates, and no help
+for macOS: an unsigned `.app` is still quarantined by Gatekeeper on first launch,
+and auto-update changes nothing about that.
 
 ## 4. Threat model
 

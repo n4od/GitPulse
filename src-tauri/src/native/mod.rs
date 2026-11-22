@@ -16,9 +16,24 @@ pub use notifier::Notifier;
 const SETTINGS_KEY: &str = "native_settings";
 
 /// Preferences that only the desktop shell cares about.
+///
+/// `default` is on the container, not on the new fields, and that is load-
+/// bearing: the whole struct is persisted as one JSON blob, and
+/// [`load_settings`] falls back to `Default` when it cannot parse. Without this,
+/// adding a field would make every existing blob unparseable and silently reset
+/// the user's settings on upgrade. With it, a blob from an older version loads
+/// and the fields it does not mention take their defaults.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "../../src/lib/bindings/")]
+// Four independent on/off preferences, each its own checkbox. The lint is about
+// a state machine hiding in a pile of bools; this is not one, and folding them
+// into a bitfield or an enum would make the stored blob harder to read without
+// making the UI any simpler.
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent preferences, not encoded state"
+)]
 pub struct NativeSettings {
     pub notifications_enabled: bool,
     /// A window like `"22-07"`, or `None` for "never quiet".
@@ -28,6 +43,13 @@ pub struct NativeSettings {
     pub autostart: bool,
     /// Closing the window hides it instead of quitting.
     pub close_to_tray: bool,
+    /// Look for a newer release when the app starts.
+    ///
+    /// On by default, unlike `autostart`. `GitPulse` is already a GitHub client
+    /// making requests on a timer, so one more request for a small manifest is
+    /// not a new class of network access - and an update nobody is told about is
+    /// an update nobody installs. Nothing is downloaded until the user says so.
+    pub check_updates_on_launch: bool,
 }
 
 impl Default for NativeSettings {
@@ -37,6 +59,7 @@ impl Default for NativeSettings {
             quiet_hours: None,
             autostart: false,
             close_to_tray: true,
+            check_updates_on_launch: true,
         }
     }
 }
@@ -97,6 +120,35 @@ mod tests {
         assert!(!settings.autostart, "installing into startup is opt-in");
         assert!(settings.close_to_tray);
         assert_eq!(settings.quiet_hours, None);
+        // The one that goes the other way: looking for an update is on, because
+        // a monitor that never mentions a newer version may as well not have one.
+        assert!(settings.check_updates_on_launch);
+    }
+
+    #[test]
+    fn a_settings_blob_written_before_a_field_existed_still_loads() {
+        // Settings are one JSON blob under one meta key, and `load_settings`
+        // falls back to `Default` when it cannot parse. So a new *required*
+        // field would make every existing blob unparseable and silently reset
+        // the user's whole configuration on upgrade - notifications, quiet
+        // hours, autostart, everything. This is the test that catches that.
+        let older = r#"{
+            "notificationsEnabled": false,
+            "quietHours": "22-07",
+            "autostart": true,
+            "closeToTray": false
+        }"#;
+
+        let parsed: NativeSettings =
+            serde_json::from_str(older).expect("a blob from an older version must still parse");
+
+        // Every value the user set survives.
+        assert!(!parsed.notifications_enabled);
+        assert_eq!(parsed.quiet_hours.as_deref(), Some("22-07"));
+        assert!(parsed.autostart);
+        assert!(!parsed.close_to_tray);
+        // And the field that did not exist takes its default, not `false`.
+        assert!(parsed.check_updates_on_launch);
     }
 
     #[test]

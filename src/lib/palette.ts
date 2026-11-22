@@ -64,5 +64,6 @@ export const PALETTE_ACTIONS: PaletteEntry[] = [
   { id: "track-repos", label: "Track repositories", detail: "Action" },
   { id: "settings", label: "Open settings", detail: "Settings" },
   { id: "refresh-all", label: "Refresh every repository", detail: "Action" },
+  { id: "check-updates", label: "Check for updates", detail: "Action" },
   { id: "sign-out", label: "Sign out of GitHub", detail: "Account" },
 ];

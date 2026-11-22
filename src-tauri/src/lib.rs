@@ -19,6 +19,7 @@ pub mod poller;
 pub mod redact;
 pub mod secrets;
 pub mod state;
+pub mod update;
 
 #[cfg(test)]
 pub mod testkit;
@@ -53,6 +54,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -102,6 +104,10 @@ pub fn run() {
             commands::runs::runs_rerun_failed,
             commands::system::system_info,
             commands::system::system_open_url,
+            commands::update::app_version,
+            commands::update::update_check,
+            commands::update::update_pending,
+            commands::update::update_install,
             commands::workflows::workflows_dispatch,
             commands::workflows::workflows_list,
         ])
@@ -118,6 +124,10 @@ pub fn run() {
 fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     logging::init(app.handle())?;
     app.manage(AppState::new());
+    // Holds the startup update check's result for a window that is not listening
+    // yet. Managed this early because it depends on nothing, and the check below
+    // is free to finish before any other subsystem is ready.
+    app.manage(update::LastCheck::default());
 
     let data_directory = app
         .path()
@@ -195,6 +205,14 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(Arc::clone(&notifier));
 
     apply_native_settings(app.handle(), &notifier, &settings);
+
+    // The window is still loading, and the point of the check is a release that
+    // was published while it was closed. One request, off the main thread,
+    // reported through an event - so nothing the user is waiting for depends on
+    // it, and a failure is a log line rather than a dialog.
+    if settings.check_updates_on_launch {
+        update::spawn_launch_check(app.handle().clone());
+    }
 
     app.manage(database.clone());
     app.manage(auth_service);

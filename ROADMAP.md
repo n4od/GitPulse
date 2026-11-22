@@ -28,7 +28,16 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 | `0.5.0` | Buildable release   | M12        | Installers and portable builds on three OSes, with no secrets configured |
 | `0.6.0` | Multi-account       | M13        | Signed in to more than one account, switching without re-authenticating  |
 | `0.7.0` | Local only          | —          | The webhook subsystem removed; no listening socket                       |
-| `1.0.0` | Release-ready       | M12        | Signed installers on three OSes, auto-update                             |
+| `0.8.0` | Self-updating       | —          | A newer release is noticed at launch and installed on request            |
+| `1.0.0` | Release-ready       | M12        | Signed installers on three OSes — **not scheduled**                      |
+
+**`1.0.0` is not planned.** It was reserved for "signed installers on three
+operating systems, with auto-update". Auto-update shipped in `0.8.0`, so the only
+condition left in that definition is **code signing** — an Authenticode
+certificate for Windows and an Apple Developer account for macOS, both paid and
+neither obtained. Until somebody decides to buy them, releases stay `0.x`, which
+is the honest number for "works, but the OS warns you the first time you open
+it". Nothing in `1.0.0` is waiting on code.
 
 **Critical path:** M0 → M1 → M2 → M3 → M4 → M5 → M6. Everything after M6 is parallelisable
 except M8, which depends on M4 (client) and M3 (persistence).
@@ -434,13 +443,13 @@ dropped.
 ## M12 — Release engineering · M → **v1.0.0** — **executed; `v0.5.0` is a draft release**
 
 - [x] `M12-01` `release.yml`: `tauri-action`, four build targets across three OSes, a draft release, and a verification job that refuses to publish if an artifact is missing
-- [x] `M12-02` Updater artifacts **deferred on purpose.** `createUpdaterArtifacts` is `false` until the updater plugin is installed: the flag forces a signing key that stood between a tag and a set of installers. Re-enable it with the plugin.
+- [x] `M12-02` Updater artifacts — **shipped in `0.8.0`.** `createUpdaterArtifacts` stayed `false` while the plugin was uninstalled, on purpose: the flag demands a signing key, and a required key is a new way for a tag to fail. Plugin and flag landed together, so the flag never guarded a pipeline that had no reader for what it produced.
 - [x] `M12-03` Signing is not configured, so releases are **unsigned** — installers are produced, but macOS Gatekeeper and Windows SmartScreen will warn. The secrets and the exact `env:` block to add are in `RELEASING.md`; none is committed. Declaring a signing variable _empty_ is not the same as leaving it unset: an empty `APPLE_CERTIFICATE` made Tauri import a blank certificate and fail the whole macOS bundle.
 - [x] `M12-04` `ARCHITECTURE.md`: 18 ADRs, threat model, module map
 - [x] `M12-05` README: registration, tunnel trade-offs, troubleshooting, and why smee.io does not work
 - [x] `M12-05b` [`RELEASING.md`](./RELEASING.md): how a tag becomes installers, every signing secret and where it comes from, the unsigned-build caveat, and the secret-free path a release takes today
 - [x] `M12-06` Acceptance walkthrough recorded in [`VERIFICATION.md`](./VERIFICATION.md): 3 verified, 5 partial, 1 not met, 1 with documented exceptions
-- [ ] `M12-07` Tag `v1.0.0` — **not done, deliberately.** The milestone's own exit criterion is signed installers produced and verified on three operating systems, with auto-update. None holds: there are no signing certificates, and the updater plugin is not installed. `v0.5.0` is cut instead, and it is unsigned.
+- [ ] `M12-07` Tag `v1.0.0` — **not done, and not scheduled.** The milestone's own exit criterion is signed installers produced and verified on three operating systems. Auto-update landed in `0.8.0`; code signing has not, and it needs paid certificates nobody has bought. `v0.5.0` was cut instead, unsigned, and the `0.x` line continued.
 
 **What this milestone actually delivers:** a release pipeline that runs. The
 `v0.5.0` tag produced installers and portable builds for all three operating

@@ -72,6 +72,19 @@ pub enum AppError {
     #[error("configuration error: {0}")]
     Config(String),
 
+    #[error("could not check for updates")]
+    UpdateCheck {
+        retryable: bool,
+        #[source]
+        source: BoxError,
+    },
+
+    #[error("the update could not be installed")]
+    UpdateInstall {
+        #[source]
+        source: BoxError,
+    },
+
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -98,6 +111,8 @@ impl AppError {
             Self::Forbidden { .. } => "forbidden",
             Self::Db { .. } => "db",
             Self::Config(_) => "config",
+            Self::UpdateCheck { .. } => "update_check",
+            Self::UpdateInstall { .. } => "update_install",
             Self::Internal(_) => "internal",
         }
     }
@@ -112,6 +127,10 @@ impl AppError {
                 ..
             } | Self::RateLimited { .. }
                 | Self::SecondaryRateLimited { .. }
+                | Self::UpdateCheck {
+                    retryable: true,
+                    ..
+                }
         )
     }
 
@@ -126,6 +145,25 @@ impl AppError {
     /// Wraps a database failure.
     pub fn db(source: impl Into<BoxError>) -> Self {
         Self::Db {
+            source: source.into(),
+        }
+    }
+
+    /// Wraps a failed update check.
+    ///
+    /// `retryable` is the difference between a request that never arrived and a
+    /// release that answered no. Only the first is worth asking again for, and
+    /// the frontend uses it to decide whether to offer a retry.
+    pub fn update_check(source: impl Into<BoxError>, retryable: bool) -> Self {
+        Self::UpdateCheck {
+            retryable,
+            source: source.into(),
+        }
+    }
+
+    /// Wraps a failed update install.
+    pub fn update_install(source: impl Into<BoxError>) -> Self {
+        Self::UpdateInstall {
             source: source.into(),
         }
     }

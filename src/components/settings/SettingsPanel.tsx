@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Database } from "lucide-react";
+import { Database, RefreshCw } from "lucide-react";
 import type { NativeSettings } from "@/lib/bindings/NativeSettings";
 import type { SystemMetrics } from "@/lib/bindings/SystemMetrics";
 import { Button } from "@/components/primitives/Button";
@@ -8,6 +8,7 @@ import { Card, CardBody, CardHeader } from "@/components/primitives/Card";
 import { Spinner } from "@/components/primitives/Spinner";
 import { useLiveStore } from "@/stores/live";
 import { useSettingsStore } from "@/stores/settings";
+import { useUpdateStore } from "@/stores/update";
 import { call } from "@/lib/ipc";
 import { toPulseError } from "@/lib/errors";
 import { toast } from "@/stores/toasts";
@@ -23,6 +24,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const update = useSettingsStore((store) => store.update);
   const poller = useLiveStore((store) => store.poller);
 
+  const version = useUpdateStore((store) => store.version);
+  const updatePhase = useUpdateStore((store) => store.phase);
+  const available = useUpdateStore((store) => store.available);
+  const updateError = useUpdateStore((store) => store.error);
+  const updateRetryable = useUpdateStore((store) => store.retryable);
+  const loadVersion = useUpdateStore((store) => store.loadVersion);
+  const checkForUpdates = useUpdateStore((store) => store.check);
+  const installUpdate = useUpdateStore((store) => store.install);
+
   // A draft, not state mirrored from props: mirroring needs an effect, and an
   // effect that sets state on every settings change is a render loop waiting
   // to happen. `null` means "showing what the backend says".
@@ -31,7 +41,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadVersion();
+  }, [load, loadVersion]);
 
   const metrics = useQuery({
     queryKey: ["metrics"],
@@ -133,6 +144,82 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   />
                   Start GitPulse when I sign in
                 </label>
+              </fieldset>
+
+              <fieldset className="space-y-2 border-t border-line pt-3">
+                <legend className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
+                  Updates
+                </legend>
+
+                <label className="flex items-center gap-2 text-xs text-ink">
+                  <input
+                    type="checkbox"
+                    checked={settings.checkUpdatesOnLaunch}
+                    onChange={(event) => {
+                      toggle("checkUpdatesOnLaunch", event.target.checked);
+                    }}
+                  />
+                  Check for updates when GitPulse starts
+                </label>
+
+                <p className="text-[11px] leading-4 text-ink-muted">
+                  Version{" "}
+                  <span className="font-mono text-ink-soft">{version ?? "-"}</span>
+                  {updatePhase === "installing"
+                    ? " - downloading and installing; GitPulse will restart."
+                    : updatePhase === "checking"
+                      ? " - checking..."
+                      : updatePhase === "current"
+                        ? " - up to date."
+                        : updatePhase === "available" && available
+                          ? ` - ${available.version} is available.`
+                          : null}
+                </p>
+
+                {updateError !== null ? (
+                  <p className="text-[11px] leading-4 text-bad">
+                    {updateError}
+                    {updateRetryable ? " Try again in a moment." : null}
+                  </p>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={updatePhase === "checking"}
+                    leadingIcon={<RefreshCw className="size-3.5" />}
+                    disabled={updatePhase === "checking" || updatePhase === "installing"}
+                    onClick={() => {
+                      void checkForUpdates();
+                    }}
+                  >
+                    Check for updates
+                  </Button>
+
+                  {updatePhase === "available" && available ? (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => {
+                        void installUpdate();
+                      }}
+                    >
+                      Install {available.version} and restart
+                    </Button>
+                  ) : null}
+                </div>
+
+                {updatePhase === "available" && available?.notes ? (
+                  <details className="text-[11px] text-ink-muted">
+                    <summary className="cursor-pointer">
+                      What is new in {available.version}
+                    </summary>
+                    <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-line leading-4">
+                      {available.notes}
+                    </p>
+                  </details>
+                ) : null}
               </fieldset>
 
               <fieldset className="space-y-2 border-t border-line pt-3">

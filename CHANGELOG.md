@@ -13,7 +13,25 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **GitPulse updates itself.** A newer release is noticed at launch and installed
+  when you say so. The check is one small request for a manifest; nothing is
+  downloaded until you press Install, and nothing is installed unless it matches
+  the signature. Settings shows the running version, the check can be turned off,
+  and the palette gained "Check for updates". (`M12-02`, [ADR-022](./ARCHITECTURE.md#adr-022--check-for-a-release-at-launch-and-install-only-when-asked))
+- **A signed update channel, which is not the same thing as code signing.** The
+  release workflow now signs every updater artifact with a minisign key and
+  publishes the `latest.json` the app reads. The installers stay unsigned, so
+  SmartScreen and Gatekeeper still warn on first launch - auto-update does not
+  change that, and the release notes say so.
+
+### Changed
+
+- **Stored settings survive a new preference.** The settings blob is now
+  `#[serde(default)]` at the container rather than per field, so adding a
+  preference in a future version can no longer fail to parse the blob already on
+  disk and silently reset every setting the user had.
 
 ---
 

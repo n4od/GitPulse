@@ -37,6 +37,8 @@ function seed(state: AuthState): void {
     // The dashboard and the settings panel are only mounted when signed in,
     // and they need their own payloads, not the auth one.
     switch (command) {
+      case "auth_get_state":
+        return Promise.resolve(state);
       case "repos_list":
         return Promise.resolve([]);
       case "auth_accounts":
@@ -47,6 +49,7 @@ function seed(state: AuthState): void {
           quietHours: null,
           autostart: false,
           closeToTray: true,
+          checkUpdatesOnLaunch: true,
         });
       case "system_metrics":
         return Promise.resolve({
@@ -56,8 +59,16 @@ function seed(state: AuthState): void {
           budgetAvailable: 30,
           uptimeSecs: 1,
         });
+      case "app_version":
+        return Promise.resolve("1.2.3-test");
+      case "update_pending":
+        return Promise.resolve(null);
       default:
-        return Promise.resolve(state);
+        // Deliberately not "return the auth state and hope". That default made
+        // every unmocked command resolve to a whole AuthState object, so a new
+        // command did not fail here - it failed later, as an object rendered as
+        // a React child, somewhere unrelated. Naming the command is the point.
+        return Promise.reject(new Error(`unmocked command in this test: ${command}`));
     }
   });
 
@@ -96,6 +107,23 @@ describe("App shell", () => {
     await userEvent.click(screen.getByRole("button", { name: /^settings$/i }));
 
     expect(await screen.findByText(/notify me when a build fails/i)).toBeInTheDocument();
+  });
+
+  it("shows the update section, and which version is running", async () => {
+    seed(SIGNED_IN);
+    render(<App />);
+
+    await userEvent.click(screen.getByRole("button", { name: /^settings$/i }));
+
+    // The version comes from the backend rather than from package.json, so this
+    // also pins the command that feeds it.
+    expect(await screen.findByText("1.2.3-test")).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: /check for updates when gitpulse starts/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^check for updates$/i }),
+    ).toBeInTheDocument();
   });
 
   it("keeps the dev gallery out of the default route", () => {

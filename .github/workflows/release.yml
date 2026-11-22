@@ -77,21 +77,34 @@ jobs:
           fi
 
   build:
-    name: Build (${{ matrix.platform }})
+    # Named by slug, not by runner label: the two macOS jobs share a runner, and
+    # two identically-titled jobs in the UI is how the wrong one gets re-run.
+    name: Build (${{ matrix.slug }})
     needs: prepare
     runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          # `slug` names the release assets. `key` is the platform identifier the
+          # updater expects inside latest.json. They are deliberately not the
+          # same spelling: `macos-arm64` is ours, `darwin-aarch64` is Tauri's.
           - platform: macos-latest
             args: "--target aarch64-apple-darwin"
+            slug: macos-arm64
+            key: darwin-aarch64
           - platform: macos-latest
             args: "--target x86_64-apple-darwin"
+            slug: macos-x64
+            key: darwin-x86_64
           - platform: ubuntu-22.04
             args: ""
+            slug: linux-x64
+            key: linux-x86_64
           - platform: windows-latest
             args: ""
+            slug: windows-x64
+            key: windows-x86_64
     steps:
       - uses: actions/checkout@v4
 
@@ -136,12 +149,26 @@ jobs:
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # No signing variables are declared, and that is deliberate rather
-          # than an omission. Declaring one *empty* is not the same as leaving
-          # it unset: an empty APPLE_CERTIFICATE made Tauri attempt
-          # `security import` on a blank PKCS#12 and fail the macOS bundle
-          # outright, on all four builds. To sign, add the secrets and paste
-          # the env block from RELEASING.md, "Adding signing".
+          # The updater keypair, and only that. This is not code signing: it is
+          # the minisign key the app checks a downloaded update against, and it
+          # is free to generate (`npm run tauri signer generate`). The public half
+          # is committed in tauri.conf.json; this is the private half.
+          #
+          # It is *required*. `createUpdaterArtifacts` is on, so a release
+          # without it fails outright - "A public key has been found, but no
+          # private key" - rather than shipping an update nothing can verify.
+          # That coupling is the point: an updater nobody can verify is worse
+          # than no updater.
+          #
+          # The Authenticode and Apple variables stay undeclared on purpose.
+          # Declaring one *empty* is not the same as leaving it unset: an empty
+          # APPLE_CERTIFICATE made Tauri attempt `security import` on a blank
+          # PKCS#12 and fail every macOS bundle. Those are a separate, paid,
+          # still-not-configured concern - see RELEASING.md, "Adding code
+          # signing". If the key was generated without a password, delete the
+          # PASSWORD line rather than leaving it empty.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           args: ${{ matrix.args }}
 
@@ -169,39 +196,100 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release-assets
+          mkdir -p release-assets updater
+
+          slug="${{ matrix.slug }}"
 
           # Fail loudly rather than copying an empty path.
           first() { find "$1" -maxdepth 1 -type f -name "$2" -print -quit; }
+          # Where Tauri puts the updater artifacts is its business, not ours: the
+          # location moves with the platform and the bundle target, so search the
+          # tree instead of guessing a directory.
+          firstdeep() { find "$1" -type f -name "$2" -print -quit; }
 
           case "${{ matrix.platform }}" in
             windows-latest)
               cp "$(first src-tauri/target/release/bundle/nsis '*.exe')" \
-                 release-assets/GitPulse-windows-x64-setup.exe
+                 "release-assets/GitPulse-${slug}-setup.exe"
               cp "$(first src-tauri/target/release/bundle/msi '*.msi')" \
-                 release-assets/GitPulse-windows-x64.msi
-              cp portable/GitPulse-windows-x64-portable.zip release-assets/
+                 "release-assets/GitPulse-${slug}.msi"
+              cp "portable/GitPulse-${slug}-portable.zip" release-assets/
+              # The NSIS installer *is* the update payload: Tauri signs the .exe
+              # rather than wrapping it in a second archive, so the only thing
+              # this platform contributes is a signature.
+              sig="$(firstdeep src-tauri/target/release/bundle '*.exe.sig')"
+              payload="GitPulse-${slug}-setup.exe"
               ;;
             ubuntu-22.04)
               cp "$(first src-tauri/target/release/bundle/deb '*.deb')" \
-                 release-assets/GitPulse-linux-x64.deb
+                 "release-assets/GitPulse-${slug}.deb"
               cp "$(first src-tauri/target/release/bundle/appimage '*.AppImage')" \
-                 release-assets/GitPulse-linux-x64.AppImage
+                 "release-assets/GitPulse-${slug}.AppImage"
+              cp "$(firstdeep src-tauri/target/release/bundle '*.AppImage.tar.gz')" \
+                 "release-assets/GitPulse-${slug}-updater.tar.gz"
+              sig="$(firstdeep src-tauri/target/release/bundle '*.AppImage.tar.gz.sig')"
+              payload="GitPulse-${slug}-updater.tar.gz"
               ;;
             macos-latest)
-              case "${{ matrix.args }}" in
-                *aarch64*) suffix=macos-arm64 ;;
-                *)         suffix=macos-x64 ;;
-              esac
               target="${{ matrix.args }}"
               target="${target#--target }"
               cp "$(first "src-tauri/target/${target}/release/bundle/dmg" '*.dmg')" \
-                 "release-assets/GitPulse-${suffix}.dmg"
-              cp "portable/GitPulse-${suffix}-portable.tar.gz" release-assets/
+                 "release-assets/GitPulse-${slug}.dmg"
+              cp "portable/GitPulse-${slug}-portable.tar.gz" release-assets/
+              cp "$(firstdeep "src-tauri/target/${target}/release/bundle" '*.app.tar.gz')" \
+                 "release-assets/GitPulse-${slug}-updater.tar.gz"
+              sig="$(firstdeep "src-tauri/target/${target}/release/bundle" '*.app.tar.gz.sig')"
+              payload="GitPulse-${slug}-updater.tar.gz"
               ;;
           esac
 
-          ls -l release-assets
+          # Reading the signature proves the key was used, and names the missing
+          # secret when it was not - rather than failing later inside a merge.
+          if [ ! -s "$sig" ]; then
+            echo "::error::no updater signature for ${slug}. Is TAURI_SIGNING_PRIVATE_KEY set?"
+            exit 1
+          fi
+
+          # This platform's slice of latest.json. Written here because this job is
+          # the only one holding the signature, and merged in `verify` because no
+          # single job knows about the other three.
+          python3 - "${{ needs.prepare.outputs.tag }}" "${{ matrix.key }}" "${payload}" "${sig}" \
+            > "updater/latest-${{ matrix.key }}.json" <<'PY'
+          import json
+          import os
+          import sys
+
+          tag, platform, payload, sig_path = sys.argv[1:5]
+
+          with open(sig_path, encoding="utf-8") as handle:
+              signature = handle.read().strip()
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          json.dump(
+              {
+                  "platforms": {
+                      platform: {
+                          "signature": signature,
+                          # Pinned to this tag rather than latest/download: the
+                          # manifest is regenerated per release, so the URL it
+                          # names can be immutable. A stable path could hand a
+                          # client the wrong release's bytes in a tight window.
+                          "url": f"https://github.com/{repo}/releases/download/{tag}/{payload}",
+                      }
+                  }
+              },
+              sys.stdout,
+          )
+          PY
+
+          ls -l release-assets updater
+
+      - name: Upload this platform's manifest fragment
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-${{ matrix.slug }}
+          path: updater/latest-*.json
+          if-no-files-found: error
 
       - name: Upload the release assets
         shell: bash
@@ -247,6 +335,60 @@ jobs:
 
           echo "The README links to all nine files."
 
+      # Each build job wrote the slice of the update manifest it could know about.
+      # This is where four independent builds become one file - and where a
+      # platform that silently produced no signature is caught, because a manifest
+      # missing a platform is a platform whose users never get an update.
+      - name: Collect this platform's manifest fragments
+        uses: actions/download-artifact@v4
+        with:
+          pattern: updater-*
+          path: updater
+          merge-multiple: true
+
+      - name: Assemble the update manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ needs.prepare.outputs.tag }}"
+
+          python3 - "$tag" <<'PY'
+          import datetime
+          import json
+          import pathlib
+          import sys
+
+          tag = sys.argv[1]
+
+          platforms = {}
+          for fragment in sorted(pathlib.Path("updater").glob("latest-*.json")):
+              platforms.update(json.loads(fragment.read_text(encoding="utf-8"))["platforms"])
+
+          wanted = {"windows-x86_64", "darwin-aarch64", "darwin-x86_64", "linux-x86_64"}
+          if set(platforms) != wanted:
+              sys.exit(
+                  f"error: the manifest covers {sorted(platforms)}, expected {sorted(wanted)}"
+              )
+
+          manifest = {
+              "version": tag.removeprefix("v"),
+              "notes": f"See the release notes for {tag}.",
+              "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime(
+                  "%Y-%m-%dT%H:%M:%SZ"
+              ),
+              "platforms": platforms,
+          }
+
+          with open("latest.json", "w", encoding="utf-8") as handle:
+              json.dump(manifest, handle, indent=2)
+
+          print(json.dumps(manifest, indent=2))
+          PY
+
+          gh release upload "$tag" latest.json --clobber
+
       - name: Check the draft is exactly the expected set
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -261,6 +403,12 @@ jobs:
           # an asset nobody asked for means the pipeline changed underneath us,
           # which is exactly how two dead macOS tarballs went unnoticed for four
           # releases. A missing one fails here rather than reaching a user.
+          #
+          # The nine at the top are what a human downloads, and what the README
+          # links to. The `-updater.tar.gz` files and `latest.json` below are
+          # machinery: the updater fetches them, and nobody should be pointed at
+          # them by hand. Windows contributes no updater artifact because its NSIS
+          # installer doubles as one.
           expected=(
             "GitPulse-windows-x64-setup.exe"
             "GitPulse-windows-x64.msi"
@@ -271,6 +419,10 @@ jobs:
             "GitPulse-macos-x64-portable.tar.gz"
             "GitPulse-linux-x64.deb"
             "GitPulse-linux-x64.AppImage"
+            "GitPulse-macos-arm64-updater.tar.gz"
+            "GitPulse-macos-x64-updater.tar.gz"
+            "GitPulse-linux-x64-updater.tar.gz"
+            "latest.json"
           )
 
           printf '%s\n' "${expected[@]}" | sort > /tmp/expected.txt

@@ -2,6 +2,13 @@
 
 /**
  * Preferences that only the desktop shell cares about.
+ *
+ * `default` is on the container, not on the new fields, and that is load-
+ * bearing: the whole struct is persisted as one JSON blob, and
+ * [`load_settings`] falls back to `Default` when it cannot parse. Without this,
+ * adding a field would make every existing blob unparseable and silently reset
+ * the user's settings on upgrade. With it, a blob from an older version loads
+ * and the fields it does not mention take their defaults.
  */
 export type NativeSettings = {
   notificationsEnabled: boolean;
@@ -18,4 +25,13 @@ export type NativeSettings = {
    * Closing the window hides it instead of quitting.
    */
   closeToTray: boolean;
+  /**
+   * Look for a newer release when the app starts.
+   *
+   * On by default, unlike `autostart`. `GitPulse` is already a GitHub client
+   * making requests on a timer, so one more request for a small manifest is
+   * not a new class of network access - and an update nobody is told about is
+   * an update nobody installs. Nothing is downloaded until the user says so.
+   */
+  checkUpdatesOnLaunch: boolean;
 };

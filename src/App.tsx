@@ -14,6 +14,7 @@ import { useAuthBridge } from "@/hooks/useAuthBridge";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useLiveUpdates } from "@/hooks/useLiveUpdates";
 import { useRepos } from "@/hooks/useRepos";
+import { useUpdateBridge } from "@/hooks/useUpdateBridge";
 import { signOut, startSignIn, switchAccount } from "@/lib/auth-commands";
 import { call } from "@/lib/ipc";
 import { createQueryClient } from "@/lib/queryClient";
@@ -24,6 +25,7 @@ import { Home } from "@/pages/Home";
 import { KitchenSink } from "@/pages/KitchenSink";
 import { useSession } from "@/stores/auth";
 import { useUiStore } from "@/stores/ui";
+import { useUpdateStore } from "@/stores/update";
 
 type Overlay = "palette" | "settings" | null;
 
@@ -49,12 +51,14 @@ function Shell() {
   const queryClient = useQueryClient();
   const inspect = useUiStore((store) => store.inspect);
   const setPicking = useUiStore((store) => store.setPicking);
+  const checkForUpdates = useUpdateStore((store) => store.check);
 
   const [overlay, setOverlay] = useState<Overlay>(null);
 
-  // Both bridges connect to the backend exactly once, for the whole tree.
+  // All three bridges connect to the backend exactly once, for the whole tree.
   useAuthBridge();
   useLiveUpdates();
+  useUpdateBridge();
 
   const repos = useRepos(Boolean(session));
   const accounts = useAccounts(Boolean(session));
@@ -109,6 +113,9 @@ function Shell() {
         break;
       case "refresh-all":
         void refreshAll();
+        break;
+      case "check-updates":
+        void checkForUpdates();
         break;
       case "sign-out":
         signOutNow();
