@@ -19,31 +19,9 @@ _Nothing yet._
 
 ## [0.5.5] — 2026-11-22
 
-The repository picker could only be reached from the empty state, so once
-anything was tracked there was no way to add another repository.
-
-### Added
-
-- **A way back into the repository picker.** An `Add repositories` button in the
-  dashboard header and a `Track repositories` command in the palette both open
-  it. Its open/closed state moved into the UI store, which is what lets the
-  palette reach it — the palette is not a child of the dashboard.
-
-### Changed
-
-- **The project is MIT.** It had no `LICENSE` at all, which is not a neutral
-  state: the default is _all rights reserved_, while the README hands out
-  installers. `Cargo.toml` and `package.json` now declare the same licence, so
-  they agree with the file rather than merely pointing at it. Recorded as
-  ADR-019.
-
----
-
-## [0.5.4] — 2026-11-22
-
-Four things the dashboard was missing: a way to act on a card without hovering
-over it, a per-repository error state instead of only one global failure, a
-compact card size, and a way to see just your own repositories.
+One UI pass over the dashboard, and the two things it was missing underneath:
+acting on a card without hovering it, and knowing _why_ a single repository is
+failing. Plus a licence, which the project had gone twelve milestones without.
 
 ### Added
 
@@ -69,9 +47,20 @@ compact card size, and a way to see just your own repositories.
   alongside the state filters, so a watch list of hundreds of org repositories
   can be narrowed to your own. It is hidden when nobody is signed in, because
   then it would have no meaning.
+- **A way back into the repository picker.** The picker could only be reached
+  from the empty state, so once anything was tracked there was no route to add
+  another repository. It now also opens from an `Add repositories` button in the
+  dashboard header and a `Track repositories` command in the palette. Its
+  open/closed state moved into the UI store, which is what lets the palette
+  reach it — the palette is not a child of the dashboard.
 
 ### Changed
 
+- **The project is MIT.** It had no `LICENSE` at all, which is not a neutral
+  state: the default is _all rights reserved_, while the README hands out
+  installers. `Cargo.toml` and `package.json` now declare the same licence, so
+  they agree with the file rather than merely pointing at it. Recorded as
+  ADR-019.
 - **`repos.last_error` is new** (migration `0003_repo_last_error`). It holds the
   _current_ problem only — written on failure, cleared on success — and is
   distinct from the poller's global error, which still means "the sweep is
