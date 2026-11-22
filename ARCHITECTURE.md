@@ -529,6 +529,79 @@ to assert does not need the extra ceremony. It is also what the ecosystem around
 Tauri and React expects, so `Cargo.toml` and `package.json` agree with the file
 rather than merely pointing at it.
 
+### ADR-020 — One active account, and one database file per account
+
+Committed to before any `M13` code, because the cache-storage decision is the
+kind that is hard to reverse once data exists in it. `M13-01`.
+
+**One active account, not all of them at once.** Signing in to several accounts
+simultaneously is a different product, not a bigger version of this one. The
+dashboard would have to disambiguate `acme/api` owned by two accounts; a
+notification ("build failed") would have to say _whose_; and the webhook listener
+is one socket on one port while the signing secret is per account, so a delivery
+could not be attributed to the account it belongs to. The idle-CPU budget of
+under 1% was measured for **one** poller — `0.04%` average — and N pollers
+multiply it by N. So: exactly one account is active, and switching is explicit.
+
+**Cache: one database file per account, not an `account` column.** The file is
+`gitpulse-<login>.db` in the app data directory. An `account` column on every
+table would mean every read carries a filter, and a filter someone forgets is
+exactly the bug `0.5.3`/`0.5.5` fixed: the cache had no notion of ownership, so
+signing in as a second account showed the first account's repositories. With one
+file per account, isolation is structural — the rows are not in the same database
+to leak. It also means the schema does not change at all: a fresh file is version
+0 and the existing migrations run into it.
+
+Consequences worth having written down:
+
+- **`meta.account_login` becomes a check, not the record.** The filename carries
+  the account; the key inside is now a cross-check, so a file that has been
+  copied or renamed to `gitpulse-n4od.db` but claims another owner is refused
+  rather than trusted.
+- **The login used in the filename is lowercased**, because GitHub logins are
+  case-insensitive and Windows and macOS filesystems are too — `n4od` and `N4OD`
+  must not become two databases. The display login stays exactly as GitHub
+  returned it.
+- **The database can no longer be opened before the session is known.** Today
+  `Db::open(data_directory.join("gitpulse.db"))` runs during `setup`, before
+  auth. With one file per account the path depends on the active login, so the
+  open moves _after_ the keychain read, and switching accounts means closing and
+  reopening. Anything holding a `Db` — the poller, the tray, the webhook sink —
+  has to be re-initialised on a switch rather than keep a stale handle.
+
+**Keychain: per-account keys, an index, and an active pointer.** The three keys
+are fixed strings today — `github-access-token`, `github-refresh-token`,
+`github-token-metadata` — under the service `dev.gitpulse.workflowmonitor`, which
+is one session by construction. They become per-account
+(`github-access-token:<login>`, and so on), alongside two new entries: an index of
+the logins this machine knows about, and the active one. The active pointer is
+what the startup read above consults.
+
+Rejected: keeping every account's tokens in a single keychain entry as one JSON
+blob. It is simpler to write, but any read exposes every account, the read is
+all-or-nothing, and a concurrent write is a race on the whole set rather than on
+one account's keys.
+
+**Signing out removes only that account.** Its keychain entries and its database
+file — the file, not a purge of rows, because with one file per account the
+ownership is the filename. Otherwise "sign out" is ambiguous about whether the
+other account survives, and the honest answer to "what did that delete?" should
+be visible on disk.
+
+**Deliberately excluded:** polling several accounts at once, a merged dashboard,
+and per-account webhook secrets on a single listener. Each of them makes the
+question "which account does this row belong to?" unavoidable in the UI, and
+none of them is needed to switch accounts without re-authenticating, which is
+the actual feature.
+
+**Upgrade path.** On first run, an existing `gitpulse.db` whose
+`meta.account_login` names an account is claimed for it and moved to
+`gitpulse-<login>.db` — a rename, not a migration, since the owner is already
+recorded. A file with no recorded owner is a cache from before `0.5.5`, and is
+discarded by the rule `0.5.5` already applies rather than being adopted.
+
+Implemented by `M13-02` through `M13-08`.
+
 ## 4. Threat model
 
 ### Assets

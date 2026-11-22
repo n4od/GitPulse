@@ -461,7 +461,8 @@ release that _does_ work is documented in [`RELEASING.md`](./RELEASING.md).
 **Goal:** stay signed in to more than one GitHub account and move between them
 without re-authenticating.
 
-**Four design decisions to settle in an ADR before any code:**
+**Four design decisions to settle in an ADR before any code — settled by
+[ADR-020](./ARCHITECTURE.md#adr-020--one-active-account-and-one-database-file-per-account):**
 
 | Question                            | Decision                                                                                           | Why                                                                                                                                                                    |
 | :---------------------------------- | :------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -470,7 +471,7 @@ without re-authenticating.
 | Keychain layout                     | Per-account keys, plus an index of known logins and an active pointer.                             | The three keys are fixed strings today (`github-access-token`, …), so there is one session by construction.                                                            |
 | Signing out of one account          | Removes only that account's tokens and data.                                                       | Otherwise "sign out" is ambiguous and the other account breaks.                                                                                                        |
 
-- [ ] `M13-01` ADR: the four decisions above, written down before implementation
+- [x] `M13-01` ADR: the four decisions above, written down before implementation — **done**, as [ADR-020](./ARCHITECTURE.md#adr-020--one-active-account-and-one-database-file-per-account). It adds the consequences the table has no room for: `meta.account_login` becomes a cross-check rather than the record of ownership, the login in the filename is lowercased, and the database can no longer be opened before the session is known — so anything holding a `Db` has to be re-initialised on a switch.
 - [ ] `M13-02` `TokenStore` keyed per account, with an index of known logins and an active pointer
 - [ ] `M13-03` `Db` opened per account; `meta.account_login` and `purge_account_data` (added for `0.5.5`) are the seam this extends
 - [ ] `M13-04` `TokenManager`: many sessions, one active; refresh only the active one
