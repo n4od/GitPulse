@@ -13,6 +13,24 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [0.8.1] — 2026-11-23
+
+### Changed
+
+- **Nothing, on purpose.** A version-only release. It exists so that an installed
+  `0.8.0` has a newer release to find, which is the only way the update path can
+  be exercised for real: `0.8.0` was the first release with an updater and could
+  not update itself, so every part of "the app updates itself" was verified except
+  the part that installs. This release is the subject of that test. (`M12-02`)
+
+---
+
+## [0.8.0] — 2026-11-22
+
 ### Added
 
 - **GitPulse updates itself.** A newer release is noticed at launch and installed
