@@ -75,7 +75,10 @@ jobs:
           tool: cargo-audit
 
       # Each advisory is emitted as a workflow annotation, so it is readable
-      # without downloading logs — including by tooling that has no token.
+      # without downloading logs. It is also printed as plain text: the runner
+      # consumes `::error` lines into the UI, so a log reader otherwise sees a
+      # vulnerability *count* and no idea which crate or advisory it refers to —
+      # which is exactly what happened when RUSTSEC-2026-0592 first appeared.
       - name: Audit Rust dependencies
         run: |
           cargo audit --file src-tauri/Cargo.lock --json > audit.json || true
@@ -89,11 +92,12 @@ jobs:
           for item in vulnerabilities:
               advisory = item["advisory"]
               package = item["package"]
-              print(
-                  f"::error title={advisory['id']}::"
-                  f"{package['name']} {package['version']} — {advisory['title']} "
-                  f"({advisory.get('url', '')})"
+              summary = (
+                  f"{advisory['id']}: {package['name']} {package['version']} — "
+                  f"{advisory['title']} ({advisory.get('url', '')})"
               )
+              print(summary)
+              print(f"::error title={advisory['id']}::{summary}")
 
           warnings = report.get("warnings", {}) or {}
           for kind, items in warnings.items():
@@ -109,6 +113,10 @@ jobs:
           print(f"{len(vulnerabilities)} vulnerabilities")
 
           if vulnerabilities:
+              print(
+                  "Fix: bump the affected crate (cargo update -p <name>), or record "
+                  "a documented exemption if it cannot be reached from this app."
+              )
               sys.exit(1)
           PY
 

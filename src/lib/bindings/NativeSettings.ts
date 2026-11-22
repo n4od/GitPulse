@@ -3,19 +3,17 @@
 /**
  * Preferences that only the desktop shell cares about.
  */
-export type NativeSettings = {
-  notificationsEnabled: boolean;
-  /**
-   * A window like `"22-07"`, or `None` for "never quiet".
-   */
-  quietHours: string | null;
-  /**
-   * Off by default: an app that installs itself into startup uninvited is
-   * malware behaviour, however convenient.
-   */
-  autostart: boolean;
-  /**
-   * Closing the window hides it instead of quitting.
-   */
-  closeToTray: boolean;
-};
+export type NativeSettings = { notificationsEnabled: boolean, 
+/**
+ * A window like `"22-07"`, or `None` for "never quiet".
+ */
+quietHours: string | null, 
+/**
+ * Off by default: an app that installs itself into startup uninvited is
+ * malware behaviour, however convenient.
+ */
+autostart: boolean, 
+/**
+ * Closing the window hides it instead of quitting.
+ */
+closeToTray: boolean, };
