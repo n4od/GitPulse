@@ -199,47 +199,110 @@ jobs:
           mkdir -p release-assets updater
 
           slug="${{ matrix.slug }}"
+          FOUND=""
 
-          # Fail loudly rather than copying an empty path.
-          first() { find "$1" -maxdepth 1 -type f -name "$2" -print -quit; }
-          # Where Tauri puts the updater artifacts is its business, not ours: the
-          # location moves with the platform and the bundle target, so search the
-          # tree instead of guessing a directory.
-          firstdeep() { find "$1" -type f -name "$2" -print -quit; }
+          # Expand globs rather than shelling out to `find`, so a pattern that
+          # matches nothing cannot become an empty argument.
+          #
+          # The previous version was `cp "$(find ...)"`. A miss reached `cp` as
+          # `cp: cannot stat ''` - no pattern named, no directory contents, and
+          # twenty-five minutes to find that out. A failure here has to say what
+          # it wanted and what was there instead.
+          #
+          # `globstar` lets the updater artifacts be found recursively, because
+          # Tauri places them by its own rules; the installers keep their
+          # documented directories.
+          shopt -s nullglob globstar
+
+          find_one() {
+            local label="$1"
+            shift
+            local pattern match
+
+            for pattern in "$@"; do
+              for match in $pattern; do
+                FOUND="$match"
+                return 0
+              done
+            done
+
+            {
+              echo "::error::could not find ${label}"
+              echo "--- patterns tried ---"
+              for pattern in "$@"; do echo "  ${pattern}"; done
+              echo "--- actually on disk ---"
+              if [ -d src-tauri/target ]; then
+                find src-tauri/target -maxdepth 6 -print | sort | head -80
+              else
+                echo "  (src-tauri/target does not exist)"
+              fi
+            } >&2
+            exit 1
+          }
 
           case "${{ matrix.platform }}" in
             windows-latest)
-              cp "$(first src-tauri/target/release/bundle/nsis '*.exe')" \
-                 "release-assets/GitPulse-${slug}-setup.exe"
-              cp "$(first src-tauri/target/release/bundle/msi '*.msi')" \
-                 "release-assets/GitPulse-${slug}.msi"
-              cp "portable/GitPulse-${slug}-portable.zip" release-assets/
               # The NSIS installer *is* the update payload: Tauri signs the .exe
               # rather than wrapping it in a second archive, so the only thing
               # this platform contributes is a signature.
-              sig="$(firstdeep src-tauri/target/release/bundle '*.exe.sig')"
+              find_one 'the NSIS installer' \
+                'src-tauri/target/release/bundle/nsis/*.exe'
+              cp "$FOUND" "release-assets/GitPulse-${slug}-setup.exe"
+
+              find_one 'the MSI' \
+                'src-tauri/target/release/bundle/msi/*.msi'
+              cp "$FOUND" "release-assets/GitPulse-${slug}.msi"
+
+              cp "portable/GitPulse-${slug}-portable.zip" release-assets/
+
+              find_one 'the installer signature' \
+                'src-tauri/target/release/bundle/**/*.exe.sig'
+              sig="$FOUND"
               payload="GitPulse-${slug}-setup.exe"
               ;;
             ubuntu-22.04)
-              cp "$(first src-tauri/target/release/bundle/deb '*.deb')" \
-                 "release-assets/GitPulse-${slug}.deb"
-              cp "$(first src-tauri/target/release/bundle/appimage '*.AppImage')" \
-                 "release-assets/GitPulse-${slug}.AppImage"
-              cp "$(firstdeep src-tauri/target/release/bundle '*.AppImage.tar.gz')" \
-                 "release-assets/GitPulse-${slug}-updater.tar.gz"
-              sig="$(firstdeep src-tauri/target/release/bundle '*.AppImage.tar.gz.sig')"
+              find_one 'the .deb' \
+                'src-tauri/target/release/bundle/deb/*.deb'
+              cp "$FOUND" "release-assets/GitPulse-${slug}.deb"
+
+              find_one 'the AppImage' \
+                'src-tauri/target/release/bundle/appimage/*.AppImage'
+              cp "$FOUND" "release-assets/GitPulse-${slug}.AppImage"
+
+              find_one 'the AppImage update payload' \
+                'src-tauri/target/release/bundle/**/*.AppImage.tar.gz'
+              cp "$FOUND" "release-assets/GitPulse-${slug}-updater.tar.gz"
+
+              find_one 'the AppImage update signature' \
+                'src-tauri/target/release/bundle/**/*.AppImage.tar.gz.sig'
+              sig="$FOUND"
               payload="GitPulse-${slug}-updater.tar.gz"
               ;;
             macos-latest)
               target="${{ matrix.args }}"
               target="${target#--target }"
-              cp "$(first "src-tauri/target/${target}/release/bundle/dmg" '*.dmg')" \
-                 "release-assets/GitPulse-${slug}.dmg"
+
+              find_one 'the .dmg' \
+                "src-tauri/target/${target}/release/bundle/dmg/*.dmg"
+              cp "$FOUND" "release-assets/GitPulse-${slug}.dmg"
+
               cp "portable/GitPulse-${slug}-portable.tar.gz" release-assets/
-              cp "$(firstdeep "src-tauri/target/${target}/release/bundle" '*.app.tar.gz')" \
-                 "release-assets/GitPulse-${slug}-updater.tar.gz"
-              sig="$(firstdeep "src-tauri/target/${target}/release/bundle" '*.app.tar.gz.sig')"
+
+              find_one 'the .app update payload' \
+                "src-tauri/target/${target}/release/bundle/**/*.app.tar.gz"
+              cp "$FOUND" "release-assets/GitPulse-${slug}-updater.tar.gz"
+
+              find_one 'the .app update signature' \
+                "src-tauri/target/${target}/release/bundle/**/*.app.tar.gz.sig"
+              sig="$FOUND"
               payload="GitPulse-${slug}-updater.tar.gz"
+              ;;
+            *)
+              # Without this, an unrecognised platform falls through the case and
+              # dies on `$sig: unbound variable` - a message about the wrong thing
+              # entirely.
+              echo "::error::no collect branch for matrix platform '${{ matrix.platform }}'" >&2
+              exit 1
               ;;
           esac
 
