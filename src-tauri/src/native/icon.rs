@@ -23,13 +23,25 @@ pub enum TrayState {
 }
 
 impl TrayState {
+    /// The tooltip, naming the account it is reporting on.
+    ///
+    /// The tray is the app's only persistent presence, and now that two accounts
+    /// can be switched between, "build failures" without an owner is ambiguous —
+    /// both accounts can see a repository called `api`.
     #[must_use]
-    pub const fn tooltip(self) -> &'static str {
-        match self {
-            Self::Idle => "GitPulse — all clear",
-            Self::Running => "GitPulse — builds running",
-            Self::Failure => "GitPulse — build failures",
-            Self::AuthRequired => "GitPulse — sign in required",
+    pub fn tooltip(self, account: Option<&str>) -> String {
+        let what = match self {
+            // Signing out has no account to name, and "GitPulse — n4od — sign in
+            // required" would be a lie about whose session is missing.
+            Self::AuthRequired => return "GitPulse — sign in required".to_owned(),
+            Self::Idle => "all clear",
+            Self::Running => "builds running",
+            Self::Failure => "build failures",
+        };
+
+        match account {
+            Some(login) => format!("GitPulse — {login} — {what}"),
+            None => format!("GitPulse — {what}"),
         }
     }
 
@@ -121,5 +133,41 @@ mod tests {
         let centre = ((SIZE / 2) * SIZE + SIZE / 2) as usize * 4;
 
         assert_eq!(&pixels[centre..centre + 3], &[0xF0, 0x52, 0x52]);
+    }
+
+    #[test]
+    fn the_tooltip_names_the_account_it_is_reporting_on() {
+        // Two accounts can both watch a repository called `api`, so a count
+        // without an owner is ambiguous.
+        assert_eq!(
+            TrayState::Failure.tooltip(Some("n4od")),
+            "GitPulse — n4od — build failures"
+        );
+        assert_eq!(
+            TrayState::Idle.tooltip(Some("octocat")),
+            "GitPulse — octocat — all clear"
+        );
+    }
+
+    #[test]
+    fn signing_out_has_no_account_to_name() {
+        assert_eq!(
+            TrayState::AuthRequired.tooltip(None),
+            "GitPulse — sign in required"
+        );
+        assert_eq!(
+            TrayState::AuthRequired.tooltip(Some("n4od")),
+            "GitPulse — sign in required",
+            "a stale login must not be named while signed out"
+        );
+    }
+
+    #[test]
+    fn an_account_is_named_even_when_there_is_nothing_to_report() {
+        assert_eq!(
+            TrayState::Idle.tooltip(None),
+            "GitPulse — all clear",
+            "no account yet is not an error"
+        );
     }
 }

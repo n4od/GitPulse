@@ -13,6 +13,20 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [0.6.0] — 2026-11-22
+
+More than one GitHub account, switchable without signing in again.
+
+The shape is one **active** account, not several at once. Polling every account
+simultaneously is a different product: a merged dashboard where `acme/api` could
+be two different repositories, notifications that cannot say whose build failed,
+and a webhook listener whose signing secret is per account on a single port. The
+decision, and the alternatives rejected, is [ADR-020](./ARCHITECTURE.md).
+
 ### Changed
 
 - **Tokens are stored per account, not once per machine.** The keychain keys
@@ -20,28 +34,39 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
   had nowhere to keep its tokens without overwriting the first. They are now
   `github-access-token:<login>`, with three new entries recording the accounts
   this machine knows about and which of them is active. A keychain written by
-  `0.5.6` or earlier is adopted on the first read, so an existing sign-in
-  survives the upgrade rather than costing another round of device flow.
-  (`M13-02`.)
+  `0.5.6` or earlier is adopted on the first read: an existing sign-in survives
+  the upgrade rather than costing another round of device flow. (`M13-02`.)
 - **The cache is one database per account.** `gitpulse-<login>.db`, rather than
   one `gitpulse.db` with an `account` column on every table: another account's
   rows are then not in the database to leak, so isolation is structural instead
   of a filter somebody has to remember. A database written by `0.5.6` or earlier
-  is filed under the account recorded inside it — a rename, not a migration —
-  and one with no recorded owner is discarded. Signing out deletes that account's
-  file and leaves the others where they are. (`M13-03`.)
+  is filed under the account recorded inside it — a rename, not a migration,
+  after a WAL checkpoint so its un-checkpointed writes move with it — and one
+  with no recorded owner is discarded. Signing out deletes that account's file
+  and leaves the others where they are. (`M13-03`.)
 - **The active account can be changed without signing in again.** The token
   manager holds the active account's session and loads another from the keychain
   on demand, refreshing only the account being activated — so switching costs a
-  keychain read rather than a round of device flow. What is not built yet is the
-  UI that asks it to switch. (`M13-04`.)
-- **Accounts can be added and switched without signing in again.** Settings lists
-  every account signed in on this machine with the active one marked, the command
-  palette offers each by name, signing out names the account it applies to, and
-  `Add another account` runs the device flow without disturbing the account
-  already signed in. Switching activates that account's tokens, opens its
-  database, and only then publishes the new state — and the in-memory query cache
-  is cleared whenever the account changes, not only when it signs out. (`M13-05`.)
+  keychain read rather than a round of device flow. (`M13-04`.)
+- **Accounts can be added and switched.** Settings lists every account signed in
+  on this machine with the active one marked, the command palette offers each by
+  name, signing out names the account it applies to, and `Add another account`
+  runs the device flow without disturbing the account already signed in.
+  Switching activates that account's tokens, opens its database, and only then
+  publishes the new state — and the in-memory query cache is cleared whenever the
+  account changes, not only when it signs out. (`M13-05`.)
+- **The tray and notifications name their account.** A tooltip reading "build
+  failures" is ambiguous when two accounts can both watch a repository called
+  `api`, so it reads "GitPulse — n4od — build failures", and a failure
+  notification is titled "Build failed — n4od". (`M13-06`.)
+
+### Fixed
+
+- **Cancelling a sign-in no longer signs you out of the account you are in.**
+  Adding a second account means signing in again, and a cancelled, refused or
+  expired flow published `SignedOut` — correct for a first sign-in, wrong once
+  there was a session to return to. It now returns to the session that is still
+  there; a real failure is still reported as one.
 
 ---
 

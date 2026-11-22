@@ -2,7 +2,7 @@
   "name": "gitpulse",
   "private": true,
   "license": "MIT",
-  "version": "0.5.6",
+  "version": "0.6.0",
   "type": "module",
   "description": "Local-first GitHub workflow monitor",
   "scripts": {

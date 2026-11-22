@@ -284,19 +284,28 @@ fn refresh_tray(app: &tauri::AppHandle) {
         return;
     };
 
-    let signed_in = app
-        .try_state::<Arc<AuthService>>()
-        .is_some_and(|auth| auth.state().session().is_some());
+    let login = active_login(app);
+    let signed_in = login.is_some();
 
     let database = database.inner().clone();
     let app = app.clone();
 
     tauri::async_runtime::spawn(async move {
         match database.with_connection(db::repos::cards).await {
-            Ok(cards) => tray::refresh(&app, &cards, signed_in),
+            Ok(cards) => tray::refresh(&app, &cards, signed_in, login.as_deref()),
             Err(error) => tracing::debug!(%error, "could not refresh the tray"),
         }
     });
+}
+
+/// The account the native surfaces should name.
+///
+/// Read at the moment of use rather than stored: a title or a tooltip that says
+/// whose build failed has to be the account the poller is actually working for,
+/// and that changes when the user switches.
+fn active_login(app: &tauri::AppHandle) -> Option<String> {
+    app.try_state::<Arc<AuthService>>()
+        .and_then(|auth| auth.state().session().map(|session| session.login.clone()))
 }
 
 /// Bridges the client's watch channel onto a Tauri event.
@@ -328,7 +337,7 @@ impl poller::PollEvents for TauriPollEvents {
         }
 
         if let Some(notifier) = self.app.try_state::<Arc<native::Notifier>>() {
-            notifier.maybe_notify(&card);
+            notifier.maybe_notify(&card, active_login(&self.app).as_deref());
         }
 
         // The tray's icon must not wait for the next status tick.

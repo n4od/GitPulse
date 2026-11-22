@@ -37,7 +37,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon_for(TrayState::Idle))
-        .tooltip(TrayState::Idle.tooltip())
+        .tooltip(TrayState::Idle.tooltip(None))
         .menu(&menu)
         // Left click opens the window; the menu is the right-click behaviour.
         .show_menu_on_left_click(false)
@@ -66,8 +66,15 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 /// Recomputes the tray from the current cache.
 ///
 /// Called after every poll; it reads the cards rather than taking a state, so
-/// the icon can never disagree with what the dashboard shows.
-pub fn refresh<R: Runtime>(app: &AppHandle<R>, cards: &[RepoCard], signed_in: bool) {
+/// the icon can never disagree with what the dashboard shows. `account` is the
+/// active login, and is named in the tooltip: a failure count without an owner is
+/// ambiguous once two accounts can be switched between.
+pub fn refresh<R: Runtime>(
+    app: &AppHandle<R>,
+    cards: &[RepoCard],
+    signed_in: bool,
+    account: Option<&str>,
+) {
     let state = state_for(cards, signed_in);
 
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
@@ -75,7 +82,7 @@ pub fn refresh<R: Runtime>(app: &AppHandle<R>, cards: &[RepoCard], signed_in: bo
     };
 
     let _ = tray.set_icon(Some(icon_for(state)));
-    let _ = tray.set_tooltip(Some(state.tooltip()));
+    let _ = tray.set_tooltip(Some(state.tooltip(account)));
 
     // The taskbar / dock badge is a property of the *window*, not the app —
     // `AppHandle` has no such method, which is exactly the sort of mistake that

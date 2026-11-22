@@ -79,7 +79,7 @@ impl Notifier {
 
     /// Decides whether `card`'s newest run warrants a notification, and shows
     /// one if so.
-    pub fn maybe_notify(&self, card: &RepoCard) {
+    pub fn maybe_notify(&self, card: &RepoCard, account: Option<&str>) {
         if !self.enabled.lock().is_ok_and(|slot| *slot) {
             return;
         }
@@ -135,11 +135,19 @@ impl Notifier {
             _ => format!("{} · {workflow} failed", card.repo.full_name),
         };
 
+        // The account belongs in the title: the body already carries the
+        // repository, and with more than one account signed in "acme/api" alone
+        // does not say whose build it was.
+        let title = match account {
+            Some(login) => format!("Build failed — {login}"),
+            None => "Build failed".to_owned(),
+        };
+
         if let Err(error) = self
             .app
             .notification()
             .builder()
-            .title("Build failed")
+            .title(title)
             .body(body)
             .show()
         {
