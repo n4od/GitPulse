@@ -141,7 +141,8 @@ GitPulse stays signed in without ever hitting an expiry wall.
 ### 2. Configure GitPulse
 
 ```powershell
-$env:GITPULSE_GITHUB_CLIENT_ID = "Iv1.0123456789abcdef"
+# Your app's client id. GitHub App ids start `Iv23li...`; OAuth App ids `Iv1.`.
+$env:GITPULSE_GITHUB_CLIENT_ID = "<your-client-id>"
 ```
 
 An OAuth App also needs scopes requested explicitly, because its permissions
@@ -185,3 +186,5 @@ Missing `WEBKIT_DISABLE_COMPOSITING_MODE=1` on some drivers:
 ## License
 
 MIT — see [`LICENSE`](./LICENSE).
+
+Built and maintained by [**n4od**](https://github.com/n4od).

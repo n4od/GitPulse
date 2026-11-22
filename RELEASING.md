@@ -162,6 +162,12 @@ that the builds are unsigned. See [Why not v1.0.0 yet](#why-not-v100-yet).
 1. **Move the changelog.** In `CHANGELOG.md`, move everything under
    `[Unreleased]` into a new `## [x.y.z] - YYYY-MM-DD` section. Keep the
    `[Unreleased]` heading.
+
+   The notes that go into the GitHub release live in
+   [`docs/release_notes/`](./docs/release_notes) — one file per tag, named after
+   it. The workflow creates the release with a placeholder body, so the notes are
+   pasted (or patched) in when the draft is published.
+
 2. **Bump the version in three places** — they must agree, or the tag and the
    version inside the installers drift apart:
    - `src-tauri/tauri.conf.json` → `"version"`

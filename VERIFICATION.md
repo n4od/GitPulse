@@ -6,7 +6,7 @@ claim as "it works", and the difference matters more here than usual: GitPulse
 talks to a service that requires credentials, on platforms that are not all
 available on the machine it was built on.
 
-Last updated: 2026-11-20, after M10.
+Last updated: 2026-11-22, after `0.7.0`.
 
 ---
 
@@ -72,14 +72,15 @@ the measurement was real, and because the reasoning for the removal rests on it.
 
 ## Not verified at all
 
-| Gap                                                 | What it needs                                                                                                                                                                                              |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **macOS and Linux runtimes**                        | Hardware. CI now builds and tests both, but the tray, dock badge, keychain backend and notification permission prompt only exist at run time                                                               |
-| ~~24-hour soak, 250 repositories~~ **out of scope** | **Deliberately not scheduled.** `scripts/soak.ps1` was run for 5 minutes on a live 2-repo session and RSS held at ~33 MB; no per-hour rate is claimed, and the 250-repository figure is not being pursued. |
-| ~~Idle CPU under 1%~~ **measured**                  | **Verified** on the release build with a live session: average **0.04%**, peak **0.26%** of total CPU over 10 minutes against a 1% budget.                                                                 |
-| **Notification click deep-link**                    | Not implemented; the plugin exposes no click callback                                                                                                                                                      |
-| **Windows taskbar overlay icon**                    | Implemented with Tauri's `set_overlay_icon`; nobody has seen it on a real taskbar                                                                                                                          |
-| **Settings panel and palette accessibility**        | Lighthouse has not been run against them                                                                                                                                                                   |
+| Gap                                                 | What it needs                                                                                                                                                                                                           |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The Linux runtime**                               | Run by hand on a real Linux desktop, not only built in CI. The row is that it launches and works, which CI could not establish; no per-feature checklist (tray, keychain backend, notification permission) was recorded |
+| **The macOS runtime**                               | Hardware. CI builds and tests it, but the tray, dock badge, keychain backend and notification permission prompt only exist at run time                                                                                  |
+| ~~24-hour soak, 250 repositories~~ **out of scope** | **Deliberately not scheduled.** `scripts/soak.ps1` was run for 5 minutes on a live 2-repo session and RSS held at ~33 MB; no per-hour rate is claimed, and the 250-repository figure is not being pursued.              |
+| ~~Idle CPU under 1%~~ **measured**                  | **Verified** on the release build with a live session: average **0.04%**, peak **0.26%** of total CPU over 10 minutes against a 1% budget.                                                                              |
+| **Notification click deep-link**                    | Not implemented; the plugin exposes no click callback                                                                                                                                                                   |
+| **Windows taskbar overlay icon**                    | Implemented with Tauri's `set_overlay_icon`; nobody has seen it on a real taskbar                                                                                                                                       |
+| **Settings panel and palette accessibility**        | Lighthouse has not been run against them                                                                                                                                                                                |
 
 **No longer on this list:** the release pipeline. It has now run four times. Each
 `v0.5.x` tag built installers and portable archives on `ubuntu-22.04`,
