@@ -25,5 +25,17 @@ export type RepoCard = {
    * taskbar badge and the dashboard filter all read, so they cannot disagree.
    */
   failingRuns: number;
+  /**
+   * The run to badge, when something is failing; `None` when nothing is.
+   *
+   * The badge must describe the same thing [`failing_runs`] counts. It used
+   * to describe the newest run of *any* workflow, so a repository could show
+   * "Success" next to "1 failing run" - and disagree with the tray. Picking
+   * the run here, from the failing workflow set, is what makes the badge, the
+   * line under it and the count one answer.
+   *
+   * [`failing_runs`]: RepoCard::failing_runs
+   */
+  failingRun: WorkflowRun | null;
   hasActiveRun: boolean;
 };

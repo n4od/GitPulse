@@ -210,11 +210,12 @@ pub fn count(connection: &Connection) -> Result<i64, AppError> {
 /// How many runs each card carries. Enough for a sparkline and the run list.
 pub const RECENT_RUNS_PER_REPO: i64 = 10;
 
-/// Every card the dashboard needs, built from three queries rather than 750.
+/// Every card the dashboard needs, built from four queries rather than 750.
 pub fn cards(connection: &Connection) -> Result<Vec<RepoCard>, AppError> {
     let repositories = list(connection)?;
     let recent = runs::recent_for_all(connection, RECENT_RUNS_PER_REPO)?;
     let aggregates = runs::aggregates(connection)?;
+    let failing = runs::failing_for_all(connection)?;
 
     Ok(repositories
         .into_iter()
@@ -224,6 +225,7 @@ pub fn cards(connection: &Connection) -> Result<Vec<RepoCard>, AppError> {
             RepoCard {
                 recent_runs: recent.get(&repo.id).cloned().unwrap_or_default(),
                 failing_runs: aggregate.failing,
+                failing_run: failing.get(&repo.id).cloned(),
                 has_active_run: aggregate.active,
                 repo,
             }
@@ -241,6 +243,7 @@ pub fn card(connection: &Connection, id: i64) -> Result<Option<RepoCard>, AppErr
     Ok(Some(RepoCard {
         recent_runs: runs::list_by_repo(connection, id, RECENT_RUNS_PER_REPO, 0)?,
         failing_runs: runs::count_failing(connection, id)?,
+        failing_run: runs::failing_for_repo(connection, id)?,
         has_active_run: runs::has_active(connection, id)?,
         repo,
     }))

@@ -560,6 +560,172 @@ fn the_single_repository_count_agrees_with_the_dashboard() {
 }
 
 #[test]
+fn the_badged_run_is_the_failing_one_not_the_newest() {
+    // The contradiction this exists to remove: `CI` fails, then `Release`
+    // succeeds on a newer tag. The card badged the newest run and so read
+    // "Success" while also reading "1 failing run" - and the tray, which reads
+    // the count, said failing.
+    let connection = connection();
+    let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+
+    insert_run(
+        &connection,
+        repo_id,
+        100,
+        "CI",
+        "main",
+        "completed",
+        Some("failure"),
+        120,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        101,
+        "Release",
+        "v1.0.0",
+        "completed",
+        Some("success"),
+        60,
+    );
+
+    let card = repos::card(&connection, repo_id)
+        .expect("card")
+        .expect("the repo exists");
+
+    assert_eq!(card.failing_runs, 1);
+    let badged = card
+        .failing_run
+        .expect("a failing workflow must badge a run");
+    assert_eq!(badged.workflow_name.as_deref(), Some("CI"));
+    assert_eq!(badged.branch.as_deref(), Some("main"));
+    assert_eq!(badged.conclusion.as_deref(), Some("failure"));
+}
+
+#[test]
+fn nothing_is_badged_when_a_failure_has_since_succeeded() {
+    let connection = connection();
+    let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+
+    insert_run(
+        &connection,
+        repo_id,
+        100,
+        "CI",
+        "main",
+        "completed",
+        Some("failure"),
+        120,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        101,
+        "CI",
+        "main",
+        "completed",
+        Some("success"),
+        60,
+    );
+
+    let card = repos::card(&connection, repo_id)
+        .expect("card")
+        .expect("repo");
+    assert_eq!(card.failing_runs, 0);
+    assert!(card.failing_run.is_none());
+}
+
+#[test]
+fn an_in_flight_retry_still_badges_the_failure_it_is_retrying() {
+    // The count treats "latest completed" as the answer, so a re-run that has
+    // not finished yet does not clear the failure. The badge has to agree, which
+    // means badging the completed failure rather than the running attempt.
+    let connection = connection();
+    let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+
+    insert_run(
+        &connection,
+        repo_id,
+        100,
+        "CI",
+        "main",
+        "completed",
+        Some("failure"),
+        120,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        101,
+        "CI",
+        "main",
+        "in_progress",
+        None,
+        10,
+    );
+
+    let card = repos::card(&connection, repo_id)
+        .expect("card")
+        .expect("repo");
+    assert_eq!(card.failing_runs, 1);
+    assert_eq!(
+        card.failing_run.expect("badged").github_id,
+        100,
+        "the badged run must be the completed failure, not the attempt"
+    );
+}
+
+#[test]
+fn the_dashboard_badges_the_same_run_as_a_single_card() {
+    let connection = connection();
+    let red = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+    let green = repos::upsert(&connection, &repo_upsert(8, "acme/web")).expect("repo");
+
+    insert_run(
+        &connection,
+        red,
+        100,
+        "CI",
+        "main",
+        "completed",
+        Some("failure"),
+        120,
+    );
+    insert_run(
+        &connection,
+        red,
+        101,
+        "Release",
+        "v1",
+        "completed",
+        Some("success"),
+        60,
+    );
+    insert_run(
+        &connection,
+        green,
+        200,
+        "CI",
+        "main",
+        "completed",
+        Some("success"),
+        60,
+    );
+
+    let cards = repos::cards(&connection).expect("cards");
+    for card in &cards {
+        let single = repos::card(&connection, card.repo.id)
+            .expect("card")
+            .expect("repo");
+        assert_eq!(
+            card.failing_run.as_ref().map(|run| run.github_id),
+            single.failing_run.as_ref().map(|run| run.github_id),
+            "the dashboard and the single card must badge the same run"
+        );
+    }
+}
+
+#[test]
 fn retention_prunes_old_rows_and_keeps_recent_ones() {
     let connection = connection();
     let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");

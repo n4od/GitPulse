@@ -58,6 +58,32 @@ pub fn make_card(repo: Repo, failing_runs: i64, has_active_run: bool) -> RepoCar
             updated_at: Utc::now(),
         }],
         failing_runs,
+        // The real projection always pairs a positive count with a run; this
+        // fixture keeps them consistent so a test cannot pass on an impossible
+        // card.
+        failing_run: if failing_runs > 0 {
+            Some(WorkflowRun {
+                id: 2,
+                repo_id: 1,
+                github_id: 499,
+                workflow_name: Some("CI".to_owned()),
+                display_title: None,
+                event: Some("push".to_owned()),
+                branch: Some("main".to_owned()),
+                head_sha: None,
+                status: "completed".to_owned(),
+                conclusion: Some("failure".to_owned()),
+                run_number: Some(2),
+                run_attempt: Some(1),
+                html_url: None,
+                actor_login: None,
+                created_at: None,
+                run_started_at: None,
+                updated_at: Utc::now(),
+            })
+        } else {
+            None
+        },
         has_active_run,
     }
 }

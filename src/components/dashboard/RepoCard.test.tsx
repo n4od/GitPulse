@@ -137,6 +137,36 @@ describe("RepoCard", () => {
     expect(screen.getByText(/3 failing runs/)).toBeInTheDocument();
   });
 
+  it("badges the failing run, not whichever run is newest", () => {
+    // CI failed, then Release succeeded on a newer tag. Badging the newest run
+    // read "Success" beside "1 failing run", and disagreed with the tray. The
+    // badge and the line under it now both come from the failing workflow.
+    render(
+      <RepoCard
+        card={makeCard({
+          failingRuns: 1,
+          recentRuns: [
+            makeRun({ id: 2, workflowName: "Release", conclusion: "success" }),
+            makeRun({ id: 1, workflowName: "CI", conclusion: "failure" }),
+          ],
+          failingRun: makeRun({
+            id: 1,
+            workflowName: "CI",
+            conclusion: "failure",
+          }),
+        })}
+        onRefresh={vi.fn()}
+        onToggleMonitored={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.getByText("CI")).toBeInTheDocument();
+    expect(screen.queryByText("Success")).not.toBeInTheDocument();
+    expect(screen.queryByText("Release")).not.toBeInTheDocument();
+  });
+
   it("renders the same card at the compact density", () => {
     const { container } = render(
       <RepoCard

@@ -49,10 +49,17 @@ export function makeRun(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
 }
 
 export function makeCard(overrides: Partial<RepoCard> = {}): RepoCard {
+  const failingRuns = overrides.failingRuns ?? 0;
+
   return {
     repo: makeRepo(),
     recentRuns: [makeRun()],
-    failingRuns: 0,
+    failingRuns,
+    // A failing card always carries the run it badges. The real projection pairs
+    // them, so a fixture that did not would let a test pass on a shape the
+    // backend cannot produce.
+    failingRun:
+      failingRuns > 0 ? makeRun({ id: 2, githubId: 499, conclusion: "failure" }) : null,
     hasActiveRun: false,
     ...overrides,
   };

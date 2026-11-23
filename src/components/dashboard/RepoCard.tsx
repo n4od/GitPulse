@@ -38,7 +38,11 @@ export const RepoCard = memo(function RepoCard({
   onOpen,
 }: RepoCardProps) {
   const { repo } = card;
-  const run = latestRun(card);
+  // The badge and the line under it describe the same run, and when something
+  // is failing that run is the failure - not whichever run happens to be newest.
+  // Otherwise a repository could read "Success" beside "1 failing run", and
+  // disagree with the tray, which reads the count.
+  const run = card.failingRun ?? latestRun(card);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const compact = density === "compact";
 

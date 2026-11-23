@@ -395,6 +395,101 @@ pub fn count_failing(connection: &Connection, repo_id: i64) -> Result<i64, AppEr
         .map_err(AppError::db)
 }
 
+/// The run a repository card should badge while something is failing.
+///
+/// The card used to badge the single newest run while [`aggregates`] counted
+/// per-workflow, so a repository whose `Release` succeeded after its `CI` failed
+/// read "Success" and "1 failing run" at once - and disagreed with the tray,
+/// which reads the count. This returns the newest completed failure belonging to
+/// a workflow whose latest completed run failed: exactly the set the count is
+/// built from, so the badge and the count cannot contradict each other.
+///
+/// `None` means nothing is failing, and the card badges the newest run as before.
+pub fn failing_for_repo(
+    connection: &Connection,
+    repo_id: i64,
+) -> Result<Option<WorkflowRun>, AppError> {
+    connection
+        .query_row(
+            &format!(
+                "WITH latest AS (
+                     SELECT workflow_name, conclusion,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY workflow_name
+                                ORDER BY (status = 'completed') DESC,
+                                         updated_at DESC,
+                                         id DESC
+                            ) AS rn
+                     FROM workflow_runs
+                     WHERE repo_id = ?1
+                 )
+                 SELECT {COLUMNS} FROM workflow_runs r
+                 WHERE r.repo_id = ?1
+                   AND r.status = 'completed'
+                   AND r.conclusion IN ('failure', 'timed_out')
+                   AND EXISTS (
+                       SELECT 1 FROM latest
+                       WHERE latest.rn = 1
+                         AND latest.conclusion IN ('failure', 'timed_out')
+                         AND latest.workflow_name IS r.workflow_name
+                   )
+                 ORDER BY r.updated_at DESC, r.id DESC
+                 LIMIT 1"
+            ),
+            params![repo_id],
+            from_row,
+        )
+        .optional()
+        .map_err(AppError::db)
+}
+
+/// The same run for every repository, in one pass, for the dashboard.
+pub fn failing_for_all(
+    connection: &Connection,
+) -> Result<std::collections::HashMap<i64, WorkflowRun>, AppError> {
+    let sql = format!(
+        "WITH latest AS (
+             SELECT repo_id, workflow_name, conclusion,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY repo_id, workflow_name
+                        ORDER BY (status = 'completed') DESC,
+                                 updated_at DESC,
+                                 id DESC
+                    ) AS rn
+             FROM workflow_runs
+         ),
+         ranked AS (
+             SELECT r.*,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY r.repo_id
+                        ORDER BY r.updated_at DESC, r.id DESC
+                    ) AS pick
+             FROM workflow_runs r
+             WHERE r.status = 'completed'
+               AND r.conclusion IN ('failure', 'timed_out')
+               AND EXISTS (
+                   SELECT 1 FROM latest
+                   WHERE latest.rn = 1
+                     AND latest.repo_id = r.repo_id
+                     AND latest.workflow_name IS r.workflow_name
+                     AND latest.conclusion IN ('failure', 'timed_out')
+               )
+         )
+         SELECT {COLUMNS} FROM ranked WHERE pick = 1"
+    );
+
+    let mut statement = connection.prepare(&sql).map_err(AppError::db)?;
+    let rows = statement.query_map([], from_row).map_err(AppError::db)?;
+
+    let mut result = std::collections::HashMap::new();
+    for row in rows {
+        let run = row.map_err(AppError::db)?;
+        result.insert(run.repo_id, run);
+    }
+
+    Ok(result)
+}
+
 /// Everything an action on a run needs: which repository it belongs to and
 /// what GitHub calls it.
 pub struct RunContext {

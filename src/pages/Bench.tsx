@@ -82,11 +82,7 @@ export function Bench() {
         const target = current[0];
         if (!target) return current;
 
-        return applyCardUpdate(current, {
-          ...target,
-          hasActiveRun: !target.hasActiveRun,
-          failingRuns: target.failingRuns + 1,
-        });
+        return applyCardUpdate(current, withOneMoreFailure(target));
       });
     });
   }
@@ -95,15 +91,7 @@ export function Bench() {
   function updateFifty(): void {
     measure(() => {
       setCards((current) =>
-        current.map((card, index) =>
-          index % 5 === 0
-            ? {
-                ...card,
-                hasActiveRun: !card.hasActiveRun,
-                failingRuns: card.failingRuns + 1,
-              }
-            : card,
-        ),
+        current.map((card, index) => (index % 5 === 0 ? withOneMoreFailure(card) : card)),
       );
     });
   }
@@ -251,6 +239,27 @@ function summarise(durations: number[]): Stats {
   };
 }
 
+/**
+ * Bumps the failing count and hands over the run it badges, toggling the active
+ * state as the bench controls do.
+ *
+ * The real projection always pairs a positive count with a run. A bench card
+ * that carried one without the other would exercise a state the backend cannot
+ * produce, and would quietly keep badging the newest run.
+ */
+function withOneMoreFailure(card: RepoCardData): RepoCardData {
+  const newest = card.recentRuns[0];
+
+  return {
+    ...card,
+    hasActiveRun: !card.hasActiveRun,
+    failingRuns: card.failingRuns + 1,
+    failingRun: newest
+      ? { ...newest, status: "completed", conclusion: "failure" }
+      : card.failingRun,
+  };
+}
+
 /** Deterministic sample data, so runs are comparable. */
 function sampleCards(count: number): RepoCardData[] {
   const now = Date.now();
@@ -261,6 +270,28 @@ function sampleCards(count: number): RepoCardData[] {
 
     const status = statuses[index % statuses.length] ?? "completed";
     const conclusion = status === "completed" ? (conclusions[index % 4] ?? null) : null;
+
+    const runs = Array.from({ length: 10 }, (_, runIndex) => ({
+      id: index * 10 + runIndex + 1,
+      repoId: index + 1,
+      githubId: 500_000 + index * 10 + runIndex,
+      workflowName: "ci",
+      displayTitle: `Run ${runIndex}`,
+      event: "push",
+      branch: "main",
+      headSha: "a1b2c3d4e5f6a7b8",
+      status: runIndex === 0 ? status : "completed",
+      conclusion: runIndex === 0 ? conclusion : "success",
+      runNumber: 100 - runIndex,
+      runAttempt: 1,
+      htmlUrl: `https://github.com/acme/service-${index}/actions/runs/${runIndex}`,
+      actorLogin: "octocat",
+      createdAt: new Date(now - runIndex * 60_000).toISOString(),
+      runStartedAt: new Date(now - runIndex * 60_000 - 5_000).toISOString(),
+      updatedAt: new Date(now - runIndex * 60_000).toISOString(),
+    }));
+
+    const failingRuns = index % 4 === 1 ? 3 : 0;
 
     return {
       repo: {
@@ -282,26 +313,14 @@ function sampleCards(count: number): RepoCardData[] {
         createdAt: new Date(now - 86_400_000).toISOString(),
         updatedAt: new Date(now).toISOString(),
       },
-      recentRuns: Array.from({ length: 10 }, (_, runIndex) => ({
-        id: index * 10 + runIndex + 1,
-        repoId: index + 1,
-        githubId: 500_000 + index * 10 + runIndex,
-        workflowName: "ci",
-        displayTitle: `Run ${runIndex}`,
-        event: "push",
-        branch: "main",
-        headSha: "a1b2c3d4e5f6a7b8",
-        status: runIndex === 0 ? status : "completed",
-        conclusion: runIndex === 0 ? conclusion : "success",
-        runNumber: 100 - runIndex,
-        runAttempt: 1,
-        htmlUrl: `https://github.com/acme/service-${index}/actions/runs/${runIndex}`,
-        actorLogin: "octocat",
-        createdAt: new Date(now - runIndex * 60_000).toISOString(),
-        runStartedAt: new Date(now - runIndex * 60_000 - 5_000).toISOString(),
-        updatedAt: new Date(now - runIndex * 60_000).toISOString(),
-      })),
-      failingRuns: index % 4 === 1 ? 3 : 0,
+      recentRuns: runs,
+      failingRuns,
+      // A failing count always ships the run it badges, so the bench renders the
+      // same shape the backend produces rather than an impossible card.
+      failingRun:
+        failingRuns > 0
+          ? { ...runs[0]!, status: "completed", conclusion: "failure" }
+          : null,
       hasActiveRun: status === "in_progress",
     };
   });
