@@ -62,6 +62,14 @@ rather than glossed over: the bar, the stages and the byte counts are unit-teste
 and nothing has yet observed them against a real transfer, because it cannot be
 observed until a release containing it is itself being updated.
 
+## Security
+
+**`cookie` 0.18.2 → 0.18.3**, for RUSTSEC-2026-0594 — private cookie nonces could
+repeat across a `fork()`. GitPulse never forks, never uses private cookies, and the
+advisory states outright that applications on Windows are unaffected, so it was not
+reachable here. `cookie` arrives through `tauri` itself rather than by choice, and
+the patch was published, so it is taken rather than exempted.
+
 ## What this does not change
 
 - **The builds are still unsigned.** SmartScreen and Gatekeeper still warn on

@@ -38,6 +38,15 @@ _Nothing yet._
   to do nothing. The panel now says "preparing to install" through that window
   instead of claiming to be downloading. (`M12-02`)
 
+### Security
+
+- **`cookie` 0.18.2 → 0.18.3**, for RUSTSEC-2026-0594. Private cookie nonces could
+  repeat across a `fork()`. GitPulse never forks and never uses `PrivateJar`, and
+  the advisory states outright that applications on Windows are unaffected, so
+  this was not reachable here. `cookie` arrives through `tauri` itself rather than
+  by choice, and the patch was published, so it is taken rather than exempted —
+  an exemption list is a thing that quietly grows.
+
 ---
 
 ## [0.8.2] — 2026-11-23
