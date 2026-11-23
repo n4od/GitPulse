@@ -232,11 +232,19 @@ that the builds are unsigned. See [Why not v1.0.0](#why-not-v100).
 
 5. **Watch the run** under the repository's **Actions** tab. Four build jobs
    plus `verify`, on a cold cache taking roughly 20–30 minutes.
-6. **Review the draft** under **Releases**. It should hold exactly **ten
-   assets**: the nine named artifacts plus `SHA256SUMS.txt`. Check the notes,
-   download an installer or two, verify one against the checksum, then publish.
-   The builds are unsigned; that is a known state, not a reason to hold the
-   release back — the notes say so plainly.
+6. **Review the draft** under **Releases**. It should hold exactly **thirteen
+   assets**: the nine named downloads, the two macOS `-updater.tar.gz` payloads,
+   `latest.json`, and `SHA256SUMS.txt`. Check the notes, download an installer,
+   verify it against the checksum, and read the version out of the binary - the
+   tag and the version inside the installer come from different files, and a
+   disagreement ships a binary that lies about itself. Then publish. The builds
+   are unsigned; that is a known state, not a reason to hold the release back —
+   the notes say so plainly.
+
+   The payload URLs written into `latest.json` point at
+   `/releases/download/<tag>/…`, so they **404 while the release is a draft**.
+   That is the draft being a draft, not a broken URL; they answer once it is
+   published, and that is when to re-check them.
 
 ### Tag conventions
 
