@@ -13,8 +13,21 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+### Added
+
+- **A notification now logs which run it announced** — one line per send, with
+  the run id and attempt. Without it the only evidence that a notification
+  happened is a toast that has already gone, which makes "exactly once"
+  impossible to check.
+
 ### Fixed
 
+- **Quiet hours were compared against UTC, not your clock.** The window is set by
+  a person — `22-07` means their evening — but the check used `Utc::now()`. On a
+  machine at UTC+3 that turned it into 01:00–10:00 local: silent through the
+  morning and chatty through the evening it was meant to cover. It now reads the
+  local clock. Found while verifying the notification path end to end for the
+  first time. (`M9-03`)
 - **A failing repository badges the failing workflow, not whichever run is
   newest.** The card badged the single most recent run of any workflow, while the
   failing count covers each workflow's latest completed run. So a repository whose

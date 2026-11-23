@@ -13,7 +13,7 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use chrono::{Timelike, Utc};
+use chrono::{Local, Timelike};
 use tauri::AppHandle;
 use tauri_plugin_notification::NotificationExt;
 
@@ -152,6 +152,16 @@ impl Notifier {
             .show()
         {
             tracing::warn!(%error, "could not show a notification");
+        } else {
+            // Logged because this is otherwise invisible: the only other trace of
+            // a notification is a toast that has already gone. It is also how the
+            // dedupe below gets checked - one line per attempt, not one per poll.
+            tracing::info!(
+                run = run.github_id,
+                attempt = run.run_attempt.unwrap_or(1),
+                workflow,
+                "notification sent"
+            );
         }
     }
 
@@ -164,7 +174,12 @@ impl Notifier {
             return false;
         };
 
-        is_within(Utc::now().hour(), start, end)
+        // The user's clock, not UTC. Quiet hours are configured by a person -
+        // "22-07" means their evening - so comparing against UTC shifts the
+        // window by the machine's offset. On this machine that is three hours,
+        // which put the quiet period from 01:00 to 10:00 local instead of 22:00
+        // to 07:00, silencing the wrong half of the day.
+        is_within(Local::now().hour(), start, end)
     }
 }
 
