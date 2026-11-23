@@ -13,7 +13,15 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **A failing repository badges the failing workflow, not whichever run is
+  newest.** The card badged the single most recent run of any workflow, while the
+  failing count covers each workflow's latest completed run. So a repository whose
+  `Release` succeeded after its `CI` failed read `SUCCESS` next to a failing
+  count, and disagreed with the tray. The badge, the line under it and the count
+  now come from one workflow set, which makes them agree by construction. The line
+  can therefore name a workflow older than the newest run, and that is the point.
 
 ---
 
