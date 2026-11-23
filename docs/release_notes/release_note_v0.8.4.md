@@ -46,13 +46,18 @@ time the order matters.
 - The signature over each update artifact matches the public key compiled into
   `0.8.3`.
 
-## What was _not_ verified
+## What happened
 
-**No live download has been watched yet** — that is what this release is for. The
-bar, the stages and the byte counts are unit-tested and no more, which is exactly
-why `0.8.4` exists rather than the claim simply being made. Once it has been seen
-on a real transfer, [`VERIFICATION.md`](https://github.com/n4od/GitPulse/blob/main/VERIFICATION.md)
-will say so.
+It worked, and it was watched.
+
+Updating from `0.8.3` to `0.8.4` showed the stages in order — **preparing**,
+**downloading** with its percentage and byte count, **installing** — and the app
+came back as `0.8.4`. Confirmed on disk afterwards: the binary and the uninstall
+entry both read `0.8.4`, and the log records `starting version="0.8.4"`.
+
+That closes the last part of the install path that was only unit-tested.
+[`VERIFICATION.md`](https://github.com/n4od/GitPulse/blob/main/VERIFICATION.md)
+now records it as verified rather than assumed.
 
 ## What this does not change
 
