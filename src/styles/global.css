@@ -46,6 +46,17 @@ code {
   outline-offset: 2px;
 }
 
+/*
+ * Text fields are the exception. The app-wide blue outline reads as a border on
+ * a filled input, and it fires on a plain mouse click too - browsers count text
+ * inputs as keyboard-focusable. The caret and the field's own fill are the focus
+ * cue here.
+ */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -55,6 +66,33 @@ code {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/*
+ * NO BORDERS BY DESIGN.
+ *
+ * Every hairline outline in the app is gone. Separation now comes from surface
+ * fills - `surface` for the page, `raised` for cards, `overlay` for raised
+ * panels, and `field` for controls that sit on any of them - rather than from
+ * one-pixel outlines.
+ *
+ * Only border *colour* is removed. `border-width` stays, so nothing shifts by a
+ * pixel and a component written against the bordered design still lays out
+ * exactly the same.
+ *
+ * Unlayered on purpose: Tailwind v4 puts utilities in `@layer utilities`, and
+ * unlayered rules beat layered ones regardless of specificity, so this wins over
+ * `border-line` without `!important`. The consequence to know: a `border-*`
+ * utility added to a component is inert until this block goes. If a real border
+ * is ever needed, give that element an explicit rule rather than fighting this.
+ *
+ * Focus rings are `box-shadow` and the keyboard outline is `outline`, so both
+ * survive; text fields opt out of the outline separately, below.
+ */
+*,
+*::before,
+*::after {
+  border-color: transparent;
 }
 
 /* Thin, unobtrusive scrollbars that match the obsidian palette. */

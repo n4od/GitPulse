@@ -205,7 +205,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     }}
                     placeholder="22-07"
                     aria-label="Quiet hours, for example 22-07"
-                    className="h-7 w-24 rounded-control border border-line bg-raised px-2 font-mono text-[11px] text-ink focus-visible:outline-none"
+                    className="h-7 w-24 rounded-control bg-field px-2 font-mono text-[11px] text-ink focus-visible:outline-none"
                   />
                   <span className="text-[11px] text-ink-muted">empty = never quiet</span>
                 </label>
@@ -287,6 +287,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     variant="secondary"
                     loading={updatePhase === "checking"}
                     leadingIcon={<RefreshCw className="size-3.5" />}
+                    className="bg-field hover:bg-line-strong active:bg-field"
                     disabled={updatePhase === "checking" || updatePhase === "installing"}
                     onClick={() => {
                       void checkForUpdates();
@@ -380,6 +381,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     size="sm"
                     variant="secondary"
                     leadingIcon={<Database className="size-3.5" />}
+                    className="bg-field hover:bg-line-strong active:bg-field"
                     onClick={() => {
                       void clearCache();
                     }}

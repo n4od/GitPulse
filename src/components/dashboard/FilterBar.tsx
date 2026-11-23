@@ -144,7 +144,6 @@ export function FilterBar({
             className={cn(
               "h-9 w-full rounded-control border border-line bg-raised pl-9 pr-3 text-[12px] text-ink",
               "placeholder:text-ink-muted",
-              "focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
             )}
           />
         </div>

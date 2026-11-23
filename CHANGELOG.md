@@ -17,6 +17,28 @@ _Nothing yet._
 
 ---
 
+## [0.8.6] — 2026-11-23
+
+### Changed
+
+- **The interface has no borders.** Every hairline outline is gone. Separation now
+  comes from surface fills - `surface` for the page, `raised` for cards, `overlay`
+  for raised panels - plus a new `field` fill for controls that sit on any of
+  them. Only border _colour_ is removed, so `border-width` still occupies its
+  pixel and nothing moved by a single pixel.
+
+### Fixed
+
+- **Controls that had been relying on those hairlines.** The search field drew a
+  blue ring and outline on click; browsers count a text field as
+  keyboard-focusable, so it fired on a plain mouse click as well. That is gone -
+  text fields now show focus with the caret and their own fill. The quiet-hours
+  field and the Settings buttons sit on a `raised` panel that is the same fill
+  they used, which is exactly why they went flat once the borders left; they use
+  the new `field` fill and read again.
+
+---
+
 ## [0.8.5] — 2026-11-23
 
 ### Added

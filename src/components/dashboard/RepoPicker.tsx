@@ -65,7 +65,7 @@ export function RepoPicker({ onClose }: { onClose?: () => void }) {
             }}
             placeholder="Search your repositories…"
             aria-label="Search your repositories"
-            className="h-8 w-full rounded-control border border-line bg-raised pl-8 pr-3 text-[13px] text-ink placeholder:text-ink-muted focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+            className="h-8 w-full rounded-control border border-line bg-raised pl-8 pr-3 text-[13px] text-ink placeholder:text-ink-muted"
           />
         </div>
 

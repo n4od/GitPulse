@@ -23,6 +23,11 @@
 
   --color-accent: #4c8dff;
 
+  /* A control fill that reads on any of the three surfaces above. `raised` on
+     `surface` and `field` on `raised` are the same perceptual step, which is why
+     a field inside the Settings card (a `raised` panel) needs the higher value. */
+  --color-field: #262b36;
+
   --color-ok: #34d399;
   --color-bad: #f05252;
   --color-warn: #f59e0b;

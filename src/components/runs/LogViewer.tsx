@@ -75,7 +75,7 @@ export function LogViewer({ download }: { download: LogDownload }) {
             }}
             placeholder="Search the log…"
             aria-label="Search the log"
-            className="h-7 w-full rounded-control border border-line bg-raised pl-8 pr-2 text-xs text-ink placeholder:text-ink-muted focus-visible:border-accent focus-visible:outline-none"
+            className="h-7 w-full rounded-control border border-line bg-raised pl-8 pr-2 text-xs text-ink placeholder:text-ink-muted"
           />
         </div>
 
