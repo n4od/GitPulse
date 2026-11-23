@@ -31,6 +31,7 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 | `0.8.0` | Self-updating       | —          | A newer release is noticed at launch and installed on request            |
 | `0.8.2` | Honest status       | —          | "Failing" reflects the latest run; the taskbar badge fits its icon       |
 | `0.8.3` | Visible install     | —          | An install reports preparing, downloading and installing as it goes      |
+| `0.8.4` | Observable install  | —          | `0.8.3`'s progress feedback watched on a real update — no code changes   |
 | `1.0.0` | Release-ready       | M12        | Signed installers on three OSes — **not scheduled**                      |
 
 **`1.0.0` is not planned.** It was reserved for "signed installers on three

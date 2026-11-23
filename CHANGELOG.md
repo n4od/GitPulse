@@ -17,6 +17,20 @@ _Nothing yet._
 
 ---
 
+## [0.8.4] — 2026-11-23
+
+### Changed
+
+- **Nothing, on purpose.** A version-only release, for the same reason `0.8.1`
+  existed: `0.8.3` added progress feedback to an install, and that feedback can
+  only be seen by the build _doing_ the updating — which is the older one. With
+  `0.8.3` installed, this release is what it has to find, so the bar, the stages
+  and the byte counts can be observed on a real transfer instead of only in
+  tests. Every byte of the app is identical to `0.8.3` apart from the version
+  string. (`M12-02`)
+
+---
+
 ## [0.8.3] — 2026-11-23
 
 ### Added
