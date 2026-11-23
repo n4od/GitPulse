@@ -371,11 +371,12 @@ M8–M9, and M9 (tray, notifications, autostart, single instance) is not done.
 - [ ] `M9-04` Notification click deep-links to the run — **not done.** `tauri-plugin-notification` exposes no click callback, and a per-platform implementation is out of scope here.
 - [x] `M9-05` `single-instance` focuses the existing window; `window-state` restores geometry
 - [x] `M9-06` Opt-in autostart, off by default — verified: the Run key is untouched until the user asks
-- [x] `M9-07` macOS dock badge from the failure count; tray tooltip on every platform. **Windows taskbar overlay icon not done.**
+- [x] `M9-07` macOS dock badge from the failure count; tray tooltip on every platform; Windows taskbar overlay badge — **verified on a real taskbar**: 10px on a 24px icon, inside the icon's corner
 - [x] `M9-08` Close-to-tray: closing hides instead of quitting, and it is a setting
 
-**Verified:** 166 backend tests pass. The tray's state function, the icon
-generation and the quiet-hours window are unit-tested. The app launches with a
+**Verified:** 179 backend tests pass. The tray's state function, the icon
+generation and the quiet-hours window are unit-tested, and the Windows overlay
+badge has been measured on a real taskbar. The app launches with a
 tray icon on Windows and does not register itself for autostart.
 
 **The tray icon is drawn at runtime.** Four 16-pixel PNGs would be four binary

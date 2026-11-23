@@ -301,6 +301,19 @@ pub struct RunAggregate {
 }
 
 /// Failing and active counts for every repository, in one pass.
+///
+/// "Failing" means the *latest completed run of a workflow* ended in failure -
+/// not that some run failed at some point. Counting every failure the cache holds
+/// is what made the taskbar badge glow while every workflow was green: an
+/// ordinary failure from weeks ago stays in the cache long after it was fixed.
+///
+/// The partition is per `(repo, workflow)` and deliberately **not** per branch. A
+/// workflow that runs on tags would otherwise be failing forever on whichever tag
+/// broke: that tag never runs again, so no later run can supersede it.
+///
+/// The `(status = 'completed') DESC` term makes the newest *completed* run win
+/// even when a newer run is still in flight, so a repository stays red until a
+/// green result actually lands rather than the moment a fix starts running.
 pub fn aggregates(
     connection: &Connection,
 ) -> Result<std::collections::HashMap<i64, RunAggregate>, AppError> {
@@ -312,9 +325,19 @@ pub fn aggregates(
 
     let sql = format!(
         "SELECT repo_id,
-                SUM(CASE WHEN conclusion IN ('failure', 'timed_out') THEN 1 ELSE 0 END),
+                SUM(CASE WHEN rn = 1 AND conclusion IN ('failure', 'timed_out')
+                         THEN 1 ELSE 0 END),
                 SUM(CASE WHEN status IN ({placeholders}) THEN 1 ELSE 0 END)
-         FROM workflow_runs
+         FROM (
+             SELECT repo_id, status, conclusion,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY repo_id, workflow_name
+                        ORDER BY (status = 'completed') DESC,
+                                 updated_at DESC,
+                                 github_id DESC
+                    ) AS rn
+             FROM workflow_runs
+         )
          GROUP BY repo_id"
     );
 
@@ -344,12 +367,28 @@ pub fn aggregates(
     Ok(result)
 }
 
-/// How many runs for this repository ended in failure.
+/// How many of this repository's workflows last ended in failure.
+///
+/// The per-repository counterpart of [`aggregates`], and it must agree with it:
+/// the card for a single repository and the dashboard must not disagree about
+/// whether that repository is red.
 pub fn count_failing(connection: &Connection, repo_id: i64) -> Result<i64, AppError> {
     connection
         .query_row(
-            "SELECT COUNT(*) FROM workflow_runs
-             WHERE repo_id = ?1 AND conclusion IN ('failure', 'timed_out')",
+            "SELECT COALESCE(SUM(CASE WHEN conclusion IN ('failure', 'timed_out')
+                                      THEN 1 ELSE 0 END), 0)
+             FROM (
+                 SELECT conclusion,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY workflow_name
+                            ORDER BY (status = 'completed') DESC,
+                                     updated_at DESC,
+                                     github_id DESC
+                        ) AS rn
+                 FROM workflow_runs
+                 WHERE repo_id = ?1
+             )
+             WHERE rn = 1",
             params![repo_id],
             |row| row.get(0),
         )

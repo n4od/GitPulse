@@ -12,6 +12,10 @@ use tauri::{AppHandle, Manager, Runtime};
 
 use crate::db::RepoCard;
 use crate::native::icon::{icon_for, TrayState};
+// Only the Windows overlay uses this, and an unused import is a hard error
+// under `-D warnings` on the other platforms.
+#[cfg(target_os = "windows")]
+use crate::native::icon::overlay_icon;
 use crate::native::notifier::Notifier;
 use crate::poller::Poller;
 
@@ -101,13 +105,25 @@ pub fn refresh<R: Runtime>(
     #[cfg(target_os = "windows")]
     {
         // Tauri exposes the Windows overlay icon directly; no Win32 needed.
-        let _ = window.set_overlay_icon((failures > 0).then(|| icon_for(TrayState::Failure)));
+        let _ = window.set_overlay_icon(overlay_for(failures));
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = (window, failures);
     }
+}
+
+/// The Windows overlay badge: present while anything is failing, absent when the
+/// cache is clear.
+///
+/// Split out from [`refresh`] so the "clear it again" half is testable. Presence
+/// was confirmed on a real taskbar; absence is the same `Option` returning
+/// `None`, which Tauri turns into "remove the overlay".
+#[cfg(target_os = "windows")]
+#[must_use]
+fn overlay_for(failures: usize) -> Option<tauri::image::Image<'static>> {
+    (failures > 0).then(overlay_icon)
 }
 
 #[must_use]
@@ -206,5 +222,21 @@ mod tests {
     #[test]
     fn an_empty_watchlist_is_idle_not_signed_out() {
         assert_eq!(state_for(&[], true), TrayState::Idle);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn the_taskbar_overlay_appears_and_clears_with_the_failure_count() {
+        // Presence was photographed on a real taskbar; this pins the other half,
+        // that a clear cache removes the badge instead of leaving the last one
+        // stuck on the button.
+        assert!(
+            overlay_for(0).is_none(),
+            "a clear cache must remove the overlay"
+        );
+        assert!(
+            overlay_for(1).is_some(),
+            "one failing repository must show the overlay"
+        );
     }
 }

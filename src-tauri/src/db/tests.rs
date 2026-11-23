@@ -302,6 +302,263 @@ fn has_active_reports_only_in_flight_runs() {
     assert!(runs::has_active(&connection, repo_id).expect("active"));
 }
 
+/// Inserts one run, with the workflow, branch and age the aggregate tests need.
+///
+/// `minutes_ago` rather than a timestamp keeps the ordering explicit: these
+/// tests are about which run is newest, so a tie would hide the bug.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "a test fixture naming each column is clearer than a builder"
+)]
+fn insert_run(
+    connection: &Connection,
+    repo_id: i64,
+    github_id: i64,
+    workflow: &str,
+    branch: &str,
+    status: &str,
+    conclusion: Option<&str>,
+    minutes_ago: i64,
+) {
+    let mut run = run_upsert(repo_id, github_id, status, conclusion);
+    run.workflow_name = Some(workflow.to_owned());
+    run.branch = Some(branch.to_owned());
+    run.updated_at = Utc::now() - Duration::minutes(minutes_ago);
+
+    runs::upsert(connection, &run).expect("insert run");
+}
+
+#[test]
+fn a_failure_that_has_since_succeeded_is_not_failing() {
+    // The bug this whole rule exists for: a failure from weeks ago stayed in the
+    // cache and kept the repository - and the taskbar badge - red forever.
+    let connection = connection();
+    let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+
+    insert_run(
+        &connection,
+        repo_id,
+        100,
+        "ci",
+        "main",
+        "completed",
+        Some("failure"),
+        120,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        101,
+        "ci",
+        "main",
+        "completed",
+        Some("success"),
+        60,
+    );
+
+    let aggregates = runs::aggregates(&connection).expect("aggregates");
+    assert_eq!(aggregates[&repo_id].failing, 0);
+    assert_eq!(runs::count_failing(&connection, repo_id).expect("count"), 0);
+}
+
+#[test]
+fn a_workflow_whose_latest_run_failed_is_failing() {
+    let connection = connection();
+    let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+
+    insert_run(
+        &connection,
+        repo_id,
+        100,
+        "ci",
+        "main",
+        "completed",
+        Some("success"),
+        120,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        101,
+        "ci",
+        "main",
+        "completed",
+        Some("timed_out"),
+        60,
+    );
+
+    let aggregates = runs::aggregates(&connection).expect("aggregates");
+    assert_eq!(aggregates[&repo_id].failing, 1);
+    assert_eq!(runs::count_failing(&connection, repo_id).expect("count"), 1);
+}
+
+#[test]
+fn an_in_flight_run_does_not_clear_a_previous_failure() {
+    // A fix that is still running has not fixed anything yet. Clear the badge
+    // when a green result lands, not when the retry starts.
+    let connection = connection();
+    let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+
+    insert_run(
+        &connection,
+        repo_id,
+        100,
+        "ci",
+        "main",
+        "completed",
+        Some("failure"),
+        120,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        101,
+        "ci",
+        "main",
+        "in_progress",
+        None,
+        60,
+    );
+
+    let aggregates = runs::aggregates(&connection).expect("aggregates");
+    assert_eq!(aggregates[&repo_id].failing, 1);
+    assert!(aggregates[&repo_id].active, "the retry is still in flight");
+}
+
+#[test]
+fn each_workflow_contributes_at_most_one() {
+    // Three failures of the same workflow and one of another: a repository is
+    // red twice, not four times.
+    let connection = connection();
+    let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+
+    insert_run(
+        &connection,
+        repo_id,
+        100,
+        "ci",
+        "main",
+        "completed",
+        Some("failure"),
+        300,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        101,
+        "ci",
+        "main",
+        "completed",
+        Some("failure"),
+        200,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        102,
+        "ci",
+        "main",
+        "completed",
+        Some("success"),
+        100,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        103,
+        "release",
+        "main",
+        "completed",
+        Some("failure"),
+        100,
+    );
+
+    let aggregates = runs::aggregates(&connection).expect("aggregates");
+    assert_eq!(aggregates[&repo_id].failing, 1, "only `release` is red");
+}
+
+#[test]
+fn a_broken_tag_run_does_not_stick_when_a_newer_run_succeeds() {
+    // This is why the partition is per workflow and not per branch. `release`
+    // runs on tags, and a tag never runs again - so a per-branch rule would keep
+    // the repository red forever on whichever tag failed.
+    let connection = connection();
+    let repo_id = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+
+    insert_run(
+        &connection,
+        repo_id,
+        100,
+        "release",
+        "v1.0.0",
+        "completed",
+        Some("failure"),
+        120,
+    );
+    insert_run(
+        &connection,
+        repo_id,
+        101,
+        "release",
+        "v1.1.0",
+        "completed",
+        Some("success"),
+        60,
+    );
+
+    let aggregates = runs::aggregates(&connection).expect("aggregates");
+    assert_eq!(aggregates[&repo_id].failing, 0);
+}
+
+#[test]
+fn the_single_repository_count_agrees_with_the_dashboard() {
+    let connection = connection();
+    let red = repos::upsert(&connection, &repo_upsert(7, "acme/api")).expect("repo");
+    let green = repos::upsert(&connection, &repo_upsert(8, "acme/web")).expect("repo");
+
+    insert_run(
+        &connection,
+        red,
+        100,
+        "ci",
+        "main",
+        "completed",
+        Some("failure"),
+        60,
+    );
+    insert_run(
+        &connection,
+        red,
+        101,
+        "release",
+        "v1",
+        "completed",
+        Some("success"),
+        60,
+    );
+    insert_run(
+        &connection,
+        green,
+        200,
+        "ci",
+        "main",
+        "completed",
+        Some("success"),
+        60,
+    );
+
+    let aggregates = runs::aggregates(&connection).expect("aggregates");
+    for (repo_id, aggregate) in &aggregates {
+        assert_eq!(
+            runs::count_failing(&connection, *repo_id).expect("count"),
+            aggregate.failing,
+            "the card and the dashboard must not disagree about repository {repo_id}"
+        );
+    }
+    assert_eq!(aggregates[&red].failing, 1);
+    assert_eq!(aggregates[&green].failing, 0);
+}
+
 #[test]
 fn retention_prunes_old_rows_and_keeps_recent_ones() {
     let connection = connection();

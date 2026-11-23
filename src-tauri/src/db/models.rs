@@ -98,6 +98,12 @@ pub struct RepoCard {
     /// Newest first, capped. The card shows a sparkline and the dashboard's run
     /// list reads from here, so shipping them together avoids a second fetch.
     pub recent_runs: Vec<WorkflowRun>,
+    /// How many of this repository's workflows last ended in failure.
+    ///
+    /// The latest *completed* run of each workflow, not every failure the cache
+    /// holds: a run that failed last month and has succeeded since is not a
+    /// reason to paint the repository red. This is the same number the tray, the
+    /// taskbar badge and the dashboard filter all read, so they cannot disagree.
     #[ts(type = "number")]
     pub failing_runs: i64,
     pub has_active_run: bool,

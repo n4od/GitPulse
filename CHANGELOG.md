@@ -13,7 +13,23 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **"Failing" now means failing now.** The count behind the repository cards, the
+  taskbar badge, the tray icon and the `failing` filter was every failure the
+  cache had ever seen. A run that broke weeks ago and has passed since kept a
+  repository red indefinitely — on this machine **nine stale failures kept the
+  taskbar badge lit while all four repositories' latest runs were green**. It now
+  counts the latest _completed_ run of each workflow, per workflow rather than per
+  branch: a workflow that runs on tags would otherwise be red forever on whichever
+  tag broke, since that tag never runs again. A fix still in flight does not clear
+  it; a green result does. (`M9-07`)
+- **The Windows taskbar overlay icon is a badge, not a blob.** The overlay reused
+  the tray's full-bleed dot, but Windows scales the whole 16px canvas into a slot
+  at the taskbar icon's corner, so it rendered as a 14px disc spilling 1px past
+  the icon's edge. It now uses a padded variant — **10px on a 24px icon, 1px
+  inside the corner**, measured on a real taskbar at 12x. The appear/clear path
+  is pinned by a test. (`M9-07`)
 
 ---
 

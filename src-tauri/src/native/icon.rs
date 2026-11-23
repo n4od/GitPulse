@@ -62,19 +62,40 @@ impl TrayState {
 
 #[must_use]
 pub fn icon_for(state: TrayState) -> Image<'static> {
-    let [red, green, blue] = state.colour();
-    let mut pixels = vec![0_u8; (SIZE * SIZE * 4) as usize];
-
     // SIZE is a small constant; the cast is exact.
     #[allow(clippy::cast_precision_loss)]
     let centre = (SIZE as f32 - 1.0) / 2.0;
-    let radius = centre - 0.5;
+
+    circle(centre, centre, centre - 0.5, state.colour())
+}
+
+/// The Windows taskbar overlay badge.
+///
+/// A full-bleed dot is right for the tray, where it fills the 16-pixel slot, but
+/// wrong as an overlay. Windows scales the whole canvas into a slot at the
+/// bottom-right of the taskbar icon, so a full-bleed circle spills past the
+/// icon's corner and reads as a blob rather than a badge - which is how the
+/// first screenshot of it looked. Same red, drawn with a margin.
+#[must_use]
+pub fn overlay_icon() -> Image<'static> {
+    // A 2.5px margin on every side. Measured on a real taskbar: this took the
+    // badge from 14px to 10px on a 24px icon, and pulled it from 1px past the
+    // icon's corner to 1px inside it.
+    #[allow(clippy::cast_precision_loss)]
+    let centre = (SIZE as f32 - 1.0) / 2.0;
+    circle(centre, centre, centre - 2.5, TrayState::Failure.colour())
+}
+
+/// An antialiased filled circle on a transparent square.
+fn circle(centre_x: f32, centre_y: f32, radius: f32, colour: [u8; 3]) -> Image<'static> {
+    let [red, green, blue] = colour;
+    let mut pixels = vec![0_u8; (SIZE * SIZE * 4) as usize];
 
     for y in 0..SIZE {
         for x in 0..SIZE {
             // `as` here is bounded by SIZE, which is a small constant.
             #[allow(clippy::cast_precision_loss)]
-            let (dx, dy) = (x as f32 - centre, y as f32 - centre);
+            let (dx, dy) = (x as f32 - centre_x, y as f32 - centre_y);
             let distance = (dx * dx + dy * dy).sqrt();
 
             // One pixel of coverage at the edge, so the dot is not jagged.
@@ -133,6 +154,32 @@ mod tests {
         let centre = ((SIZE / 2) * SIZE + SIZE / 2) as usize * 4;
 
         assert_eq!(&pixels[centre..centre + 3], &[0xF0, 0x52, 0x52]);
+    }
+
+    #[test]
+    fn the_overlay_badge_leaves_a_margin_the_tray_dot_does_not() {
+        // Both are 16px circles, but the tray dot fills its slot while the
+        // overlay is drawn with a margin. This is pinned because Windows scales
+        // the whole overlay canvas into the corner of the taskbar icon: a
+        // full-bleed circle there spills past the icon's corner - measured at
+        // 14px on a 24px icon, 1px beyond it - instead of reading as a badge.
+        let tray = icon_for(TrayState::Failure);
+        let badge = overlay_icon();
+
+        let at = |x: usize, y: usize| (y * SIZE as usize + x) * 4;
+
+        assert!(
+            tray.rgba()[at(1, 8) + 3] > 0,
+            "the tray dot is expected to fill the square"
+        );
+        assert_eq!(
+            badge.rgba()[at(1, 8) + 3],
+            0,
+            "the overlay badge must leave a margin"
+        );
+
+        // It is still a solid badge, not a speck.
+        assert_eq!(badge.rgba()[at(8, 8) + 3], 255, "the badge must be solid");
     }
 
     #[test]
