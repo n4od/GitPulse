@@ -29,6 +29,7 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 | `0.6.0` | Multi-account       | M13        | Signed in to more than one account, switching without re-authenticating  |
 | `0.7.0` | Local only          | —          | The webhook subsystem removed; no listening socket                       |
 | `0.8.0` | Self-updating       | —          | A newer release is noticed at launch and installed on request            |
+| `0.8.2` | Honest status       | —          | "Failing" reflects the latest run; the taskbar badge fits its icon       |
 | `1.0.0` | Release-ready       | M12        | Signed installers on three OSes — **not scheduled**                      |
 
 **`1.0.0` is not planned.** It was reserved for "signed installers on three

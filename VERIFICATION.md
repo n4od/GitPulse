@@ -6,7 +6,7 @@ claim as "it works", and the difference matters more here than usual: GitPulse
 talks to a service that requires credentials, on platforms that are not all
 available on the machine it was built on.
 
-Last updated: 2026-11-23, after `0.8.1`, plus the taskbar overlay icon verified on
+Last updated: 2026-11-23, after `0.8.2`, plus the taskbar overlay icon verified on
 a real taskbar.
 
 ---

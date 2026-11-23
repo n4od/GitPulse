@@ -13,6 +13,12 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [0.8.2] — 2026-11-23
+
 ### Fixed
 
 - **"Failing" now means failing now.** The count behind the repository cards, the
