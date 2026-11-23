@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img"
+     aria-label="GitPulse - GitHub Actions, watched locally. A local-first GitHub Actions dashboard for Windows, macOS and Linux.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B0C0E"/>
+      <stop offset="1" stop-color="#0E1117"/>
+    </linearGradient>
+    <radialGradient id="glowGreen" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#34D399" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#34D399" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowBlue" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#4C8DFF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#4C8DFF" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0 H0 V40" fill="none" stroke="#151820" stroke-width="1"/>
+    </pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- background: gradient, grid, two glows -->
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#grid)" opacity="0.55"/>
+  <ellipse cx="220" cy="180" rx="440" ry="280" fill="url(#glowGreen)"/>
+  <ellipse cx="1090" cy="560" rx="470" ry="310" fill="url(#glowBlue)"/>
+
+  <!-- lockup: the real mark (a pulse) in a tile, then the wordmark -->
+  <rect x="72" y="62" width="36" height="36" rx="10" fill="#171A21" stroke="#262A33" stroke-width="1"/>
+  <g transform="translate(72,62) scale(1.5)" fill="none" stroke="#4C8DFF" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 13h4l2.5-7 4 14 3-9 2 2h4.5"/>
+  </g>
+  <text x="122" y="89" fill="#F5F7FA" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="30" font-weight="600" letter-spacing="-0.6">GitPulse</text>
+
+  <!-- category pill, top right: accent tint + 100% accent text -->
+  <rect x="1128" y="62" width="120" height="28" rx="14" fill="#4C8DFF" fill-opacity="0.12" stroke="#4C8DFF" stroke-opacity="0.3"/>
+  <text x="1188" y="81" fill="#4C8DFF" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="12" font-weight="600" text-anchor="middle">Local-first</text>
+
+  <!-- statement: two hand-wrapped lines, negative tracking -->
+  <text x="72" y="284" fill="#F5F7FA" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="100" font-weight="700" letter-spacing="-2.4">GitHub Actions,</text>
+  <text x="72" y="380" fill="#9BA3AE" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="100" font-weight="700" letter-spacing="-2.4">watched locally.</text>
+
+  <!-- proof: a strip of the real dashboard, cropped into the canvas -->
+  <rect x="56" y="424" width="1168" height="164" rx="16" fill="#12141A" stroke="#262A33" stroke-width="1.5" filter="url(#shadow)"/>
+
+  <!-- card 1: success -->
+  <rect x="76" y="444" width="365" height="120" rx="12" fill="#171A21" stroke="#262A33"/>
+  <text x="92" y="474" fill="#E8EAED" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="18" font-weight="600">acme/rocket-api</text>
+  <rect x="337" y="456" width="88" height="22" rx="11" fill="#34D399" fill-opacity="0.1" stroke="#34D399" stroke-opacity="0.3"/>
+  <circle cx="352" cy="467" r="2.5" fill="#34D399"/>
+  <text x="362" y="471" fill="#34D399" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="12" font-weight="600">Success</text>
+  <text x="92" y="500" fill="#77808C" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="13"><tspan fill="#9BA3AE" font-weight="500">CI</tspan> · main · <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">4fb7a0f</tspan></text>
+  <polyline points="92,540 122,537 153,538 183,531 213,534 244,528 274,530 304,523 335,526 365,519 395,521 425,515"
+            fill="none" stroke="#34D399" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="92" y="556" fill="#77808C" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="13">1h ago · 2m 28s · 10 runs</text>
+
+  <!-- card 2: failed -->
+  <rect x="457" y="444" width="365" height="120" rx="12" fill="#171A21" stroke="#262A33"/>
+  <text x="473" y="474" fill="#E8EAED" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="18" font-weight="600">acme/web-console</text>
+  <rect x="728" y="456" width="78" height="22" rx="11" fill="#F05252" fill-opacity="0.1" stroke="#F05252" stroke-opacity="0.3"/>
+  <circle cx="743" cy="467" r="2.5" fill="#F05252"/>
+  <text x="753" y="471" fill="#F05252" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="12" font-weight="600">Failed</text>
+  <text x="473" y="500" fill="#77808C" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="13"><tspan fill="#9BA3AE" font-weight="500">CI</tspan> · main · <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">91ce2b7</tspan></text>
+  <polyline points="473,514 503,517 534,515 564,521 594,525 625,523 655,530 685,534 716,531 746,538 776,541 806,543"
+            fill="none" stroke="#F05252" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="473" y="556" fill="#77808C" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="13">9m ago · 1m 04s · 12 runs</text>
+
+  <!-- card 3: running -->
+  <rect x="838" y="444" width="365" height="120" rx="12" fill="#171A21" stroke="#262A33"/>
+  <text x="854" y="474" fill="#E8EAED" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="18" font-weight="600">acme/data-pipeline</text>
+  <rect x="1099" y="456" width="88" height="22" rx="11" fill="#F5B942" fill-opacity="0.1" stroke="#F5B942" stroke-opacity="0.3"/>
+  <circle cx="1114" cy="467" r="2.5" fill="#F5B942"/>
+  <text x="1124" y="471" fill="#F5B942" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="12" font-weight="600">Running</text>
+  <text x="854" y="500" fill="#77808C" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="13"><tspan fill="#9BA3AE" font-weight="500">Deploy</tspan> · main · <tspan font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">3a7d1e0</tspan></text>
+  <polyline points="854,528 884,526 915,527 945,525 975,526 1006,524 1036,525 1066,523 1097,524 1127,522 1157,523 1187,521"
+            fill="none" stroke="#F5B942" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="1187" cy="521" r="3.5" fill="#F5B942"/>
+  <text x="854" y="556" fill="#77808C" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="13">running · 32s · 8 runs</text>
+
+  <!-- footer -->
+  <text x="72" y="618" fill="#5F697A" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="16" letter-spacing="0.3">Tauri 2 · Rust · React 19 · local-first · no telemetry</text>
+</svg>
