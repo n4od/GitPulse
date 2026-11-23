@@ -1,7 +1,8 @@
-# Release v0.8.6 — no borders
+# Release v0.8.6 — no borders, and a rebuilt Settings panel
 
-Every hairline outline in the interface is gone. Nothing else about the layout
-changed.
+Every hairline outline in the interface is gone. The Settings panel also got a
+pass of its own, because removing those outlines showed how much of its
+structure they had been carrying.
 
 ## What changed
 
@@ -54,6 +55,27 @@ it looks.
 - **The unsigned-build position is unchanged.** SmartScreen and Gatekeeper still
   warn on first launch.
 
+## The Settings panel
+
+Removing the borders showed the panel had been leaning on them: five sections
+separated by hairlines, uppercase micro-caps for titles, and rows laid out three
+different ways. It is now one shape, repeated.
+
+- **Titles lead, settings indent.** A section name is a plain sentence in a
+  heavier weight and its settings sit 16px in from it, so the grouping comes
+  from the title and the indent rather than from a rule.
+- **Every row is label left, control right.** The checkboxes, the quiet-hours
+  field and the buttons now share one right-hand edge. Before, checkboxes ran
+  `[x] label` while quiet hours ran `label [field]`, so both edges were ragged.
+- **Polling and Diagnostics merged.** The poll status was already the first
+  diagnostic; apart, each block was one sentence and five numbers, too thin to
+  read as a group on its own.
+- **Clear cache moved to the end of its group**, right-aligned, instead of
+  trailing a list.
+
+The panel is still 512px, and nothing was added or removed - every control that
+was there before the redesign is there after it.
+
 ## One thing to know for future work
 
 The rule that removes borders is a single unlayered block in `global.css`, which
@@ -66,7 +88,7 @@ fighting the block.
 
 ## 📅 Recent Version History
 
-- **v0.8.6**: No borders. Separation comes from surface fills.
+- **v0.8.6**: No borders, and a Settings panel rebuilt around its groups.
 - **v0.8.5**: One status per repository, quiet hours read your clock, notifications are logged.
 - **v0.8.4**: A version bump, so the install progress added in 0.8.3 can be watched.
 - **v0.8.3**: An install reports preparing, downloading and installing as it goes.

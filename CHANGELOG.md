@@ -26,6 +26,15 @@ _Nothing yet._
   for raised panels - plus a new `field` fill for controls that sit on any of
   them. Only border _colour_ is removed, so `border-width` still occupies its
   pixel and nothing moved by a single pixel.
+- **The Settings panel is rebuilt around its groups.** Section titles are plain
+  sentences in a heavier weight rather than uppercase micro-caps - at 11px the
+  caps read as one more line of body text once the hairlines are gone. Each
+  group's settings indent under its title so the title leads, and every row is
+  the same shape: what it does on the left, the control on the right. That is
+  what puts the checkboxes, the quiet-hours field and the buttons on one right
+  edge. Polling and Diagnostics became one group - the poll status was already
+  the first diagnostic, and split apart neither block was thick enough to read as
+  a group on its own. Clear cache closes its group instead of trailing a list.
 
 ### Fixed
 

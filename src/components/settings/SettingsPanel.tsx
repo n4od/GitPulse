@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Database, RefreshCw } from "lucide-react";
 import type { NativeSettings } from "@/lib/bindings/NativeSettings";
@@ -22,6 +22,44 @@ interface SettingsPanelProps {
 /** One decimal place, the way the cache size is shown. */
 function megabytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** "1 repository" / "2 repositories" - these counts get said out loud. */
+function counted(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/**
+ * A titled block of settings.
+ *
+ * The title is a plain sentence in a slightly heavier weight rather than the
+ * uppercase micro-caps this panel used to use: with the hairlines gone, the
+ * group has to be legible from the label and the indent alone, and caps at 11px
+ * read as another line of body text.
+ */
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <fieldset>
+      <legend className="mb-2 text-[11.5px] font-semibold text-ink-soft">{title}</legend>
+      <div className="space-y-2 pl-4">{children}</div>
+    </fieldset>
+  );
+}
+
+/**
+ * One setting: what it does on the left, the control on the right.
+ *
+ * Every row in the panel uses this, so the checkboxes, the quiet-hours field and
+ * the update button share a single right-hand edge. The label still wraps its
+ * control, which is what keeps the whole row clickable and the control named.
+ */
+function Row({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <label className="flex items-center justify-between gap-3 text-xs text-ink">
+      <span>{label}</span>
+      {children}
+    </label>
+  );
 }
 
 /**
@@ -168,19 +206,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </Button>
         </CardHeader>
 
-        <CardBody className="space-y-4">
+        <CardBody className="space-y-5">
           {settings === null ? (
             <div className="flex items-center gap-2 text-xs text-ink-muted">
-              <Spinner className="size-3.5" /> Loading…
+              <Spinner className="size-3.5" /> Loading...
             </div>
           ) : (
             <>
-              <fieldset className="space-y-2">
-                <legend className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
-                  Notifications
-                </legend>
-
-                <label className="flex items-center gap-2 text-xs text-ink">
+              <Group title="Notifications">
+                <Row label="Notify me when a build fails">
                   <input
                     type="checkbox"
                     checked={settings.notificationsEnabled}
@@ -188,11 +222,18 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       toggle("notificationsEnabled", event.target.checked);
                     }}
                   />
-                  Notify me when a build fails
-                </label>
+                </Row>
 
-                <label className="flex items-center gap-2 text-xs text-ink">
-                  <span className="w-40 shrink-0 text-ink-soft">Quiet hours</span>
+                <Row
+                  label={
+                    <>
+                      Quiet hours{" "}
+                      <span className="text-[11px] text-ink-muted">
+                        empty = never quiet
+                      </span>
+                    </>
+                  }
+                >
                   <input
                     value={quietValue}
                     onChange={(event) => {
@@ -205,18 +246,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     }}
                     placeholder="22-07"
                     aria-label="Quiet hours, for example 22-07"
-                    className="h-7 w-24 rounded-control bg-field px-2 font-mono text-[11px] text-ink focus-visible:outline-none"
+                    className="h-7 w-24 shrink-0 rounded-control bg-field px-2 font-mono text-[11px] text-ink focus-visible:outline-none"
                   />
-                  <span className="text-[11px] text-ink-muted">empty = never quiet</span>
-                </label>
-              </fieldset>
+                </Row>
+              </Group>
 
-              <fieldset className="space-y-2 border-t border-line pt-3">
-                <legend className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
-                  Window
-                </legend>
-
-                <label className="flex items-center gap-2 text-xs text-ink">
+              <Group title="Window">
+                <Row label="Keep running when the window is closed">
                   <input
                     type="checkbox"
                     checked={settings.closeToTray}
@@ -224,10 +260,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       toggle("closeToTray", event.target.checked);
                     }}
                   />
-                  Keep running when the window is closed
-                </label>
+                </Row>
 
-                <label className="flex items-center gap-2 text-xs text-ink">
+                <Row label="Start GitPulse when I sign in">
                   <input
                     type="checkbox"
                     checked={settings.autostart}
@@ -235,16 +270,11 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       toggle("autostart", event.target.checked);
                     }}
                   />
-                  Start GitPulse when I sign in
-                </label>
-              </fieldset>
+                </Row>
+              </Group>
 
-              <fieldset className="space-y-2 border-t border-line pt-3">
-                <legend className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
-                  Updates
-                </legend>
-
-                <label className="flex items-center gap-2 text-xs text-ink">
+              <Group title="Updates">
+                <Row label="Check for updates when GitPulse starts">
                   <input
                     type="checkbox"
                     checked={settings.checkUpdatesOnLaunch}
@@ -252,20 +282,37 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                       toggle("checkUpdatesOnLaunch", event.target.checked);
                     }}
                   />
-                  Check for updates when GitPulse starts
-                </label>
+                </Row>
 
-                <p className="text-[11px] leading-4 text-ink-muted">
-                  Version{" "}
-                  <span className="font-mono text-ink-soft">{version ?? "-"}</span>
-                  {updatePhase === "checking"
-                    ? " - checking..."
-                    : updatePhase === "current"
-                      ? " - up to date."
-                      : updatePhase === "available" && available
-                        ? ` - ${available.version} is available.`
-                        : null}
-                </p>
+                {/* Not a Row: the control here is a button, and a button inside a
+                    <label> would make the whole line a click target for it. */}
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] leading-4 text-ink-muted">
+                    Version{" "}
+                    <span className="font-mono text-ink-soft">{version ?? "-"}</span>
+                    {updatePhase === "checking"
+                      ? " - checking..."
+                      : updatePhase === "current"
+                        ? " - up to date."
+                        : updatePhase === "available" && available
+                          ? ` - ${available.version} is available.`
+                          : null}
+                  </p>
+
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={updatePhase === "checking"}
+                    leadingIcon={<RefreshCw className="size-3.5" />}
+                    className="shrink-0 bg-field hover:bg-line-strong active:bg-field"
+                    disabled={updatePhase === "checking" || updatePhase === "installing"}
+                    onClick={() => {
+                      void checkForUpdates();
+                    }}
+                  >
+                    Check for updates
+                  </Button>
+                </div>
 
                 {updatePhase === "installing" ? (
                   <InstallProgress
@@ -281,25 +328,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </p>
                 ) : null}
 
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    loading={updatePhase === "checking"}
-                    leadingIcon={<RefreshCw className="size-3.5" />}
-                    className="bg-field hover:bg-line-strong active:bg-field"
-                    disabled={updatePhase === "checking" || updatePhase === "installing"}
-                    onClick={() => {
-                      void checkForUpdates();
-                    }}
-                  >
-                    Check for updates
-                  </Button>
-
-                  {updatePhase === "available" || updatePhase === "installing" ? (
-                    // Kept on screen while installing, in a busy state, rather
-                    // than swapped out: the button vanishing under the cursor is
-                    // most of what made the click look like it did nothing.
+                {updatePhase === "available" || updatePhase === "installing" ? (
+                  // Kept on screen while installing, in a busy state, rather
+                  // than swapped out: the button vanishing under the cursor is
+                  // most of what made the click look like it did nothing.
+                  //
+                  // On its own line rather than beside "Check for updates": the
+                  // two together, next to the version text, overflow the panel
+                  // once the version string is a full release number.
+                  <div className="flex justify-end">
                     <Button
                       size="sm"
                       variant="primary"
@@ -313,8 +350,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         ? `Install ${available.version} and restart`
                         : "Install and restart"}
                     </Button>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
 
                 {updatePhase === "available" && available?.notes ? (
                   <details className="text-[11px] text-ink-muted">
@@ -326,27 +363,26 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     </p>
                   </details>
                 ) : null}
-              </fieldset>
+              </Group>
 
-              <fieldset className="space-y-2 border-t border-line pt-3">
-                <legend className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
-                  Polling
-                </legend>
-
+              {/* Polling and diagnostics share a group: the poll status is the
+                  first diagnostic, and splitting them left each block too thin
+                  to read as a group once the separators were gone. */}
+              <Group title="Polling & diagnostics">
                 <p className="text-[11px] leading-4 text-ink-muted">
                   {poller
-                    ? `${poller.monitored} repositories, revisited about every ${Math.round(
-                        poller.targetIntervalSecs / 60,
-                      )} minutes. The interval is derived from GitHub's hourly limit, so a large
+                    ? `${counted(
+                        poller.monitored,
+                        "repository",
+                        "repositories",
+                      )}, revisited about every ${counted(
+                        Math.round(poller.targetIntervalSecs / 60),
+                        "minute",
+                        "minutes",
+                      )}. The interval is derived from GitHub's hourly limit, so a large
                       watchlist is polled less often rather than hitting the ceiling.`
                     : "Waiting for the first poll."}
                 </p>
-              </fieldset>
-
-              <fieldset className="space-y-2 border-t border-line pt-3">
-                <legend className="mb-1 text-[11px] uppercase tracking-wider text-ink-muted">
-                  Diagnostics
-                </legend>
 
                 {metrics.isPending ? (
                   <Spinner className="size-3.5 text-ink-muted" />
@@ -355,7 +391,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     {toPulseError(metrics.error).message}
                   </p>
                 ) : metrics.data ? (
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
+                  <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px]">
                     <Metric
                       label="Cache size"
                       value={`${metrics.data.dbSizeMb.toFixed(1)} MB`}
@@ -376,7 +412,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                   </dl>
                 ) : null}
 
-                <div className="flex gap-2 pt-1">
+                <div className="flex justify-end">
                   <Button
                     size="sm"
                     variant="secondary"
@@ -389,7 +425,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     Clear cache
                   </Button>
                 </div>
-              </fieldset>
+              </Group>
             </>
           )}
         </CardBody>
