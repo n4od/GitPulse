@@ -32,6 +32,7 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 | `0.8.2` | Honest status       | —          | "Failing" reflects the latest run; the taskbar badge fits its icon       |
 | `0.8.3` | Visible install     | —          | An install reports preparing, downloading and installing as it goes      |
 | `0.8.4` | Observable install  | —          | `0.8.3`'s progress feedback watched on a real update — no code changes   |
+| `0.8.5` | Honest status       | —          | One status per repository; quiet hours read the local clock              |
 | `1.0.0` | Release-ready       | M12        | Signed installers on three OSes — **not scheduled**                      |
 
 **`1.0.0` is not planned.** It was reserved for "signed installers on three
@@ -377,7 +378,7 @@ M8–M9, and M9 (tray, notifications, autostart, single instance) is not done.
 - [x] `M9-07` macOS dock badge from the failure count; tray tooltip on every platform; Windows taskbar overlay badge — **verified on a real taskbar**: 10px on a 24px icon, inside the icon's corner
 - [x] `M9-08` Close-to-tray: closing hides instead of quitting, and it is a setting
 
-**Verified:** 183 backend tests pass. The tray's state function, the icon
+**Verified:** 187 backend tests pass. The tray's state function, the icon
 generation and the quiet-hours window are unit-tested, and the Windows overlay
 badge has been measured on a real taskbar. The app launches with a
 tray icon on Windows and does not register itself for autostart.

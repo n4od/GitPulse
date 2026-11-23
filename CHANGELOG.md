@@ -13,12 +13,20 @@ Every entry should be traceable to a roadmap task ID (`M2-05`, etc.) where one e
 
 ## [Unreleased]
 
+_Nothing yet._
+
+---
+
+## [0.8.5] — 2026-11-23
+
 ### Added
 
 - **A notification now logs which run it announced** — one line per send, with
   the run id and attempt. Without it the only evidence that a notification
   happened is a toast that has already gone, which makes "exactly once"
   impossible to check.
+- **The repository social preview**, at GitHub's 1280x640, drawn from the app's
+  own tokens and status vocabulary.
 
 ### Fixed
 
