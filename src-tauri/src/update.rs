@@ -13,7 +13,8 @@
 //! only in the release workflow; this module never sees it, and neither does the
 //! repository.
 
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
@@ -28,6 +29,73 @@ use crate::error::AppError;
 /// during bootstrap - long before the window is ready to ask. This event is how
 /// the window finds out.
 pub const UPDATE_AVAILABLE_EVENT: &str = "update://available";
+
+/// Emitted while an install is running: once as it starts, once per chunk, and
+/// once when the bytes are all in and the installer takes over.
+///
+/// This exists because the moment before the window disappears had no feedback
+/// at all. Pressing "Install and restart" changed one line of small text and
+/// removed the button, which is what a click that did nothing looks like - and
+/// then the app was gone. A 4.5 MB download is quick on a good connection, but
+/// it is not instant, and the install that follows it is slower still.
+pub const UPDATE_PROGRESS_EVENT: &str = "update://progress";
+
+/// Which part of an install is running.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/lib/bindings/")]
+pub enum UpdateStage {
+    /// Re-reading the manifest, before a byte has been fetched.
+    ///
+    /// An install re-checks first, so a click can fail with nothing downloaded -
+    /// which is precisely when a label saying "downloading" would be wrong.
+    Preparing,
+    /// Bytes are still arriving.
+    Downloading,
+    /// The bytes are in, and the installer has taken over from here.
+    Installing,
+}
+
+/// How far an install has got.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "../../src/lib/bindings/")]
+pub struct UpdateProgress {
+    /// Bytes received so far.
+    #[ts(type = "number")]
+    pub downloaded: u64,
+    /// The size the server declared, when it declared one. `None` is *unknown*,
+    /// not zero, and the UI shows an indeterminate bar rather than a full or
+    /// empty one - a bar that lies about being finished is worse than no bar.
+    ///
+    /// The type is spelled out because `#[ts(type = ...)]` replaces the whole
+    /// annotation: applied to an `Option`, it drops the `| null` and the UI
+    /// would have no way to tell "unknown" from a number.
+    #[ts(type = "number | null")]
+    pub total: Option<u64>,
+    pub stage: UpdateStage,
+}
+
+/// A running byte count for one download.
+///
+/// `on_chunk` is `FnMut` and `on_download_finish` is a separate `FnOnce`, so
+/// neither may borrow the counter from the other - the atomic is what lets both
+/// read it without the borrow checker refusing the pair.
+#[derive(Default)]
+struct Received(AtomicU64);
+
+impl Received {
+    /// Adds one streamed chunk and returns the new running total.
+    fn add(&self, chunk: usize) -> u64 {
+        // A chunk length cannot approach u64::MAX; this is a widening cast.
+        let chunk = u64::try_from(chunk).unwrap_or(u64::MAX);
+        self.0.fetch_add(chunk, Ordering::Relaxed) + chunk
+    }
+
+    fn bytes(&self) -> u64 {
+        self.0.load(Ordering::Relaxed)
+    }
+}
 
 /// A newer release the updater knows about.
 ///
@@ -129,6 +197,18 @@ pub fn spawn_launch_check(app: AppHandle) {
 
 /// Downloads the pending update, verifies its signature, installs it, restarts.
 pub async fn install(app: &AppHandle) -> Result<(), AppError> {
+    // Announced first, because everything below can fail without a byte moving:
+    // the re-check is a network request, and a click that dies there has to say
+    // something other than "downloading".
+    emit_progress(
+        app,
+        UpdateProgress {
+            downloaded: 0,
+            total: None,
+            stage: UpdateStage::Preparing,
+        },
+    );
+
     // Checked again rather than remembered from the last check. It is one small
     // request, and re-reading the manifest is what makes a stale UI harmless: if
     // the release moved on, this installs the newer one instead of failing on a
@@ -146,11 +226,50 @@ pub async fn install(app: &AppHandle) -> Result<(), AppError> {
             AppError::Config("there is no newer release to install".to_owned())
         })?;
 
-    // The progress callbacks are deliberately ignored. The download is a single
-    // small installer and the UI already shows that an install is in flight;
-    // per-chunk events would be plumbing for a number nobody reads.
+    // The re-check passed, so the download is about to start. Emitted before the
+    // first chunk as well, so a fast download still shows the bar rather than
+    // nothing at all.
+    let received = Arc::new(Received::default());
+    let chunks = Arc::clone(&received);
+    let finished = Arc::clone(&received);
+    let chunk_app = app.clone();
+    let finish_app = app.clone();
+
+    emit_progress(
+        app,
+        UpdateProgress {
+            downloaded: 0,
+            total: None,
+            stage: UpdateStage::Downloading,
+        },
+    );
+
     update
-        .download_and_install(|_, _| {}, || {})
+        .download_and_install(
+            move |chunk_length, total| {
+                emit_progress(
+                    &chunk_app,
+                    UpdateProgress {
+                        downloaded: chunks.add(chunk_length),
+                        total,
+                        stage: UpdateStage::Downloading,
+                    },
+                );
+            },
+            move || {
+                // The download is complete, so the total the bar was measuring
+                // against no longer matters; it is now full by definition.
+                let downloaded = finished.bytes();
+                emit_progress(
+                    &finish_app,
+                    UpdateProgress {
+                        downloaded,
+                        total: Some(downloaded),
+                        stage: UpdateStage::Installing,
+                    },
+                );
+            },
+        )
         .await
         .map_err(AppError::update_install)?;
 
@@ -160,6 +279,17 @@ pub async fn install(app: &AppHandle) -> Result<(), AppError> {
     // a user who pressed "install" would otherwise keep running the build they
     // just replaced.
     app.restart();
+}
+
+/// Reports install progress, and does not care whether anyone is listening.
+///
+/// A failed emit means the window is gone or never existed. The update is
+/// already downloading either way, and abandoning it over a progress bar would
+/// be the wrong trade.
+fn emit_progress(app: &AppHandle, progress: UpdateProgress) {
+    if let Err(error) = app.emit(UPDATE_PROGRESS_EVENT, progress) {
+        tracing::debug!(%error, "could not emit update progress");
+    }
 }
 
 /// Trims an [`Update`] down to what the UI shows.
@@ -243,5 +373,59 @@ mod tests {
         // survive the release being withdrawn.
         state.record(None);
         assert_eq!(state.current(), None);
+    }
+
+    #[test]
+    fn received_totals_the_chunks_it_is_given() {
+        // The download callback is `FnMut` and gets one slice at a time, so the
+        // running total is this type's whole job - and an off-by-one cumulative
+        // count is exactly the bug a progress bar shows as never reaching 100%.
+        let received = Received::default();
+        assert_eq!(received.bytes(), 0);
+
+        assert_eq!(received.add(1024), 1024);
+        assert_eq!(received.add(512), 1536);
+        assert_eq!(received.add(0), 1536);
+        assert_eq!(received.bytes(), 1536);
+    }
+
+    #[test]
+    fn progress_serialises_the_shape_the_ui_reads() {
+        let downloading = serde_json::to_value(UpdateProgress {
+            downloaded: 512,
+            total: Some(1024),
+            stage: UpdateStage::Downloading,
+        })
+        .expect("serialise");
+
+        assert_eq!(downloading["downloaded"], 512);
+        assert_eq!(downloading["total"], 1024);
+        assert_eq!(downloading["stage"], "downloading");
+
+        // A server that declares no length must arrive as `null`, not 0: the UI
+        // tells "unknown" from "nothing yet" by it, and a bar that reads zero
+        // forever looks broken.
+        let unknown = serde_json::to_value(UpdateProgress {
+            downloaded: 0,
+            total: None,
+            stage: UpdateStage::Installing,
+        })
+        .expect("serialise");
+
+        assert!(unknown["total"].is_null());
+        assert_eq!(unknown["stage"], "installing");
+
+        // The frontend seeds its own "preparing" state before the backend says
+        // anything, so these three strings are a contract: they are written by
+        // hand in `src/stores/update.ts` and must match the enum spelled here.
+        let preparing = serde_json::to_value(UpdateProgress {
+            downloaded: 0,
+            total: None,
+            stage: UpdateStage::Preparing,
+        })
+        .expect("serialise");
+
+        assert_eq!(preparing["stage"], "preparing");
+        assert_eq!(preparing["downloaded"], 0);
     }
 }

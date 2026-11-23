@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Database, RefreshCw } from "lucide-react";
 import type { NativeSettings } from "@/lib/bindings/NativeSettings";
 import type { SystemMetrics } from "@/lib/bindings/SystemMetrics";
+import type { UpdateProgress } from "@/lib/bindings/UpdateProgress";
 import { Button } from "@/components/primitives/Button";
 import { Card, CardBody, CardHeader } from "@/components/primitives/Card";
 import { Spinner } from "@/components/primitives/Spinner";
@@ -10,11 +11,102 @@ import { useLiveStore } from "@/stores/live";
 import { useSettingsStore } from "@/stores/settings";
 import { useUpdateStore } from "@/stores/update";
 import { call } from "@/lib/ipc";
+import { cn } from "@/lib/cn";
 import { toPulseError } from "@/lib/errors";
 import { toast } from "@/stores/toasts";
 
 interface SettingsPanelProps {
   onClose: () => void;
+}
+
+/** One decimal place, the way the cache size is shown. */
+function megabytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * The install in flight.
+ *
+ * This exists because pressing "Install and restart" used to remove the button
+ * and change one line of small text, and then the app was gone. It is the last
+ * thing anyone sees before the window is taken away, so it says what is
+ * happening and how far along it is.
+ *
+ * The bar is omitted while the size is unknown rather than shown empty or full:
+ * a bar that never moves is indistinguishable from a hung download, and a full
+ * one claims an upgrade that has not happened.
+ */
+function InstallProgress({
+  version,
+  progress,
+}: {
+  version: string | null;
+  progress: UpdateProgress | null;
+}) {
+  const total = progress?.total ?? null;
+  const downloaded = progress?.downloaded ?? 0;
+  const stage = progress?.stage ?? "preparing";
+
+  const percent =
+    total !== null && total > 0
+      ? Math.max(0, Math.min(100, Math.round((downloaded / total) * 100)))
+      : null;
+
+  // An install re-reads the manifest before it fetches anything, so the first
+  // thing it does can fail with nothing downloaded. "Preparing" is the honest
+  // word for that moment; "downloading" is not.
+  const verb =
+    stage === "installing"
+      ? "Installing"
+      : stage === "preparing"
+        ? "Preparing to install"
+        : "Downloading";
+  const target = version ? `GitPulse ${version}` : "the update";
+
+  return (
+    <div className="space-y-1.5">
+      <div
+        role="status"
+        className="flex items-center gap-2 text-[11px] leading-4 text-ink-soft"
+      >
+        <Spinner className="size-3.5" />
+        <span>
+          {verb} {target}
+          {stage === "installing"
+            ? " - GitPulse will restart by itself."
+            : percent === null
+              ? "..."
+              : ` - ${percent}%`}
+        </span>
+      </div>
+
+      {percent === null ? null : (
+        <>
+          <div
+            role="progressbar"
+            aria-label={`${verb} ${target}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent}
+            className="h-1.5 w-full overflow-hidden rounded-full bg-overlay"
+          >
+            <div
+              className={cn(
+                "h-full rounded-full bg-accent transition-[width] duration-200",
+                stage === "installing" && "bg-ok",
+              )}
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+          {total === null ? null : (
+            <p className="text-[10px] tabular-nums text-ink-muted">
+              {megabytes(downloaded)} of {megabytes(total)}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
@@ -27,6 +119,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const version = useUpdateStore((store) => store.version);
   const updatePhase = useUpdateStore((store) => store.phase);
   const available = useUpdateStore((store) => store.available);
+  const progress = useUpdateStore((store) => store.progress);
   const updateError = useUpdateStore((store) => store.error);
   const updateRetryable = useUpdateStore((store) => store.retryable);
   const loadVersion = useUpdateStore((store) => store.loadVersion);
@@ -165,16 +258,21 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 <p className="text-[11px] leading-4 text-ink-muted">
                   Version{" "}
                   <span className="font-mono text-ink-soft">{version ?? "-"}</span>
-                  {updatePhase === "installing"
-                    ? " - downloading and installing; GitPulse will restart."
-                    : updatePhase === "checking"
-                      ? " - checking..."
-                      : updatePhase === "current"
-                        ? " - up to date."
-                        : updatePhase === "available" && available
-                          ? ` - ${available.version} is available.`
-                          : null}
+                  {updatePhase === "checking"
+                    ? " - checking..."
+                    : updatePhase === "current"
+                      ? " - up to date."
+                      : updatePhase === "available" && available
+                        ? ` - ${available.version} is available.`
+                        : null}
                 </p>
+
+                {updatePhase === "installing" ? (
+                  <InstallProgress
+                    version={available?.version ?? null}
+                    progress={progress}
+                  />
+                ) : null}
 
                 {updateError !== null ? (
                   <p className="text-[11px] leading-4 text-bad">
@@ -197,15 +295,22 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     Check for updates
                   </Button>
 
-                  {updatePhase === "available" && available ? (
+                  {updatePhase === "available" || updatePhase === "installing" ? (
+                    // Kept on screen while installing, in a busy state, rather
+                    // than swapped out: the button vanishing under the cursor is
+                    // most of what made the click look like it did nothing.
                     <Button
                       size="sm"
                       variant="primary"
+                      loading={updatePhase === "installing"}
+                      disabled={updatePhase === "installing"}
                       onClick={() => {
                         void installUpdate();
                       }}
                     >
-                      Install {available.version} and restart
+                      {available
+                        ? `Install ${available.version} and restart`
+                        : "Install and restart"}
                     </Button>
                   ) : null}
                 </div>
