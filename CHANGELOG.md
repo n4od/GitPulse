@@ -17,6 +17,29 @@ _Nothing yet._
 
 ---
 
+## [0.8.3] — 2026-11-23
+
+### Added
+
+- **An install now shows what it is doing.** Clicking **Install and restart** used
+  to change one sentence of small text and remove the button, and then the app was
+  gone — the same shape as a click that did nothing. There is now a progress bar
+  with a percentage and a byte count, in three stages: **preparing** (the manifest
+  is re-read before anything is fetched), **downloading**, and **installing**. The
+  button stays on screen in a busy state instead of being swapped out under the
+  cursor. A size the server never declared draws no bar at all, rather than an
+  empty or full one. (`M12-02`)
+
+### Fixed
+
+- **A failed install no longer looks like a silent one.** The re-check that
+  precedes a download is a network request, and on this machine it failed on a
+  transport blip with the app still on `0.8.1` — which is why the click appeared
+  to do nothing. The panel now says "preparing to install" through that window
+  instead of claiming to be downloading. (`M12-02`)
+
+---
+
 ## [0.8.2] — 2026-11-23
 
 ### Fixed
