@@ -500,6 +500,72 @@ fn hydrate_restores_a_session_from_the_store() {
 }
 
 #[test]
+fn scopes_parse_from_the_spellings_a_person_would_write() {
+    use super::parse_scopes;
+
+    assert_eq!(
+        parse_scopes("repo workflow read:user"),
+        vec!["repo", "workflow", "read:user"]
+    );
+    assert_eq!(parse_scopes("repo,workflow"), vec!["repo", "workflow"]);
+    assert_eq!(
+        parse_scopes("  repo   workflow  "),
+        vec!["repo", "workflow"]
+    );
+    assert_eq!(parse_scopes("repo,, workflow"), vec!["repo", "workflow"]);
+    assert!(parse_scopes("").is_empty());
+    assert!(parse_scopes("   ").is_empty());
+}
+
+#[test]
+fn provenance_is_only_trusted_when_it_names_the_current_app() {
+    use super::tokens::minted_by_current_app;
+
+    assert!(minted_by_current_app(Some("Iv23liA"), Some("Iv23liA")));
+    assert!(!minted_by_current_app(Some("Iv23liA"), Some("Iv1.other")));
+    // Stored before provenance was recorded: unverifiable, so not trusted.
+    assert!(!minted_by_current_app(None, Some("Iv1.other")));
+    // Nothing configured to compare against; a checkout must stay signed in.
+    assert!(minted_by_current_app(None, None));
+    assert!(minted_by_current_app(Some("Iv23liA"), None));
+}
+
+#[test]
+fn hydrate_drops_a_session_whose_token_came_from_another_app() {
+    let store = Arc::new(MemoryStore::new());
+    let manager = TokenManager::new(offline_client(), store.clone());
+
+    manager
+        .adopt(
+            &TokenResponse {
+                access_token: "ghu_access".to_owned(),
+                refresh_token: Some("ghr_refresh".to_owned()),
+                expires_at: Some(Utc::now() + ChronoDuration::hours(8)),
+                refresh_expires_at: None,
+                scopes: vec!["repo".to_owned()],
+            },
+            &viewer("octocat"),
+        )
+        .expect("adopt");
+
+    // The app that minted it: the session comes back untouched.
+    let same = TokenManager::new(offline_client(), store.clone());
+    assert!(same
+        .hydrate_as(super::configured_client_id().as_deref())
+        .expect("hydrate")
+        .is_some());
+
+    // A different app: the token would still validate at GitHub, but it carries
+    // the old app's reach. Adopting it is the silent failure this prevents.
+    let other = TokenManager::new(offline_client(), store);
+    assert!(other
+        .hydrate_as(Some("Iv1.someone-else"))
+        .expect("hydrate")
+        .is_none());
+    assert!(other.session().is_none());
+}
+
+#[test]
 fn signing_out_clears_the_store() {
     let store = Arc::new(MemoryStore::new());
     let manager = TokenManager::new(offline_client(), store.clone());

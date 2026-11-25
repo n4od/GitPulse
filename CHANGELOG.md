@@ -17,6 +17,51 @@ _Nothing yet._
 
 ---
 
+## [0.8.7] — 2026-11-26
+
+### Fixed
+
+- **Private repositories, and the silent failure that hid them.** GitPulse listed
+  only public repositories, and nothing was wrong with the code. The app is a
+  GitHub App that had been _authorized_ but never _installed_: two separate
+  grants, where authorizing only says who you are and installing is what gives
+  repository access. A user access token can therefore reach the intersection of
+  what the user and the app can access — which, for an uninstalled app, is public
+  repositories alone. The token worked. It reached less than expected, and no
+  error said so, which is what made it expensive.
+
+  Two changes close the class of problem rather than the instance:
+
+  - **Scopes are baked in as well as read at runtime.** `configured_client_id`
+    fell back to a compile-time value through `option_env!`; `configured_scopes`
+    did not. A packaged build never sees the shell environment, so an OAuth App
+    release would have requested _no scopes_, received a token that works, and
+    seen public repositories only — the same failure arriving by a different
+    road. Both now resolve runtime-first, compile-time second, and
+    `release.yml` supplies each from a repository variable.
+  - **A token records which app minted it.** Reach is a property of the issuing
+    app, not of the user, so repointing the client id does not upgrade the token
+    already on the machine. `TokenMetadata.client_id` is written at sign-in and
+    checked at startup; a mismatch — or a token stored before provenance was
+    recorded, which cannot be checked — is discarded and the user signs in
+    again. Discarding a working token is deliberate: keeping it is what produced
+    a bug with no error attached.
+
+  The startup line now names the scopes, which is the one place an OAuth App and
+  a GitHub App can be told apart from the outside.
+
+### Changed
+
+- **The README leads with the OAuth App.** It has no installation step and no
+  granted-repositories list, which removes the concept the user was being asked
+  to hold. The trade is stated rather than hidden: `repo` is read/write over
+  private repositories, there is no read-only OAuth scope, and a token that
+  never expires has nothing to refresh. The GitHub App stays documented for
+  anyone who wants least privilege — now including the install step it was
+  missing, which is the documentation gap that caused the issue above.
+
+---
+
 ## [0.8.6] — 2026-11-23
 
 ### Changed

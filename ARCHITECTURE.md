@@ -407,54 +407,6 @@ as a redirect to a signed CDN URL. `reqwest`'s default policy can replay
 headers across hosts; with `Policy::none()` every redirect is resolved by hand,
 and the follow-up request carries no `Authorization` header.
 
-### ADR-011 — Device flow, and one auth path for both app types
-
-**Why the device flow.** A desktop binary cannot keep a client secret, so the
-authorization-code flow would be a fiction. The device flow needs only a public
-client id, has no redirect URI to register or hijack, and keeps the user's
-password inside their browser rather than an embedded webview. The cost is a
-code the user must copy — which is why the UI treats that code as the primary
-element of the screen, not a detail.
-
-**Why the code does not care which app type you register.** The plan framed
-this as a fork: GitHub App for refresh tokens, OAuth App for simplicity. It is
-not a fork. The flow, the storage and the refresh logic are identical; the only
-difference is whether the token response contains `refresh_token` and
-`expires_in`. So the implementation branches on the response:
-
-- refresh token present → proactive refresh 10 minutes before expiry,
-  single-flight, rotation persisted
-- refresh token absent → the token is treated as long-lived and used until
-  GitHub rejects it
-
-This means the decision stays a deployment choice, not a rewrite. It also means
-an OAuth App does not silently get 8-hour expiry handling bolted on that it
-cannot support.
-
-**Why the refresh token is written before the access token.** GitHub invalidates
-a refresh token as soon as it issues a replacement. If the process died after
-persisting the new access token but before the new refresh token, the stored
-refresh token would already be dead and the user would be signed out for good.
-Writing refresh-first means the worst case is a stale access token, which is
-exactly the case a refresh fixes.
-
-**Why refresh is single-flight.** Two concurrent refreshes with the same
-refresh token leave one caller holding a token the other has invalidated. The
-manager therefore serialises refresh behind an async gate and **re-checks after
-acquiring it**, so 20 simultaneous requests collapse into 1 network call. This
-is asserted by a test rather than assumed.
-
-**Why keychain failure degrades to memory rather than failing closed.** "Fail
-closed" here would mean refusing to run on a headless Linux box. The property
-that matters is _never write a token to disk in plaintext_, and in-memory
-storage satisfies it: the user signs in again after a restart (logged as a
-warning), and no secret ever leaves the keychain abstraction.
-
-**Why redirects are disabled on the HTTP client.** GitHub serves log archives as
-a redirect to a signed CDN URL. `reqwest`'s default policy can replay headers
-across hosts; with `Policy::none()` every redirect is resolved by hand, and the
-follow-up request carries no `Authorization` header.
-
 ### ADR-003 — Boxed error causes
 
 `AppError` stores `Box<dyn Error + Send + Sync>` rather than concrete
@@ -694,6 +646,53 @@ compile.
 **What this does not do.** No automatic download, no delta updates, and no help
 for macOS: an unsigned `.app` is still quarantined by Gatekeeper on first launch,
 and auto-update changes nothing about that.
+
+### ADR-023 — A token's reach belongs to the app that minted it
+
+**The bug this exists to prevent.** GitPulse only ever listed public
+repositories for one user, while the code was correct: `/user/repos` with the
+right credential returns private ones. The credential was the problem. The app
+is a **GitHub App**, and the user had _authorized_ it without _installing_ it.
+Those are two separate grants — authorizing produces a user token that says who
+you are, installing is what gives repository access — so the app had been granted
+access to no repositories, and a user access token can only reach the
+intersection of what the user and the app can access. Nothing failed. The token
+worked. It just reached less than the user expected, which is exactly the shape
+of failure that costs an afternoon.
+
+**The decision.** Either app type is supported, and the switch between them is
+deployment configuration rather than code, per ADR-011. Two things follow, and
+both are now enforced:
+
+- **Scopes are baked in as well as read at runtime.** `configured_client_id`
+  already fell back to a compile-time value via `option_env!`;
+  `configured_scopes` did not. A packaged build never sees the shell
+  environment, so an OAuth App release would have requested **no scopes**, got a
+  token that works, and seen public repositories only — the same silent failure
+  arriving by a different road. Both now resolve runtime-first, compile-time
+  second, and `release.yml` supplies each from a repository variable.
+- **A token records which app minted it, and provenance is checked.** Reach is a
+  property of the issuing app, not of the user, so repointing the client id does
+  not upgrade the token already on the machine: it keeps validating, with the
+  old app's reach. `TokenMetadata.client_id` is written at sign-in and compared
+  at `hydrate`; a mismatch — or a token stored before provenance was recorded,
+  which cannot be checked — is discarded and the user is asked to sign in again.
+  Discarding a working token is deliberate: keeping it produces a bug with no
+  error attached, which is the whole lesson of this ADR.
+
+**Rejected: keeping a working token on a client-id change.** It is the
+convenient choice and the dishonest one. The user would see a signed-in app that
+silently cannot reach half of what it should, and would have no signal that a
+sign-in was what fixed it.
+
+**Rejected: an in-app "install the app" button as the fix.** It works and it is
+what most GitHub Apps do, but for a single-user desktop tool it preserves a
+concept the user should not have to hold: GitHub App installation. An OAuth App
+has no installation and no granted-repositories list at all. The trade is
+stated rather than hidden — `repo` is read/write over private repositories, there
+is no read-only OAuth scope, and a non-expiring token means there is nothing to
+refresh — which is why the README leads with the OAuth App and keeps the GitHub
+App documented for anyone who wants least privilege.
 
 ## 4. Threat model
 

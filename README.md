@@ -120,10 +120,25 @@ its public client id, and approve the sign-in in your browser.
 ### 1. Register an app
 
 Either app type works. The code branches on what GitHub's token response
-actually contains, so nothing needs rebuilding to switch.
+actually contains, so nothing needs rebuilding to switch. They differ in one
+user-visible way: **a GitHub App has to be installed; an OAuth App does not.**
 
-**GitHub App** — supports expiring user tokens with rotating refresh tokens, so
-GitPulse stays signed in without ever hitting an expiry wall.
+**OAuth App** — recommended for a personal setup. There is no installation step
+and no "granted repositories" concept: authorize once, and the token reaches
+every repository you can.
+
+1. Settings → Developer settings → **OAuth Apps** → **New OAuth App**
+2. Tick **Enable Device Flow**
+3. Copy the **Client ID**
+
+An OAuth App's scope string _is_ its permission, so set `GITPULSE_GITHUB_SCOPES`
+in step 2 as well. The trade to know: `repo` is **read and write** over every
+private repository you can reach. There is no read-only OAuth scope, and a token
+that never expires means there is nothing to refresh.
+
+**GitHub App** — least privilege, at the cost of an installation step. Its
+repository permissions can be read-only (`Actions: Read`, `Contents: Read`), and
+its user tokens expire and rotate.
 
 1. GitHub → Settings → Developer settings → **GitHub Apps** → **New GitHub App**
 2. Homepage / callback URL: `http://127.0.0.1` — the device flow does not use
@@ -131,12 +146,14 @@ GitPulse stays signed in without ever hitting an expiry wall.
 3. Under **Identifying and authorizing users**, tick **Enable Device Flow**
 4. Tick **Expire user authorization tokens** to get refresh tokens
 5. Save and copy the **Client ID**. GitPulse never needs the client secret.
-
-**OAuth App** — simpler, but the token never expires and there is no refresh.
-
-1. Settings → Developer settings → **OAuth Apps** → **New OAuth App**
-2. Tick **Enable Device Flow**
-3. Copy the **Client ID**
+6. **Install it.** This is the step that is easy to miss, and skipping it is the
+   usual cause of "GitPulse only shows my public repositories". Authorizing and
+   installing are two separate grants: authorizing tells GitPulse who you are,
+   installing is what gives it repository access. A user access token can only
+   reach the intersection of what the user and the app can access, so an
+   uninstalled app reaches public repositories only. Install from the app's page
+   (or Developer settings → GitHub Apps → your app → **Install App**) and pick
+   the repository access you want.
 
 ### 2. Configure GitPulse
 
@@ -156,7 +173,9 @@ $env:GITPULSE_GITHUB_SCOPES = "repo workflow read:user"
 re-run or dispatch workflows. Without them GitPulse can still read public sources.
 
 Both variables are read at runtime, falling back to compile-time values of the
-same name, so a packaged build can be repointed without a rebuild.
+same name, so a packaged build can be repointed without a rebuild. For a release
+they come from repository **variables** of the same name, which
+`.github/workflows/release.yml` passes to the build.
 
 A client id is **not** a secret — it identifies the app, not the user. The
 client secret is never requested, stored, or shipped.
@@ -182,6 +201,23 @@ PowerShell execution policy. Use `npm.cmd`.
 **Blank window on Linux**
 Missing `WEBKIT_DISABLE_COMPOSITING_MODE=1` on some drivers:
 `WEBKIT_DISABLE_COMPOSITING_MODE=1 npm run tauri dev`.
+
+**Only public repositories appear in the picker**
+
+Two causes, and the first is by far the more common:
+
+- **A GitHub App that was authorized but never installed.** Authorizing and
+  installing are separate grants, and an uninstalled app can reach public
+  repositories only. Fix: install it (see step 1). You can tell this apart from
+  the second cause by looking at GitHub → Settings → Applications — the app will
+  be under **Authorized GitHub Apps** and absent from **Installed GitHub Apps**.
+- **An OAuth App with no scopes.** Set `GITPULSE_GITHUB_SCOPES` and sign in
+  again; a token issued without `repo` cannot see private repositories and never
+  will.
+
+Changing the client id signs you out on purpose: a token's reach belongs to the
+app that minted it, so a token from the previous app is discarded rather than
+quietly kept.
 
 ## License
 

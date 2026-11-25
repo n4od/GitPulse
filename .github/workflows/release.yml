@@ -29,6 +29,13 @@ env:
   # not the user - and the device flow never uses a client secret. Stored as a
   # repository variable so it can be repointed without editing this file.
   GITPULSE_GITHUB_CLIENT_ID: ${{ vars.GITPULSE_GITHUB_CLIENT_ID }}
+  # Baked in the same way, by auth::configured_scopes. Empty for a GitHub App
+  # (its permissions come from the app registration and scopes are ignored);
+  # required for an OAuth App, where the scope string *is* the permission.
+  # Set GITPULSE_GITHUB_SCOPES to "repo workflow read:user" for an OAuth App.
+  # Leaving it unset for an OAuth App produces a build that signs in fine and
+  # can see public repositories only - a silent failure, not an error.
+  GITPULSE_GITHUB_SCOPES: ${{ vars.GITPULSE_GITHUB_SCOPES }}
 
 jobs:
   # The draft is created once, here, so that four build jobs can upload into the

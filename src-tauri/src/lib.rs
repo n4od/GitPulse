@@ -168,6 +168,10 @@ fn bootstrap(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         target_os = std::env::consts::OS,
         data_directory = %data_directory.display(),
         client_id_configured = auth::configured_client_id().is_some(),
+        // Empty is correct for a GitHub App and fatal for an OAuth App, and the
+        // two are indistinguishable from the outside. This is the one line that
+        // tells them apart when private repositories do not appear.
+        scopes = %auth::configured_scopes().join(" "),
         "gitpulse starting"
     );
 

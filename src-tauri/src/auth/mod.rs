@@ -24,18 +24,33 @@ pub use types::{AuthSession, AuthState};
 /// This is the whole of the "GitHub App or OAuth App" decision: the flow, the
 /// storage and the refresh all work with either, because they branch on what
 /// the token response actually contains rather than on which app type it was.
+///
+/// Runtime beats compile-time, exactly as the client id does. The compile-time
+/// half is not optional: a packaged build never sees the shell environment, so
+/// without it an OAuth App release would request no scopes, get a token that
+/// works, and see public repositories only - a silent failure indistinguishable
+/// from a permissions bug. That is the same trap the client id already avoids.
 #[must_use]
 pub fn configured_scopes() -> Vec<String> {
-    std::env::var("GITPULSE_GITHUB_SCOPES")
-        .ok()
-        .map(|value| {
-            value
-                .split([',', ' '])
-                .filter(|part| !part.is_empty())
-                .map(str::to_owned)
-                .collect()
-        })
+    if let Ok(value) = std::env::var("GITPULSE_GITHUB_SCOPES") {
+        let parsed = parse_scopes(&value);
+        if !parsed.is_empty() {
+            return parsed;
+        }
+    }
+
+    option_env!("GITPULSE_GITHUB_SCOPES")
+        .map(parse_scopes)
         .unwrap_or_default()
+}
+
+/// `"repo workflow"`, `"repo,workflow"` and `"repo"` all parse the same way.
+fn parse_scopes(value: &str) -> Vec<String> {
+    value
+        .split([',', ' '])
+        .filter(|part| !part.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 /// Resolves the GitHub OAuth/GitHub App client id.

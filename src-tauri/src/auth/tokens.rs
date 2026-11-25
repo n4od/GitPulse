@@ -16,6 +16,25 @@ use super::oauth::{OAuthClient, TokenResponse, Viewer, EXPIRY_SKEW_SECS};
 use super::token_store::{secret, StoredTokens, TokenMetadata, TokenStore};
 use super::types::AuthSession;
 
+/// Whether a stored token was minted by the app `GitPulse` is currently pointed at.
+///
+/// A user token's reach is a property of the app that issued it rather than of
+/// the user: a GitHub App token is bounded by its installation, an OAuth App
+/// token by its scopes. Repointing `GitPulse` at a different client id does not
+/// upgrade the token already on the machine - it keeps validating, with the old
+/// app's reach, which looks exactly like a permissions bug and reports nothing.
+///
+/// `None` (a token stored before provenance was recorded) is treated as stale
+/// rather than trusted: it cannot be checked, and assuming it is fine is the
+/// silent failure this exists to prevent. With no client id configured at all
+/// there is nothing to compare against, so a checkout stays signed in.
+pub(super) fn minted_by_current_app(stored: Option<&str>, configured: Option<&str>) -> bool {
+    match configured {
+        Some(configured) => stored == Some(configured),
+        None => true,
+    }
+}
+
 /// Lets the HTTP client ask for a token without importing the auth internals.
 #[async_trait::async_trait]
 impl crate::github::api::TokenProvider for TokenManager {
@@ -57,6 +76,15 @@ impl TokenManager {
     /// The active pointer is what makes this unambiguous now that more than one
     /// account's tokens can be on the machine.
     pub fn hydrate(&self) -> Result<Option<AuthSession>, AppError> {
+        self.hydrate_as(super::configured_client_id().as_deref())
+    }
+
+    /// [`hydrate`](Self::hydrate) with the app's client id passed in, so the
+    /// provenance rule can be tested without mutating the process environment.
+    pub(super) fn hydrate_as(
+        &self,
+        configured: Option<&str>,
+    ) -> Result<Option<AuthSession>, AppError> {
         let Some(login) = self.store.active()? else {
             return Ok(None);
         };
@@ -64,6 +92,18 @@ impl TokenManager {
         let Some(stored) = self.store.load(&login)? else {
             return Ok(None);
         };
+
+        if !minted_by_current_app(stored.metadata.client_id.as_deref(), configured) {
+            // Keeping it would be worse than asking again: the token works, so
+            // nothing downstream reports a problem, but it carries the reach of
+            // an app that is no longer the one the user granted access to.
+            tracing::info!(
+                login = %login,
+                "the stored token was minted by a different GitHub app; asking for a sign-in"
+            );
+            self.store.remove(&login)?;
+            return Ok(None);
+        }
 
         let session = Self::session_from(&stored.metadata, stored.refresh_token.is_some(), None);
 
@@ -164,6 +204,7 @@ impl TokenManager {
             expires_at: tokens.expires_at,
             refresh_expires_at: tokens.refresh_expires_at,
             scopes: tokens.scopes.clone(),
+            client_id: super::configured_client_id(),
         };
 
         self.apply(tokens, metadata)

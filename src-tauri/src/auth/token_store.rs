@@ -64,6 +64,18 @@ pub struct TokenMetadata {
     pub refresh_expires_at: Option<DateTime<Utc>>,
     #[serde(default)]
     pub scopes: Vec<String>,
+    /// Which GitHub app minted this token.
+    ///
+    /// A user token's reach is a property of the app that issued it, not of the
+    /// user: a GitHub App token is bounded by its installation, an OAuth App
+    /// token by its scopes. Repointing `GitPulse` at a different client id does
+    /// not upgrade the token already on the machine - it keeps working, with the
+    /// old app's reach, which is indistinguishable from a permissions bug.
+    ///
+    /// `None` on tokens stored before this was recorded, which is why `hydrate`
+    /// treats unknown provenance as stale rather than assuming it is fine.
+    #[serde(default)]
+    pub client_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
