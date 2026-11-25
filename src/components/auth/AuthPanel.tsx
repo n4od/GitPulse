@@ -8,10 +8,19 @@ import { DeviceCodeCard } from "@/components/auth/DeviceCodeCard";
 
 export interface AuthPanelProps {
   state: AuthState;
+  /**
+   * The accounts still signed in on this machine.
+   *
+   * Signing out removes one account and leaves the rest, so the signed-out
+   * screen is exactly where these belong — offering only "sign in" made a
+   * decision about one account look like a decision about the machine.
+   */
+  accounts?: readonly string[];
   onSignIn: () => void;
   onCancel: () => void;
   onRetry: () => void;
   onReopen: (uri: string) => void;
+  onContinueAs?: (login: string) => void;
 }
 
 /**
@@ -21,10 +30,12 @@ export interface AuthPanelProps {
  */
 export function AuthPanel({
   state,
+  accounts = [],
   onSignIn,
   onCancel,
   onRetry,
   onReopen,
+  onContinueAs,
 }: AuthPanelProps) {
   switch (state.phase) {
     case "requestingCode":
@@ -105,15 +116,34 @@ export function AuthPanel({
         <Frame
           icon={<LogIn className="size-5 text-accent" />}
           title="Sign in to GitHub"
-          description="GitPulse reads your workflow runs directly from GitHub. Your token is stored in this machine's keychain, never sent anywhere else."
+          description={
+            accounts.length > 0
+              ? "These accounts are still signed in on this machine. Pick one to carry on, or sign in with a different account."
+              : "GitPulse reads your workflow runs directly from GitHub. Your token is stored in this machine's keychain, never sent anywhere else."
+          }
           action={
-            <Button
-              variant="primary"
-              onClick={onSignIn}
-              leadingIcon={<KeyRound className="size-3.5" />}
-            >
-              Sign in with GitHub
-            </Button>
+            <div className="flex w-full max-w-[280px] flex-col items-stretch gap-2">
+              {accounts.map((login) => (
+                <Button
+                  key={login}
+                  variant="secondary"
+                  onClick={() => {
+                    onContinueAs?.(login);
+                  }}
+                >
+                  Continue as {login}
+                </Button>
+              ))}
+              <Button
+                variant={accounts.length > 0 ? "ghost" : "primary"}
+                onClick={onSignIn}
+                leadingIcon={<KeyRound className="size-3.5" />}
+              >
+                {accounts.length > 0
+                  ? "Sign in with a different account"
+                  : "Sign in with GitHub"}
+              </Button>
+            </div>
           }
         />
       );

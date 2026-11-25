@@ -29,6 +29,35 @@ describe("AuthPanel", () => {
     expect(handlers.onSignIn).toHaveBeenCalledTimes(1);
   });
 
+  it("offers the accounts this machine still has after a sign-out", async () => {
+    const onContinueAs = vi.fn();
+    renderPanel(
+      { phase: "signedOut" },
+      { accounts: ["n4od", "birukboss"], onContinueAs },
+    );
+
+    expect(screen.getByRole("button", { name: "Continue as n4od" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Continue as birukboss" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /sign in with a different account/i }),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Continue as n4od" }));
+
+    expect(onContinueAs).toHaveBeenCalledWith("n4od");
+  });
+
+  it("still offers a plain sign-in when no other account is stored", () => {
+    renderPanel({ phase: "signedOut" }, { accounts: [] });
+
+    expect(screen.queryByRole("button", { name: /continue as/i })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /sign in with github/i }),
+    ).toBeInTheDocument();
+  });
+
   it("shows the device code while awaiting the user", () => {
     renderPanel({
       phase: "awaitingUser",

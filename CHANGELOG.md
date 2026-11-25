@@ -17,6 +17,30 @@ _Nothing yet._
 
 ---
 
+## [0.8.8] — 2026-11-26
+
+### Fixed
+
+- **Signing out of one account no longer looks like signing out of the whole
+  machine.** The backend was already right: `sign_out` removes only the active
+  account and leaves the others' tokens in the keychain, because with one entry
+  per account, signing out is a decision about an account rather than about the
+  machine. The signed-out screen never asked, though, so it offered a bare
+  sign-in and hid accounts that were still sitting right there.
+
+  Three things were wrong at once: `useAccounts` was gated on being signed in,
+  with a doc comment claiming a signed-out window has no accounts — exactly
+  backwards; `AuthPanel`'s signed-out branch hardcoded a single button; and the
+  accounts query cached forever, so even a fetch would have kept the account that
+  had just left.
+
+  The screen now lists the accounts this machine still has as **Continue as
+  \<login\>**, which switches without a browser round trip, and keeps a plain
+  sign-in underneath for a different account. With no other account stored it is
+  unchanged.
+
+---
+
 ## [0.8.7] — 2026-11-26
 
 ### Fixed

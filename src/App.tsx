@@ -61,7 +61,7 @@ function Shell() {
   useUpdateBridge();
 
   const repos = useRepos(Boolean(session));
-  const accounts = useAccounts(Boolean(session));
+  const accounts = useAccounts();
   const cards = repos.data ?? [];
 
   // Ctrl/Cmd+K opens the palette; Escape closes whatever is open. Registered
@@ -95,9 +95,13 @@ function Shell() {
     toast("info", `Queued ${ids.length} ${ids.length === 1 ? "refresh" : "refreshes"}`);
   }
 
-  // Signs out and drops the cache the UI is holding for that account.
+  // Signs out of the active account. Other accounts keep their tokens, so the
+  // list this machine still has changes with it — and the window has to ask
+  // again rather than reuse the list from before the sign-out.
   function signOutNow(): void {
-    void signOut();
+    void signOut().then(() => {
+      void queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    });
     queryClient.removeQueries({ queryKey: ["repos"] });
   }
 

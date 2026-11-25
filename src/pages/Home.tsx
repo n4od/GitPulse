@@ -1,10 +1,12 @@
 import { AuthPanel } from "@/components/auth/AuthPanel";
+import { useAccounts } from "@/hooks/useAccounts";
 import { Dashboard } from "@/pages/Dashboard";
 import {
   cancelSignIn,
   openVerificationUri,
   retrySignIn,
   startSignIn,
+  switchAccount,
 } from "@/lib/auth-commands";
 import { useAuthStore, useSession } from "@/stores/auth";
 
@@ -14,12 +16,17 @@ import { useAuthStore, useSession } from "@/stores/auth";
 export function Home() {
   const session = useSession();
   const state = useAuthStore((store) => store.state);
+  const accounts = useAccounts();
 
   if (!session) {
     return (
       <div className="grid min-h-full place-items-center px-6 py-10">
         <AuthPanel
           state={state}
+          accounts={accounts.data ?? []}
+          onContinueAs={(login) => {
+            void switchAccount(login);
+          }}
           onSignIn={() => {
             void startSignIn();
           }}

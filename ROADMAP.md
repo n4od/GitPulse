@@ -35,6 +35,7 @@ Milestone plan for the local-first GitHub workflow monitor (Tauri v2 + Rust + Re
 | `0.8.5` | Honest status       | —          | One status per repository; quiet hours read the local clock              |
 | `0.8.6` | Borderless          | —          | No hairlines; separation comes from surface fills                        |
 | `0.8.7` | Sign-in that holds  | —          | Private repos with no app install; a client-id change forces a sign-in   |
+| `0.8.8` | Accounts that stay  | —          | Signing out of one account offers the others, not a bare login page      |
 | `1.0.0` | Release-ready       | M12        | Signed installers on three OSes — **not scheduled**                      |
 
 **`1.0.0` is not planned.** It was reserved for "signed installers on three
